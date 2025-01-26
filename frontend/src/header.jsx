@@ -1,6 +1,6 @@
 // images import
 import logo from "./assets/img/logo.png";
-
+import { Link } from "react-router-dom";
 function Header() {
   return (
     <header id="header" className="header d-flex align-items-center fixed-top">

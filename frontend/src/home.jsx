@@ -1,6 +1,9 @@
 import React, { useEffect } from "react";
 import Homejs from "./homejs";
 
+import { Link } from "react-router-dom";
+
+
 import herojpg from "./assets/img/hero-bg.jpeg";
 import aboutjpg from "./assets/img/about.jpg";
 import about_2jpg from "./assets/img/about-2.jpg";
@@ -61,9 +64,9 @@ function Home() {
               data-aos="fade-up"
               data-aos-delay="300"
             >
-              <a href="#about" className="btn-get-started">
+              <Link to="/auth" className="btn-get-started">
                 Login/Signup
-              </a>
+              </Link>
               <a
                 href="https://www.youtube.com/watch?v=Y7f98aduVJ8"
                 className="glightbox btn-watch-video d-flex align-items-center"

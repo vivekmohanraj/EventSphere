@@ -89,7 +89,7 @@ h6 {
 
 /* PHP Email Form Messages
 ------------------------------*/
-.php-email-form .error-message {
+.validate-email .error-message {
   display: none;
   background: #df1529;
   color: #ffffff;
@@ -99,7 +99,7 @@ h6 {
   font-weight: 600;
 }
 
-.php-email-form .sent-message {
+.validate-email .sent-message {
   display: none;
   color: #ffffff;
   background: #059652;
@@ -109,7 +109,7 @@ h6 {
   font-weight: 600;
 }
 
-.php-email-form .loading {
+.validate-email .loading {
   display: none;
   background: var(--surface-color);
   text-align: center;
@@ -117,7 +117,7 @@ h6 {
   margin-bottom: 24px;
 }
 
-.php-email-form .loading:before {
+.validate-email .loading:before {
   content: "";
   display: inline-block;
   border-radius: 50%;
@@ -126,10 +126,10 @@ h6 {
   margin: 0 10px -6px 0;
   border: 3px solid var(--accent-color);
   border-top-color: var(--surface-color);
-  animation: php-email-form-loading 1s linear infinite;
+  animation: validate-email-loading 1s linear infinite;
 }
 
-@keyframes php-email-form-loading {
+@keyframes validate-email-loading {
   0% {
     transform: rotate(0deg);
   }
@@ -1660,7 +1660,7 @@ section,
   font-size: 14px;
 }
 
-.contact .php-email-form {
+.contact .validate-email {
   background-color: var(--surface-color);
   box-shadow: 0px 0px 20px rgba(0, 0, 0, 0.1);
   height: 100%;
@@ -1668,14 +1668,14 @@ section,
 }
 
 @media (max-width: 575px) {
-  .contact .php-email-form {
+  .contact .validate-email {
     padding: 20px;
   }
 }
 
-.contact .php-email-form input[type=text],
-.contact .php-email-form input[type=email],
-.contact .php-email-form textarea {
+.contact .validate-email input[type=text],
+.contact .validate-email input[type=email],
+.contact .validate-email textarea {
   font-size: 14px;
   padding: 10px 15px;
   box-shadow: none;
@@ -1685,19 +1685,19 @@ section,
   border-color: color-mix(in srgb, var(--default-color), transparent 80%);
 }
 
-.contact .php-email-form input[type=text]:focus,
-.contact .php-email-form input[type=email]:focus,
-.contact .php-email-form textarea:focus {
+.contact .validate-email input[type=text]:focus,
+.contact .validate-email input[type=email]:focus,
+.contact .validate-email textarea:focus {
   border-color: var(--accent-color);
 }
 
-.contact .php-email-form input[type=text]::placeholder,
-.contact .php-email-form input[type=email]::placeholder,
-.contact .php-email-form textarea::placeholder {
+.contact .validate-email input[type=text]::placeholder,
+.contact .validate-email input[type=email]::placeholder,
+.contact .validate-email textarea::placeholder {
   color: color-mix(in srgb, var(--default-color), transparent 70%);
 }
 
-.contact .php-email-form button[type=submit] {
+.contact .validate-email button[type=submit] {
   color: var(--contrast-color);
   background: var(--accent-color);
   border: 0;
@@ -1706,7 +1706,7 @@ section,
   border-radius: 50px;
 }
 
-.contact .php-email-form button[type=submit]:hover {
+.contact .validate-email button[type=submit]:hover {
   background: color-mix(in srgb, var(--accent-color), transparent 20%);
 }
 
