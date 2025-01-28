@@ -1,4 +1,6 @@
-import { Link } from "react-router-dom";
+
+
+
 function Footer() {
   return (
     <>
@@ -7,7 +9,7 @@ function Footer() {
           <div className="row gy-4">
             <div className="col-lg-4 col-md-6 footer-about">
               <a href="index.html" className="logo d-flex align-items-center">
-                <span className="sitename">EventSphere</span>
+                <span className="sitename">Dewi</span>
               </a>
               <div className="footer-contact pt-3">
                 <p>A108 Adam Street</p>
@@ -92,7 +94,11 @@ function Footer() {
                 Subscribe to our newsletter and receive the latest news about
                 our products and services!
               </p>
-              <form action="" method="post" className="validate-email">
+              <form
+                action="forms/newsletter.php"
+                method="post"
+                className="validate-email"
+              >
                 <div className="newsletter-form">
                   <input type="email" name="email" />
                   <input type="submit" value="Subscribe" />
@@ -110,7 +116,7 @@ function Footer() {
         <div className="container copyright text-center mt-4">
           <p>
             © <span>Copyright</span>{" "}
-            <strong className="px-1 sitename">EventSphere</strong>{" "}
+            <strong className="px-1 sitename">Dewi</strong>{" "}
             <span>All Rights Reserved</span>
           </p>
           <div className="credits">
@@ -123,16 +129,15 @@ function Footer() {
         </div>
       </footer>
       {/* <!-- Scroll Top --> */}
-      <a
-        href="#"
-        id="scroll-top"
-        className="scroll-top d-flex align-items-center justify-content-center"
-      >
-        <i className="bi bi-arrow-up-short"></i>
-      </a>
-
-      {/* <!-- Preloader --> */}
-      <div id="preloader"></div>
+    <a
+      href="#"
+      id="scroll-top"
+      className="scroll-top d-flex align-items-center justify-content-center"
+    >
+      <i className="bi bi-arrow-up-short"></i>
+    </a>
+    {/* <!-- Preloader --> */}
+    <div id="preloader"></div>
     </>
   );
 }

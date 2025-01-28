@@ -1,51 +1,50 @@
 import React, { useEffect } from "react";
-import Homejs from "./homejs";
 
-import { Link } from "react-router-dom";
+// import Homejs from "./homejs";
 
 
-import herojpg from "./assets/img/hero-bg.jpeg";
-import aboutjpg from "./assets/img/about.jpg";
-import about_2jpg from "./assets/img/about-2.jpg";
-import services_1jpg from "./assets/img/services-1.jpg";
-import services_2jpg from "./assets/img/services-2.jpg";
-import services_3jpg from "./assets/img/services-2.jpg";
-import client_1jpg from "./assets/img/clients/client-1.png";
-import client_2jpg from "./assets/img/clients/client-2.png";
-import client_3jpg from "./assets/img/clients/client-3.png";
-import client_4jpg from "./assets/img/clients/client-4.png";
-import client_5jpg from "./assets/img/clients/client-5.png";
-import client_6jpg from "./assets/img/clients/client-6.png";
-import working_1jpg from "./assets/img/working-1.jpg";
-import working_2jpg from "./assets/img/working-2.jpg";
-import working_3jpg from "./assets/img/working-3.jpg";
-import working_4jpg from "./assets/img/working-4.jpg";
-import testimonialsjpg from "./assets/img/testimonials-bg.jpg";
-import testimonials_1jpg from "./assets/img/testimonials/testimonials-1.jpg";
-import testimonials_2jpg from "./assets/img/testimonials/testimonials-2.jpg";
-import testimonials_3jpg from "./assets/img/testimonials/testimonials-3.jpg";
-import testimonials_4jpg from "./assets/img/testimonials/testimonials-3.jpg";
-import testimonials_5jpg from "./assets/img/testimonials/testimonials-5.jpg";
-import portfolio_app_1jpg from "./assets/img/portfolio/app-1.jpg";
-import portfolio_product1jpg from "./assets/img/portfolio/product-1.jpg";
-import portfolio_branding1jpg from "./assets/img/portfolio/branding-1.jpg";
-import portfolio_branding2jpg from "./assets/img/portfolio/branding-2.jpg";
-import portfoliio_books1jpg from "./assets/img/portfolio/books-1.jpg";
-import portfolio_app_2jpg from "./assets/img/portfolio/app-2.jpg";
-import portfolio_product2jpg from "./assets/img/portfolio/product-2.jpg";
-import portfoliio_books2jpg from "./assets/img/portfolio/books-2.jpg";
-import portfolio_app_3jpg from "./assets/img/portfolio/app-3.jpg";
-import portfolio_product3jpg from "./assets/img/portfolio/product-3.jpg";
-import portfolio_branding3jpg from "./assets/img/portfolio/branding-3.jpg";
-import portfoliio_books3jpg from "./assets/img/portfolio/books-3.jpg";
-import team1jpg from "./assets/img/team/team-1.jpg";
-import team2jpg from "./assets/img/team/team-2.jpg";
-import team3jpg from "./assets/img/team/team-3.jpg";
+import herojpg from "../assets/img/hero-bg.jpeg";
+import aboutjpg from "../assets/img/about.jpg";
+import about_2jpg from "../assets/img/about-2.jpg";
+import services_1jpg from "../assets/img/services-1.jpg";
+import services_2jpg from "../assets/img/services-2.jpg";
+import services_3jpg from "../assets/img/services-2.jpg";
+import client_1jpg from "../assets/img/clients/client-1.png";
+import client_2jpg from "../assets/img/clients/client-2.png";
+import client_3jpg from "../assets/img/clients/client-3.png";
+import client_4jpg from "../assets/img/clients/client-4.png";
+import client_5jpg from "../assets/img/clients/client-5.png";
+import client_6jpg from "../assets/img/clients/client-6.png";
+import working_1jpg from "../assets/img/working-1.jpg";
+import working_2jpg from "../assets/img/working-2.jpg";
+import working_3jpg from "../assets/img/working-3.jpg";
+import working_4jpg from "../assets/img/working-4.jpg";
+import testimonialsjpg from "../assets/img/testimonials-bg.jpg";
+import testimonials_1jpg from "../assets/img/testimonials/testimonials-1.jpg";
+import testimonials_2jpg from "../assets/img/testimonials/testimonials-2.jpg";
+import testimonials_3jpg from "../assets/img/testimonials/testimonials-3.jpg";
+import testimonials_4jpg from "../assets/img/testimonials/testimonials-3.jpg";
+import testimonials_5jpg from "../assets/img/testimonials/testimonials-5.jpg";
+import portfolio_app_1jpg from "../assets/img/portfolio/app-1.jpg";
+import portfolio_product1jpg from "../assets/img/portfolio/product-1.jpg";
+import portfolio_branding1jpg from "../assets/img/portfolio/branding-1.jpg";
+import portfolio_branding2jpg from "../assets/img/portfolio/branding-2.jpg";
+import portfoliio_books1jpg from "../assets/img/portfolio/books-1.jpg";
+import portfolio_app_2jpg from "../assets/img/portfolio/app-2.jpg";
+import portfolio_product2jpg from "../assets/img/portfolio/product-2.jpg";
+import portfoliio_books2jpg from "../assets/img/portfolio/books-2.jpg";
+import portfolio_app_3jpg from "../assets/img/portfolio/app-3.jpg";
+import portfolio_product3jpg from "../assets/img/portfolio/product-3.jpg";
+import portfolio_branding3jpg from "../assets/img/portfolio/branding-3.jpg";
+import portfoliio_books3jpg from "../assets/img/portfolio/books-3.jpg";
+import team1jpg from "../assets/img/team/team-1.jpg";
+import team2jpg from "../assets/img/team/team-2.jpg";
+import team3jpg from "../assets/img/team/team-3.jpg";
 
 function Home() {
   return (
     <>
-      <Homejs></Homejs>
+    {/* <Homejs></Homejs> */}
       <main className="main">
         {/* <!-- Hero Section --> */}
         <section id="hero" className="hero section dark-background">
@@ -64,9 +63,9 @@ function Home() {
               data-aos="fade-up"
               data-aos-delay="300"
             >
-              <Link to="/auth" className="btn-get-started">
+              <a href="#about" className="btn-get-started">
                 Login/Signup
-              </Link>
+              </a>
               <a
                 href="https://www.youtube.com/watch?v=Y7f98aduVJ8"
                 className="glightbox btn-watch-video d-flex align-items-center"
@@ -174,7 +173,7 @@ function Home() {
                   <div>
                     <span
                       data-purecounter-start="0"
-                      data-purecounter-end="0"
+                      data-purecounter-end="232"
                       data-purecounter-duration="1"
                       className="purecounter"
                     ></span>
@@ -1506,7 +1505,7 @@ function Home() {
 
               <div className="col-lg-6">
                 <form
-                  action=""
+                  action="forms/contact.php"
                   method="post"
                   className="validate-email"
                   data-aos="fade-up"
@@ -1570,14 +1569,7 @@ function Home() {
           </div>
         </section>
         {/* <!-- /Contact Section --> */}
-      </main>
-      <a
-        href="#"
-        id="scroll-top"
-        className="scroll-top d-flex align-items-center justify-content-center"
-      >
-        <i className="bi bi-arrow-up-short"></i>
-      </a>
+      </main> 
     </>
   );
 }
