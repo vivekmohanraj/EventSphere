@@ -12,13 +12,15 @@
 --------------------------------------------------------------*/
 /* Fonts */
 :root {
-  --default-font: "Roboto",  system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, "Noto Sans", "Liberation Sans", sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji";
-  --heading-font: "Raleway",  sans-serif;
-  --nav-font: "Inter",  sans-serif;
+  --default-font: "Roboto", system-ui, -apple-system, "Segoe UI", Roboto,
+    "Helvetica Neue", Arial, "Noto Sans", "Liberation Sans", sans-serif,
+    "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji";
+  --heading-font: "Raleway", sans-serif;
+  --nav-font: "Inter", sans-serif;
 }
 
 /* Global Colors - The following color variables are used throughout the website. Updating them here will change the color scheme of the entire website */
-:root { 
+:root {
   --background-color: #ffffff; /* Background color for the entire website, including individual sections */
   --default-color: #444444; /* Default color used for the majority of the text content across the entire website */
   --heading-color: #273d4e; /* Color for headings, subheadings and title throughout the website */
@@ -29,7 +31,7 @@
 
 /* Nav Menu Colors - The following color variables are used specifically for the navigation menu. They are separate from the global colors to allow for more customization options */
 :root {
-  --nav-color: #e5eaee;  /* The default color of the main navmenu links */
+  --nav-color: #e5eaee; /* The default color of the main navmenu links */
   --nav-hover-color: #ff4a17; /* Applied to main navmenu links when they are hovered over or active */
   --nav-mobile-background-color: #ffffff; /* Used as the background color for mobile navigation menu */
   --nav-dropdown-background-color: #ffffff; /* Used as the background color for dropdown items that appear when hovering over primary navigation items */
@@ -60,29 +62,29 @@
 /*--------------------------------------------------------------
 # General Styling & Shared Classes
 --------------------------------------------------------------*/
-body {
+.general {
   color: var(--default-color);
   background-color: var(--background-color);
   font-family: var(--default-font);
 }
 
-a {
+.general a {
   color: var(--accent-color);
   text-decoration: none;
   transition: 0.3s;
 }
 
-a:hover {
+.general a:hover {
   color: color-mix(in srgb, var(--accent-color), transparent 25%);
   text-decoration: none;
 }
 
-h1,
-h2,
-h3,
-h4,
-h5,
-h6 {
+.general h1,
+.general h2,
+.general h3,
+.general h4,
+.general h5,
+.general h6 {
   color: var(--heading-color);
   font-family: var(--heading-font);
 }
@@ -141,17 +143,20 @@ h6 {
 
 /* Pulsating Play Button
 ------------------------------*/
-.pulsating-play-btn {
+.home-css .pulsating-play-btn {
   width: 94px;
   height: 94px;
-  background: radial-gradient(var(--accent-color) 50%, color-mix(in srgb, var(--accent-color), transparent 75%) 52%);
+  background: radial-gradient(
+    var(--accent-color) 50%,
+    color-mix(in srgb, var(--accent-color), transparent 75%) 52%
+  );
   border-radius: 50%;
   display: block;
   position: relative;
   overflow: hidden;
 }
 
-.pulsating-play-btn:before {
+.home-css .pulsating-play-btn:before {
   content: "";
   position: absolute;
   width: 120px;
@@ -169,7 +174,7 @@ h6 {
   background: rgba(198, 16, 0, 0);
 }
 
-.pulsating-play-btn:after {
+.home-css .pulsating-play-btn:after {
   content: "";
   position: absolute;
   left: 50%;
@@ -184,7 +189,7 @@ h6 {
   transition: all 400ms cubic-bezier(0.55, 0.055, 0.675, 0.19);
 }
 
-.pulsating-play-btn:hover:before {
+.home-css .pulsating-play-btn:hover:before {
   content: "";
   position: absolute;
   left: 50%;
@@ -201,7 +206,7 @@ h6 {
   border-radius: 0;
 }
 
-.pulsating-play-btn:hover:after {
+.home-css .pulsating-play-btn:hover:after {
   border-left: 15px solid var(--accent-color);
   transform: scale(20);
 }
@@ -314,12 +319,12 @@ h6 {
     position: relative;
   }
 
-  .navmenu>ul>li {
+  .navmenu > ul > li {
     white-space: nowrap;
     padding: 15px 14px;
   }
 
-  .navmenu>ul>li:last-child {
+  .navmenu > ul > li:last-child {
     padding-right: 0;
   }
 
@@ -347,7 +352,7 @@ h6 {
     transition: 0.3s;
   }
 
-  .navmenu>ul>li>a:before {
+  .navmenu > ul > li > a:before {
     content: "";
     position: absolute;
     height: 2px;
@@ -360,13 +365,13 @@ h6 {
   }
 
   .navmenu a:hover:before,
-  .navmenu li:hover>a:before,
+  .navmenu li:hover > a:before,
   .navmenu .active:before {
     visibility: visible;
     width: 100%;
   }
 
-  .navmenu li:hover>a,
+  .navmenu li:hover > a,
   .navmenu .active,
   .navmenu .active:focus {
     color: color-mix(in srgb, var(--nav-color) 90%, white 15%);
@@ -405,11 +410,11 @@ h6 {
 
   .navmenu .dropdown ul a:hover,
   .navmenu .dropdown ul .active:hover,
-  .navmenu .dropdown ul li:hover>a {
+  .navmenu .dropdown ul li:hover > a {
     color: var(--nav-dropdown-hover-color);
   }
 
-  .navmenu .dropdown:hover>ul {
+  .navmenu .dropdown:hover > ul {
     opacity: 1;
     top: 100%;
     visibility: visible;
@@ -421,7 +426,7 @@ h6 {
     visibility: hidden;
   }
 
-  .navmenu .dropdown .dropdown:hover>ul {
+  .navmenu .dropdown .dropdown:hover > ul {
     opacity: 1;
     top: 0;
     left: -100%;
@@ -523,7 +528,7 @@ h6 {
     background-color: rgba(33, 37, 41, 0.1);
   }
 
-  .navmenu .dropdown>.dropdown-active {
+  .navmenu .dropdown > .dropdown-active {
     display: block;
     background-color: rgba(33, 37, 41, 0.03);
   }
@@ -550,7 +555,7 @@ h6 {
     transition: 0.3s;
   }
 
-  .mobile-nav-active .navmenu>ul {
+  .mobile-nav-active .navmenu > ul {
     display: block;
   }
 }
@@ -567,7 +572,8 @@ h6 {
 
 .footer .footer-top {
   padding-top: 50px;
-  border-top: 1px solid color-mix(in srgb, var(--default-color), transparent 90%);
+  border-top: 1px solid
+    color-mix(in srgb, var(--default-color), transparent 90%);
 }
 
 .footer .footer-about .logo {
@@ -676,7 +682,7 @@ h6 {
   border-color: var(--accent-color);
 }
 
-.footer .footer-newsletter .newsletter-form input[type=email] {
+.footer .footer-newsletter .newsletter-form input[type="email"] {
   border: 0;
   padding: 4px;
   width: 100%;
@@ -684,11 +690,11 @@ h6 {
   color: var(--default-color);
 }
 
-.footer .footer-newsletter .newsletter-form input[type=email]:focus-visible {
+.footer .footer-newsletter .newsletter-form input[type="email"]:focus-visible {
   outline: none;
 }
 
-.footer .footer-newsletter .newsletter-form input[type=submit] {
+.footer .footer-newsletter .newsletter-form input[type="submit"] {
   border: 0;
   font-size: 16px;
   padding: 0 20px;
@@ -699,13 +705,14 @@ h6 {
   border-radius: 0 4px 4px 0;
 }
 
-.footer .footer-newsletter .newsletter-form input[type=submit]:hover {
+.footer .footer-newsletter .newsletter-form input[type="submit"]:hover {
   background: color-mix(in srgb, var(--accent-color), transparent 20%);
 }
 
 .footer .copyright {
   padding: 25px 0;
-  border-top: 1px solid color-mix(in srgb, var(--default-color), transparent 90%);
+  border-top: 1px solid
+    color-mix(in srgb, var(--default-color), transparent 90%);
 }
 
 .footer .copyright p {
@@ -832,11 +839,11 @@ h6 {
   font-weight: 400;
 }
 
-.page-title .breadcrumbs ol li+li {
+.page-title .breadcrumbs ol li + li {
   padding-left: 10px;
 }
 
-.page-title .breadcrumbs ol li+li::before {
+.page-title .breadcrumbs ol li + li::before {
   content: "/";
   display: inline-block;
   padding-right: 10px;
@@ -856,7 +863,6 @@ section,
 }
 
 @media (max-width: 1199px) {
-
   section,
   .section {
     scroll-margin-top: 76px;
@@ -1042,7 +1048,7 @@ section,
   margin-bottom: 0;
 }
 
-.about .pulsating-play-btn {
+.home-css .about .pulsating-play-btn {
   position: absolute;
   left: calc(50% - 47px);
   top: calc(50% - 47px);
@@ -1673,8 +1679,8 @@ section,
   }
 }
 
-.contact .validate-email input[type=text],
-.contact .validate-email input[type=email],
+.contact .validate-email input[type="text"],
+.contact .validate-email input[type="email"],
 .contact .validate-email textarea {
   font-size: 14px;
   padding: 10px 15px;
@@ -1685,19 +1691,19 @@ section,
   border-color: color-mix(in srgb, var(--default-color), transparent 80%);
 }
 
-.contact .validate-email input[type=text]:focus,
-.contact .validate-email input[type=email]:focus,
+.contact .validate-email input[type="text"]:focus,
+.contact .validate-email input[type="email"]:focus,
 .contact .validate-email textarea:focus {
   border-color: var(--accent-color);
 }
 
-.contact .validate-email input[type=text]::placeholder,
-.contact .validate-email input[type=email]::placeholder,
+.contact .validate-email input[type="text"]::placeholder,
+.contact .validate-email input[type="email"]::placeholder,
 .contact .validate-email textarea::placeholder {
   color: color-mix(in srgb, var(--default-color), transparent 70%);
 }
 
-.contact .validate-email button[type=submit] {
+.contact .validate-email button[type="submit"] {
   color: var(--contrast-color);
   background: var(--accent-color);
   border: 0;
@@ -1706,7 +1712,7 @@ section,
   border-radius: 50px;
 }
 
-.contact .validate-email button[type=submit]:hover {
+.contact .validate-email button[type="submit"]:hover {
   background: color-mix(in srgb, var(--accent-color), transparent 20%);
 }
 
@@ -1722,14 +1728,20 @@ section,
   position: relative;
 }
 
-.portfolio-details .portfolio-details-slider .swiper-pagination .swiper-pagination-bullet {
+.portfolio-details
+  .portfolio-details-slider
+  .swiper-pagination
+  .swiper-pagination-bullet {
   width: 12px;
   height: 12px;
   background-color: color-mix(in srgb, var(--default-color), transparent 85%);
   opacity: 1;
 }
 
-.portfolio-details .portfolio-details-slider .swiper-pagination .swiper-pagination-bullet-active {
+.portfolio-details
+  .portfolio-details-slider
+  .swiper-pagination
+  .swiper-pagination-bullet-active {
   background-color: var(--accent-color);
 }
 
@@ -1744,7 +1756,8 @@ section,
   font-weight: 700;
   margin-bottom: 20px;
   padding-bottom: 20px;
-  border-bottom: 1px solid color-mix(in srgb, var(--default-color), transparent 85%);
+  border-bottom: 1px solid
+    color-mix(in srgb, var(--default-color), transparent 85%);
 }
 
 .portfolio-details .portfolio-info ul {
@@ -1753,7 +1766,7 @@ section,
   font-size: 15px;
 }
 
-.portfolio-details .portfolio-info ul li+li {
+.portfolio-details .portfolio-info ul li + li {
   margin-top: 10px;
 }
 
@@ -1786,7 +1799,8 @@ section,
   display: block;
   line-height: 1;
   padding: 8px 0 8px 15px;
-  border-left: 3px solid color-mix(in srgb, var(--default-color), transparent 70%);
+  border-left: 3px solid
+    color-mix(in srgb, var(--default-color), transparent 70%);
   margin: 20px 0;
   color: color-mix(in srgb, var(--default-color), transparent 20%);
   transition: 0.3s;
