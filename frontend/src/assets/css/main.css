@@ -1346,7 +1346,7 @@
   background: color-mix(in srgb, var(--background-color), transparent 30%);
   position: absolute;
   inset: 0;
-  z-index: 2;
+  z-index: 0;
 }
 
 .home-css .testimonials .testimonials-bg {

@@ -26,7 +26,7 @@ const LoginRegistration = () => {
     uppercase: false,
     lowercase: false,
     number: false,
-    special: false
+    special: false,
   });
 
   const checkPasswordStrength = (password) => {
@@ -35,7 +35,7 @@ const LoginRegistration = () => {
       uppercase: /[A-Z]/.test(password),
       lowercase: /[a-z]/.test(password),
       number: /[0-9]/.test(password),
-      special: /[!@#$%^&*]/.test(password)
+      special: /[!@#$%^&*]/.test(password),
     };
   };
 
@@ -49,7 +49,7 @@ const LoginRegistration = () => {
   const handleInputChange = (e) => {
     const { name, value } = e.target;
     let newValue = value;
-    
+
     // Prevent leading spaces for specific fields
     if (["firstName", "lastName", "username"].includes(name)) {
       newValue = value.trimStart();
@@ -59,8 +59,8 @@ const LoginRegistration = () => {
       setPasswordStrength(checkPasswordStrength(value));
     }
 
-    setRegistrationDetails(prev => ({ ...prev, [name]: newValue }));
-    
+    setRegistrationDetails((prev) => ({ ...prev, [name]: newValue }));
+
     // Live validation
     let newErrors = { ...errors };
     delete newErrors[name];
@@ -70,7 +70,10 @@ const LoginRegistration = () => {
       if (value.length > 0) {
         setTimeout(() => {
           if (["taken", "admin"].includes(value.toLowerCase())) {
-            setErrors(prev => ({ ...prev, username: "Username already taken" }));
+            setErrors((prev) => ({
+              ...prev,
+              username: "Username already taken",
+            }));
           }
         }, 500);
       }
@@ -82,10 +85,10 @@ const LoginRegistration = () => {
   const handleFileChange = (e) => {
     const file = e.target.files[0];
     if (file && (file.type === "image/jpeg" || file.type === "image/png")) {
-      setRegistrationDetails(prev => ({ ...prev, profilePic: file }));
-      setErrors(prev => ({ ...prev, profilePic: "" }));
+      setRegistrationDetails((prev) => ({ ...prev, profilePic: file }));
+      setErrors((prev) => ({ ...prev, profilePic: "" }));
     } else {
-      setErrors(prev => ({
+      setErrors((prev) => ({
         ...prev,
         profilePic: "Only JPG and PNG formats are allowed.",
       }));
@@ -94,15 +97,29 @@ const LoginRegistration = () => {
 
   const validateRegistration = () => {
     let newErrors = {};
-    const fields = ["firstName", "lastName", "username", "email", "password", "confirmPassword", "profilePic"];
-    
-    fields.forEach(field => {
+    const fields = [
+      "firstName",
+      "lastName",
+      "username",
+      "email",
+      "password",
+      "confirmPassword",
+      "profilePic",
+    ];
+
+    fields.forEach((field) => {
       if (!registrationDetails[field]) {
-        newErrors[field] = `${field.charAt(0).toUpperCase() + field.slice(1).replace(/([A-Z])/g, ' $1')} is required.`;
+        newErrors[field] = `${
+          field.charAt(0).toUpperCase() +
+          field.slice(1).replace(/([A-Z])/g, " $1")
+        } is required.`;
       }
     });
 
-    if (registrationDetails.email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(registrationDetails.email)) {
+    if (
+      registrationDetails.email &&
+      !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(registrationDetails.email)
+    ) {
       newErrors.email = "Valid email is required.";
     }
 
@@ -132,7 +149,7 @@ const LoginRegistration = () => {
 
   const handleRoleSelect = (selectedRole) => {
     setRole(selectedRole);
-    setRegistrationDetails(prev => ({ ...prev, role: selectedRole }));
+    setRegistrationDetails((prev) => ({ ...prev, role: selectedRole }));
     setShowModal(false);
   };
 
@@ -144,8 +161,19 @@ const LoginRegistration = () => {
 
   return (
     <>
-      <div className="dummy" style={{ height: "90px", width: "100%", backgroundColor: "rgba(21, 34, 43, 0.85)", position: "relative" }}></div>
-      <div className="container d-flex flex-column align-items-center py-5" style={{ minHeight: "100vh" }}>
+      <div
+        className="dummy"
+        style={{
+          height: "90px",
+          width: "100%",
+          backgroundColor: "rgba(21, 34, 43, 0.85)",
+          position: "relative",
+        }}
+      ></div>
+      <div
+        className="container d-flex flex-column align-items-center py-5"
+        style={{ minHeight: "100vh" }}
+      >
         <ToastContainer />
         <div className={`card shadow p-4 ${styles.formContainer}`}>
           <h3 className="text-center mb-4">{isLogin ? "Login" : "Register"}</h3>
@@ -153,15 +181,26 @@ const LoginRegistration = () => {
             <Form>
               <Form.Group className="mb-3">
                 <Form.Label>Username or Email</Form.Label>
-                <Form.Control type="text" placeholder="Enter username or email" />
+                <Form.Control
+                  type="text"
+                  placeholder="Enter username or email"
+                />
               </Form.Group>
               <Form.Group className="mb-3">
                 <Form.Label>Password</Form.Label>
                 <Form.Control type="password" placeholder="Enter password" />
               </Form.Group>
               <div className="d-flex justify-content-between align-items-center mb-3">
-                <Button variant="link" style={{ color: "#ff4a17" }}>Forgot Password?</Button>
-                <Button variant="primary" type="submit" className={styles.customBtn}>Login</Button>
+                <Button variant="link" style={{ color: "#ff4a17" }}>
+                  Forgot Password?
+                </Button>
+                <Button
+                  variant="primary"
+                  type="submit"
+                  className={styles.customBtn}
+                >
+                  Login
+                </Button>
               </div>
               <div className="text-center mt-3">
                 <Button variant="outline-danger">Sign in with Google</Button>
@@ -258,19 +297,39 @@ const LoginRegistration = () => {
                   onChange={handleInputChange}
                 />
                 <div className={styles.passwordCriteria}>
-                  <div className={`${styles.criteriaItem} ${passwordStrength.length ? styles.met : styles.unmet}`}>
+                  <div
+                    className={`${styles.criteriaItem} ${
+                      passwordStrength.length ? styles.met : styles.unmet
+                    }`}
+                  >
                     ✓ At least 8 characters
                   </div>
-                  <div className={`${styles.criteriaItem} ${passwordStrength.uppercase ? styles.met : styles.unmet}`}>
+                  <div
+                    className={`${styles.criteriaItem} ${
+                      passwordStrength.uppercase ? styles.met : styles.unmet
+                    }`}
+                  >
                     ✓ One uppercase letter
                   </div>
-                  <div className={`${styles.criteriaItem} ${passwordStrength.lowercase ? styles.met : styles.unmet}`}>
+                  <div
+                    className={`${styles.criteriaItem} ${
+                      passwordStrength.lowercase ? styles.met : styles.unmet
+                    }`}
+                  >
                     ✓ One lowercase letter
                   </div>
-                  <div className={`${styles.criteriaItem} ${passwordStrength.number ? styles.met : styles.unmet}`}>
+                  <div
+                    className={`${styles.criteriaItem} ${
+                      passwordStrength.number ? styles.met : styles.unmet
+                    }`}
+                  >
                     ✓ One number
                   </div>
-                  <div className={`${styles.criteriaItem} ${passwordStrength.special ? styles.met : styles.unmet}`}>
+                  <div
+                    className={`${styles.criteriaItem} ${
+                      passwordStrength.special ? styles.met : styles.unmet
+                    }`}
+                  >
                     ✓ One special character
                   </div>
                 </div>
@@ -298,14 +357,18 @@ const LoginRegistration = () => {
             </Form>
           )}
           <div className="text-center mt-3">
-            <Button variant="link" style={{ color: "#ff4a17" }} onClick={handleToggle}>
+            <Button
+              variant="link"
+              style={{ color: "#ff4a17" }}
+              onClick={handleToggle}
+            >
               {isLogin ? "Switch to Register" : "Switch to Login"}
             </Button>
           </div>
         </div>
 
-        <Modal 
-          show={showModal} 
+        <Modal
+          show={showModal}
           onHide={() => {}}
           centered
           backdrop="static"
@@ -332,7 +395,8 @@ const LoginRegistration = () => {
             >
               I am an Event Coordinator
               <div className={styles.roleDescription}>
-                Create and manage events, track attendance, and engage with attendees
+                Create and manage events, track attendance, and engage with
+                attendees
               </div>
             </Button>
           </Modal.Body>
