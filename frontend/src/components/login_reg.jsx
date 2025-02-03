@@ -1,175 +1,105 @@
-import React, { useState, useEffect } from "react";
-import { Modal, Button, Form } from "react-bootstrap";
+import React, { useState } from "react";
+import { Modal, Button, Form, Row, Col } from "react-bootstrap";
 import { ToastContainer, toast } from "react-toastify";
+import { z } from "zod";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { useForm } from "react-hook-form";
+import { Camera, User, Calendar } from "lucide-react";
 import "react-toastify/dist/ReactToastify.css";
 import "bootstrap/dist/css/bootstrap.min.css";
 import styles from "../assets/css/login_reg.module.css";
-import { Camera } from "lucide-react";
+
+// Zod Schemas
+const loginSchema = z.object({
+  login: z.string().min(1, "Username or email is required"),
+  password: z.string().min(1, "Password is required"),
+});
+
+const registerSchema = z
+  .object({
+    firstName: z
+      .string()
+      .min(1, "First name is required")
+      .regex(/^[A-Za-z]+$/, "No numbers or special characters allowed")
+      .transform((val) => val.trim()),
+    lastName: z
+      .string()
+      .min(1, "Last name is required")
+      .regex(/^[A-Za-z]+$/, "No numbers or special characters allowed")
+      .transform((val) => val.trim()),
+    username: z
+      .string()
+      .min(3, "Username must be at least 3 characters")
+      .regex(
+        /^[a-z0-9_]+$/,
+        "Only lowercase letters, numbers and underscores allowed"
+      ),
+    email: z.string().email("Invalid email address"),
+    password: z
+      .string()
+      .min(8, "Password must be at least 8 characters")
+      .regex(/[A-Z]/, "Must contain at least one uppercase letter")
+      .regex(/[a-z]/, "Must contain at least one lowercase letter")
+      .regex(/[0-9]/, "Must contain at least one number")
+      .regex(/[!@#$%^&*]/, "Must contain at least one special character"),
+    confirmPassword: z.string(),
+    profilePic: z.instanceof(File),
+    role: z.enum(["User", "Event Coordinator"]),
+  })
+  .refine((data) => data.password === data.confirmPassword, {
+    message: "Passwords don't match",
+    path: ["confirmPassword"],
+  });
 
 const LoginRegistration = () => {
   const [isLogin, setIsLogin] = useState(true);
-  const [showModal, setShowModal] = useState(false);
-  const [role, setRole] = useState("");
-  const [registrationDetails, setRegistrationDetails] = useState({
-    firstName: "",
-    lastName: "",
-    username: "",
-    email: "",
-    password: "",
-    confirmPassword: "",
-    profilePic: null,
-    role: "",
-  });
-  const [errors, setErrors] = useState({});
-  const [passwordStrength, setPasswordStrength] = useState({
-    length: false,
-    uppercase: false,
-    lowercase: false,
-    number: false,
-    special: false,
-  });
+  const [showRoleModal, setShowRoleModal] = useState(false);
+  const [profilePreview, setProfilePreview] = useState(null);
 
-  const checkPasswordStrength = (password) => {
-    return {
-      length: password.length >= 8,
-      uppercase: /[A-Z]/.test(password),
-      lowercase: /[a-z]/.test(password),
-      number: /[0-9]/.test(password),
-      special: /[!@#$%^&*]/.test(password),
-    };
-  };
+  const {
+    register: loginRegister,
+    handleSubmit: handleLoginSubmit,
+    formState: { errors: loginErrors },
+  } = useForm({ resolver: zodResolver(loginSchema) });
+
+  const {
+    register,
+    handleSubmit,
+    watch,
+    formState: { errors },
+    trigger,
+    setValue,
+  } = useForm({ resolver: zodResolver(registerSchema), mode: "onChange" });
 
   const handleToggle = () => {
+    if (isLogin) setShowRoleModal(true);
     setIsLogin(!isLogin);
-    if (!isLogin) {
-      setShowModal(true);
-    }
   };
 
-  const handleInputChange = (e) => {
-    const { name, value } = e.target;
-    let newValue = value;
-
-    // Prevent leading spaces for specific fields
-    if (["firstName", "lastName", "username"].includes(name)) {
-      newValue = value.trimStart();
-    }
-
-    if (name === "password") {
-      setPasswordStrength(checkPasswordStrength(value));
-    }
-
-    setRegistrationDetails((prev) => ({ ...prev, [name]: newValue }));
-
-    // Live validation
-    let newErrors = { ...errors };
-    delete newErrors[name];
-
-    if (name === "username") {
-      // Simulate API check for username - replace with actual API call
-      if (value.length > 0) {
-        setTimeout(() => {
-          if (["taken", "admin"].includes(value.toLowerCase())) {
-            setErrors((prev) => ({
-              ...prev,
-              username: "Username already taken",
-            }));
-          }
-        }, 500);
-      }
-    }
-
-    setErrors(newErrors);
+  const handleRoleSelect = (role) => {
+    setValue("role", role);
+    setShowRoleModal(false);
   };
 
   const handleFileChange = (e) => {
     const file = e.target.files[0];
-    if (file && (file.type === "image/jpeg" || file.type === "image/png")) {
-      setRegistrationDetails((prev) => ({ ...prev, profilePic: file }));
-      setErrors((prev) => ({ ...prev, profilePic: "" }));
-    } else {
-      setErrors((prev) => ({
-        ...prev,
-        profilePic: "Only JPG and PNG formats are allowed.",
-      }));
+    if (file) {
+      setValue("profilePic", file);
+      setProfilePreview(URL.createObjectURL(file));
     }
   };
 
-  const validateRegistration = () => {
-    let newErrors = {};
-    const fields = [
-      "firstName",
-      "lastName",
-      "username",
-      "email",
-      "password",
-      "confirmPassword",
-      "profilePic",
-    ];
-
-    fields.forEach((field) => {
-      if (!registrationDetails[field]) {
-        newErrors[field] = `${
-          field.charAt(0).toUpperCase() +
-          field.slice(1).replace(/([A-Z])/g, " $1")
-        } is required.`;
-      }
-    });
-
-    if (
-      registrationDetails.email &&
-      !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(registrationDetails.email)
-    ) {
-      newErrors.email = "Valid email is required.";
-    }
-
-    const strength = checkPasswordStrength(registrationDetails.password);
-    if (!Object.values(strength).every(Boolean)) {
-      newErrors.password = "Password does not meet all requirements.";
-    }
-
-    if (registrationDetails.password !== registrationDetails.confirmPassword) {
-      newErrors.confirmPassword = "Passwords do not match.";
-    }
-
-    if (!registrationDetails.role) {
-      newErrors.role = "Please select a role.";
-    }
-
-    setErrors(newErrors);
-    return Object.keys(newErrors).length === 0;
+  const onSubmitLogin = (data) => {
+    toast.success("Login successful!");
   };
 
-  const handleRegistrationSubmit = (e) => {
-    e.preventDefault();
-    if (validateRegistration()) {
-      toast.success("Registration successful!");
-    }
+  const onSubmitRegister = (data) => {
+    toast.success("Registration successful!");
   };
-
-  const handleRoleSelect = (selectedRole) => {
-    setRole(selectedRole);
-    setRegistrationDetails((prev) => ({ ...prev, role: selectedRole }));
-    setShowModal(false);
-  };
-
-  useEffect(() => {
-    if (!isLogin && !role) {
-      setShowModal(true);
-    }
-  }, [isLogin, role]);
 
   return (
     <>
-      <div
-        className="dummy"
-        style={{
-          height: "90px",
-          width: "100%",
-          backgroundColor: "rgba(21, 34, 43, 0.85)",
-          position: "relative",
-        }}
-      ></div>
+      <div className="dummy"></div>
       <div
         className="container d-flex flex-column align-items-center py-5"
         style={{ minHeight: "100vh" }}
@@ -177,101 +107,120 @@ const LoginRegistration = () => {
         <ToastContainer />
         <div className={`card shadow p-4 ${styles.formContainer}`}>
           <h3 className="text-center mb-4">{isLogin ? "Login" : "Register"}</h3>
+
           {isLogin ? (
-            <Form>
+            <Form onSubmit={handleLoginSubmit(onSubmitLogin)}>
               <Form.Group className="mb-3">
                 <Form.Label>Username or Email</Form.Label>
                 <Form.Control
-                  type="text"
-                  placeholder="Enter username or email"
+                  {...loginRegister("login")}
+                  isInvalid={!!loginErrors.login}
                 />
+                {loginErrors.login && (
+                  <Form.Text className="text-danger">
+                    {loginErrors.login.message}
+                  </Form.Text>
+                )}
               </Form.Group>
+
               <Form.Group className="mb-3">
                 <Form.Label>Password</Form.Label>
-                <Form.Control type="password" placeholder="Enter password" />
+                <Form.Control
+                  type="password"
+                  {...loginRegister("password")}
+                  isInvalid={!!loginErrors.password}
+                />
+                {loginErrors.password && (
+                  <Form.Text className="text-danger">
+                    {loginErrors.password.message}
+                  </Form.Text>
+                )}
               </Form.Group>
-              <div className="d-flex justify-content-between align-items-center mb-3">
-                <Button variant="link" style={{ color: "#ff4a17" }}>
-                  Forgot Password?
-                </Button>
-                <Button
-                  variant="primary"
-                  type="submit"
-                  className={styles.customBtn}
-                >
+
+              <div className="d-grid gap-2">
+                <Button type="submit" className={styles.customBtn}>
                   Login
                 </Button>
-              </div>
-              <div className="text-center mt-3">
                 <Button variant="outline-danger">Sign in with Google</Button>
               </div>
             </Form>
           ) : (
-            <Form onSubmit={handleRegistrationSubmit}>
+            <Form onSubmit={handleSubmit(onSubmitRegister)}>
               <div className={styles.profileSection}>
                 <div className={styles.profilePreview}>
-                  {registrationDetails.profilePic ? (
+                  {profilePreview ? (
                     <img
-                      src={URL.createObjectURL(registrationDetails.profilePic)}
-                      alt="Profile Preview"
+                      src={profilePreview}
+                      alt="Profile"
                       className={styles.profileImage}
                     />
                   ) : (
-                    <Camera size={40} color="#666" />
+                    <Camera size={40} className="text-muted" />
                   )}
                 </div>
                 <Form.Control
                   type="file"
-                  accept="image/jpeg, image/png"
+                  accept="image/*"
                   onChange={handleFileChange}
                   className="w-auto"
+                  isInvalid={!!errors.profilePic}
                 />
                 {errors.profilePic && (
-                  <div className="text-danger">{errors.profilePic}</div>
+                  <Form.Text className="text-danger">
+                    {errors.profilePic.message}
+                  </Form.Text>
                 )}
               </div>
 
-              <div className="row">
-                <div className="col-md-6">
+              <Row>
+                <Col md={6}>
                   <Form.Group className="mb-3">
                     <Form.Label>First Name</Form.Label>
                     <Form.Control
-                      type="text"
-                      name="firstName"
-                      value={registrationDetails.firstName}
-                      onChange={handleInputChange}
+                      {...register("firstName", {
+                        onChange: () => trigger("firstName"),
+                      })}
+                      isInvalid={!!errors.firstName}
                     />
                     {errors.firstName && (
-                      <div className="text-danger">{errors.firstName}</div>
+                      <Form.Text className="text-danger">
+                        {errors.firstName.message}
+                      </Form.Text>
                     )}
                   </Form.Group>
-                </div>
-                <div className="col-md-6">
+                </Col>
+                <Col md={6}>
                   <Form.Group className="mb-3">
                     <Form.Label>Last Name</Form.Label>
                     <Form.Control
-                      type="text"
-                      name="lastName"
-                      value={registrationDetails.lastName}
-                      onChange={handleInputChange}
+                      {...register("lastName", {
+                        onChange: () => trigger("lastName"),
+                      })}
+                      isInvalid={!!errors.lastName}
                     />
                     {errors.lastName && (
-                      <div className="text-danger">{errors.lastName}</div>
+                      <Form.Text className="text-danger">
+                        {errors.lastName.message}
+                      </Form.Text>
                     )}
                   </Form.Group>
-                </div>
-              </div>
+                </Col>
+              </Row>
 
               <Form.Group className="mb-3">
                 <Form.Label>Username</Form.Label>
                 <Form.Control
-                  type="text"
-                  name="username"
-                  value={registrationDetails.username}
-                  onChange={handleInputChange}
+                  {...register("username", {
+                    onChange: () => trigger("username"),
+                    onBlur: (e) =>
+                      setValue("username", e.target.value.toLowerCase()),
+                  })}
+                  isInvalid={!!errors.username}
                 />
                 {errors.username && (
-                  <div className="text-danger">{errors.username}</div>
+                  <Form.Text className="text-danger">
+                    {errors.username.message}
+                  </Form.Text>
                 )}
               </Form.Group>
 
@@ -279,12 +228,13 @@ const LoginRegistration = () => {
                 <Form.Label>Email</Form.Label>
                 <Form.Control
                   type="email"
-                  name="email"
-                  value={registrationDetails.email}
-                  onChange={handleInputChange}
+                  {...register("email", { onChange: () => trigger("email") })}
+                  isInvalid={!!errors.email}
                 />
                 {errors.email && (
-                  <div className="text-danger">{errors.email}</div>
+                  <Form.Text className="text-danger">
+                    {errors.email.message}
+                  </Form.Text>
                 )}
               </Form.Group>
 
@@ -292,49 +242,15 @@ const LoginRegistration = () => {
                 <Form.Label>Password</Form.Label>
                 <Form.Control
                   type="password"
-                  name="password"
-                  value={registrationDetails.password}
-                  onChange={handleInputChange}
+                  {...register("password", {
+                    onChange: () => trigger("password"),
+                  })}
+                  isInvalid={!!errors.password}
                 />
-                <div className={styles.passwordCriteria}>
-                  <div
-                    className={`${styles.criteriaItem} ${
-                      passwordStrength.length ? styles.met : styles.unmet
-                    }`}
-                  >
-                    ✓ At least 8 characters
-                  </div>
-                  <div
-                    className={`${styles.criteriaItem} ${
-                      passwordStrength.uppercase ? styles.met : styles.unmet
-                    }`}
-                  >
-                    ✓ One uppercase letter
-                  </div>
-                  <div
-                    className={`${styles.criteriaItem} ${
-                      passwordStrength.lowercase ? styles.met : styles.unmet
-                    }`}
-                  >
-                    ✓ One lowercase letter
-                  </div>
-                  <div
-                    className={`${styles.criteriaItem} ${
-                      passwordStrength.number ? styles.met : styles.unmet
-                    }`}
-                  >
-                    ✓ One number
-                  </div>
-                  <div
-                    className={`${styles.criteriaItem} ${
-                      passwordStrength.special ? styles.met : styles.unmet
-                    }`}
-                  >
-                    ✓ One special character
-                  </div>
-                </div>
                 {errors.password && (
-                  <div className="text-danger">{errors.password}</div>
+                  <Form.Text className="text-danger">
+                    {errors.password.message}
+                  </Form.Text>
                 )}
               </Form.Group>
 
@@ -342,63 +258,74 @@ const LoginRegistration = () => {
                 <Form.Label>Confirm Password</Form.Label>
                 <Form.Control
                   type="password"
-                  name="confirmPassword"
-                  value={registrationDetails.confirmPassword}
-                  onChange={handleInputChange}
+                  {...register("confirmPassword", {
+                    onChange: () => trigger("confirmPassword"),
+                  })}
+                  isInvalid={!!errors.confirmPassword}
                 />
                 {errors.confirmPassword && (
-                  <div className="text-danger">{errors.confirmPassword}</div>
+                  <Form.Text className="text-danger">
+                    {errors.confirmPassword.message}
+                  </Form.Text>
                 )}
               </Form.Group>
 
-              <Button type="submit" className={styles.customBtn}>
-                Register
-              </Button>
+              <div className="d-grid">
+                <Button type="submit" className={styles.customBtn}>
+                  Register
+                </Button>
+              </div>
             </Form>
           )}
+
           <div className="text-center mt-3">
             <Button
               variant="link"
-              style={{ color: "#ff4a17" }}
+              className="text-decoration-none"
               onClick={handleToggle}
             >
-              {isLogin ? "Switch to Register" : "Switch to Login"}
+              {isLogin
+                ? "Don't have an account? Register now"
+                : "Already have an account? Login"}
             </Button>
           </div>
         </div>
 
-        <Modal
-          show={showModal}
-          onHide={() => {}}
-          centered
-          backdrop="static"
-          className={styles.modalOverlay}
-        >
-          <Modal.Header>
-            <Modal.Title>Choose Your Role</Modal.Title>
+        {/* Role Selection Modal */}
+        <Modal show={showRoleModal} centered backdrop="static">
+          <Modal.Header closeButton onHide={() => setIsLogin(true)}>
+            <Modal.Title>Select Your Role</Modal.Title>
           </Modal.Header>
           <Modal.Body>
-            <Button
-              variant="primary"
-              className={`w-100 mb-3 ${styles.customBtn}`}
-              onClick={() => handleRoleSelect("User")}
-            >
-              I am a User
-              <div className={styles.roleDescription}>
-                Access events, book tickets, and manage your event calendar
-              </div>
-            </Button>
-            <Button
-              variant="secondary"
-              className="w-100"
-              onClick={() => handleRoleSelect("Event Coordinator")}
-            >
-              I am an Event Coordinator
-              <div className={styles.roleDescription}>
-                Create and manage events, track attendance, and engage with
-                attendees
-              </div>
-            </Button>
+            <div className="d-grid gap-3">
+              <Button
+                variant="outline-primary"
+                className="text-start p-3 d-flex align-items-center"
+                onClick={() => handleRoleSelect("User")}
+              >
+                <User size={24} className="me-3" />
+                <div>
+                  <h5>User</h5>
+                  <p className="mb-0 text-muted">
+                    Discover events, purchase tickets, and manage your bookings
+                  </p>
+                </div>
+              </Button>
+
+              <Button
+                variant="outline-success"
+                className="text-start p-3 d-flex align-items-center"
+                onClick={() => handleRoleSelect("Event Coordinator")}
+              >
+                <Calendar size={24} className="me-3" />
+                <div>
+                  <h5>Event Coordinator</h5>
+                  <p className="mb-0 text-muted">
+                    Create and manage events, track attendance, and sell tickets
+                  </p>
+                </div>
+              </Button>
+            </div>
           </Modal.Body>
         </Modal>
       </div>
