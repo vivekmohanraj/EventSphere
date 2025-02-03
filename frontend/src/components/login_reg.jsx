@@ -4,12 +4,14 @@ import { ToastContainer, toast } from "react-toastify";
 import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
-import { Camera, User, Calendar } from "lucide-react";
+import { Camera, User, Calendar, Eye, EyeOff } from "lucide-react"; // Correct imports from lucide-react
+import { FaGoogle } from "react-icons/fa"; // Correct import for Google icon
 import "react-toastify/dist/ReactToastify.css";
 import "bootstrap/dist/css/bootstrap.min.css";
 import styles from "../assets/css/login_reg.module.css";
 
-// Zod Schemas
+
+// Zod Schemas (same as before)
 const loginSchema = z.object({
   login: z.string().min(1, "Username or email is required"),
   password: z.string().min(1, "Password is required"),
@@ -55,6 +57,7 @@ const LoginRegistration = () => {
   const [isLogin, setIsLogin] = useState(true);
   const [showRoleModal, setShowRoleModal] = useState(false);
   const [profilePreview, setProfilePreview] = useState(null);
+  const [showPassword, setShowPassword] = useState(false);
 
   const {
     register: loginRegister,
@@ -99,13 +102,21 @@ const LoginRegistration = () => {
 
   return (
     <>
-      <div className="dummy"></div>
+      <div
+        className="dummy"
+        style={{
+          height: "90px",
+          width: "100%",
+          backgroundColor: "rgba(21, 34, 43, 0.85)",
+          position: "relative",
+        }}
+      ></div>
       <div
         className="container d-flex flex-column align-items-center py-5"
         style={{ minHeight: "100vh" }}
       >
         <ToastContainer />
-        <div className={`card shadow p-4 ${styles.formContainer}`}>
+        <div className={`${styles.formContainer} card shadow p-4`}>
           <h3 className="text-center mb-4">{isLogin ? "Login" : "Register"}</h3>
 
           {isLogin ? (
@@ -125,11 +136,26 @@ const LoginRegistration = () => {
 
               <Form.Group className="mb-3">
                 <Form.Label>Password</Form.Label>
-                <Form.Control
-                  type="password"
-                  {...loginRegister("password")}
-                  isInvalid={!!loginErrors.password}
-                />
+                <div className="position-relative">
+                  <Form.Control
+                    type={showPassword ? "text" : "password"}
+                    {...loginRegister("password")}
+                    isInvalid={!!loginErrors.password}
+                  />
+                  {showPassword ? (
+                    <EyeOff
+                      size={20}
+                      className="position-absolute end-0 top-50 translate-middle-y me-2 cursor-pointer"
+                      onClick={() => setShowPassword(false)}
+                    />
+                  ) : (
+                    <Eye
+                      size={20}
+                      className="position-absolute end-0 top-50 translate-middle-y me-2 cursor-pointer"
+                      onClick={() => setShowPassword(true)}
+                    />
+                  )}
+                </div>
                 {loginErrors.password && (
                   <Form.Text className="text-danger">
                     {loginErrors.password.message}
@@ -141,7 +167,12 @@ const LoginRegistration = () => {
                 <Button type="submit" className={styles.customBtn}>
                   Login
                 </Button>
-                <Button variant="outline-danger">Sign in with Google</Button>
+                <Button variant="outline-danger" className="d-flex align-items-center justify-content-center">
+                  <FaGoogle size={20} className="me-2" /> Sign in with Google
+                </Button>
+                <Button variant="link" className={styles.forgotPassword}>
+                  Forgot Password?
+                </Button>
               </div>
             </Form>
           ) : (
@@ -281,7 +312,7 @@ const LoginRegistration = () => {
           <div className="text-center mt-3">
             <Button
               variant="link"
-              className="text-decoration-none"
+              className={styles.registerLink}
               onClick={handleToggle}
             >
               {isLogin
@@ -293,10 +324,7 @@ const LoginRegistration = () => {
 
         {/* Role Selection Modal */}
         <Modal show={showRoleModal} centered backdrop="static">
-          <Modal.Header closeButton onHide={() => setIsLogin(true)}>
-            <Modal.Title>Select Your Role</Modal.Title>
-          </Modal.Header>
-          <Modal.Body>
+          <Modal.Body className={styles.modalBody}>
             <div className="d-grid gap-3">
               <Button
                 variant="outline-primary"
