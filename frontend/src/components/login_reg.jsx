@@ -4,14 +4,27 @@ import { ToastContainer, toast } from "react-toastify";
 import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
-import { Camera, User, Calendar, Eye, EyeOff } from "lucide-react"; // Correct imports from lucide-react
-import { FaGoogle } from "react-icons/fa"; // Correct import for Google icon
+import { Camera, User, Calendar, Eye, EyeOff } from "lucide-react";
+import { FaGoogle } from "react-icons/fa";
 import "react-toastify/dist/ReactToastify.css";
 import "bootstrap/dist/css/bootstrap.min.css";
 import styles from "../assets/css/login_reg.module.css";
 
+// Dummy async functions to simulate username and email availability checks.
+const checkUsernameAvailability = async (username) => {
+  // Simulate API delay
+  await new Promise((r) => setTimeout(r, 500));
+  // If username is "taken", then it's unavailable.
+  return username.toLowerCase() !== "taken";
+};
 
-// Zod Schemas (same as before)
+const checkEmailAvailability = async (email) => {
+  await new Promise((r) => setTimeout(r, 500));
+  // If email is "taken@example.com", then it's unavailable.
+  return email.toLowerCase() !== "taken@example.com";
+};
+
+// Zod Schemas
 const loginSchema = z.object({
   login: z.string().min(1, "Username or email is required"),
   password: z.string().min(1, "Password is required"),
@@ -27,7 +40,10 @@ const registerSchema = z
     lastName: z
       .string()
       .min(1, "Last name is required")
-      .regex(/^[A-Za-z]+$/, "No numbers or special characters allowed")
+      .regex(
+        /^[A-Za-z]+(?:\s[A-Za-z]+)*$/,
+        "No numbers or special characters allowed"
+      )
       .transform((val) => val.trim()),
     username: z
       .string()
@@ -45,7 +61,7 @@ const registerSchema = z
       .regex(/[0-9]/, "Must contain at least one number")
       .regex(/[!@#$%^&*]/, "Must contain at least one special character"),
     confirmPassword: z.string(),
-    profilePic: z.instanceof(File),
+    profilePic: z.instanceof(File).optional(),
     role: z.enum(["User", "Event Coordinator"]),
   })
   .refine((data) => data.password === data.confirmPassword, {
@@ -58,6 +74,10 @@ const LoginRegistration = () => {
   const [showRoleModal, setShowRoleModal] = useState(false);
   const [profilePreview, setProfilePreview] = useState(null);
   const [showPassword, setShowPassword] = useState(false);
+  const [showRegPassword, setShowRegPassword] = useState(false);
+  const [showRegConfirmPassword, setShowRegConfirmPassword] = useState(false);
+  const [usernameAvailable, setUsernameAvailable] = useState(null); // null = not checked, true/false after check
+  const [emailAvailable, setEmailAvailable] = useState(null);
 
   const {
     register: loginRegister,
@@ -72,6 +92,7 @@ const LoginRegistration = () => {
     formState: { errors },
     trigger,
     setValue,
+    getValues,
   } = useForm({ resolver: zodResolver(registerSchema), mode: "onChange" });
 
   const handleToggle = () => {
@@ -98,6 +119,29 @@ const LoginRegistration = () => {
 
   const onSubmitRegister = (data) => {
     toast.success("Registration successful!");
+  };
+
+  // Check username availability on blur
+  const handleUsernameBlur = async (e) => {
+    const val = e.target.value.toLowerCase();
+    setValue("username", val);
+    if (val.length >= 3) {
+      const available = await checkUsernameAvailability(val);
+      setUsernameAvailable(available);
+    } else {
+      setUsernameAvailable(null);
+    }
+  };
+
+  // Check email availability on blur
+  const handleEmailBlur = async (e) => {
+    const val = e.target.value;
+    if (val) {
+      const available = await checkEmailAvailability(val);
+      setEmailAvailable(available);
+    } else {
+      setEmailAvailable(null);
+    }
   };
 
   return (
@@ -157,7 +201,7 @@ const LoginRegistration = () => {
                   )}
                 </div>
                 {loginErrors.password && (
-                  <Form.Text className="text-danger">
+                  <Form.Text className="text-danger" style={{ marginTop: "1.5rem" }}>
                     {loginErrors.password.message}
                   </Form.Text>
                 )}
@@ -167,7 +211,10 @@ const LoginRegistration = () => {
                 <Button type="submit" className={styles.customBtn}>
                   Login
                 </Button>
-                <Button variant="outline-danger" className="d-flex align-items-center justify-content-center">
+                <Button
+                  variant="outline-danger"
+                  className="d-flex align-items-center justify-content-center"
+                >
                   <FaGoogle size={20} className="me-2" /> Sign in with Google
                 </Button>
                 <Button variant="link" className={styles.forgotPassword}>
@@ -186,6 +233,7 @@ const LoginRegistration = () => {
                       className={styles.profileImage}
                     />
                   ) : (
+                    // Placeholder when no profile photo is uploaded
                     <Camera size={40} className="text-muted" />
                   )}
                 </div>
@@ -243,14 +291,23 @@ const LoginRegistration = () => {
                 <Form.Control
                   {...register("username", {
                     onChange: () => trigger("username"),
-                    onBlur: (e) =>
-                      setValue("username", e.target.value.toLowerCase()),
+                    onBlur: handleUsernameBlur,
                   })}
-                  isInvalid={!!errors.username}
+                  isInvalid={!!errors.username || (usernameAvailable === false)}
+                  style={
+                    usernameAvailable
+                      ? { boxShadow: "0 0 0 0.25rem rgba(40, 167, 69, 0.5)" }
+                      : {}
+                  }
                 />
                 {errors.username && (
                   <Form.Text className="text-danger">
                     {errors.username.message}
+                  </Form.Text>
+                )}
+                {usernameAvailable === false && (
+                  <Form.Text className="text-danger">
+                    Username is already taken.
                   </Form.Text>
                 )}
               </Form.Group>
@@ -259,27 +316,55 @@ const LoginRegistration = () => {
                 <Form.Label>Email</Form.Label>
                 <Form.Control
                   type="email"
-                  {...register("email", { onChange: () => trigger("email") })}
-                  isInvalid={!!errors.email}
+                  {...register("email", {
+                    onChange: () => trigger("email"),
+                    onBlur: handleEmailBlur,
+                  })}
+                  isInvalid={!!errors.email || (emailAvailable === false)}
+                  style={
+                    emailAvailable
+                      ? { boxShadow: "0 0 0 0.25rem rgba(40, 167, 69, 0.5)" }
+                      : {}
+                  }
                 />
                 {errors.email && (
                   <Form.Text className="text-danger">
                     {errors.email.message}
                   </Form.Text>
                 )}
+                {emailAvailable === false && (
+                  <Form.Text className="text-danger">
+                    This mail is associated with another account. Would you like to login?
+                  </Form.Text>
+                )}
               </Form.Group>
 
               <Form.Group className="mb-3">
                 <Form.Label>Password</Form.Label>
-                <Form.Control
-                  type="password"
-                  {...register("password", {
-                    onChange: () => trigger("password"),
-                  })}
-                  isInvalid={!!errors.password}
-                />
+                <div className="position-relative">
+                  <Form.Control
+                    type={showRegPassword ? "text" : "password"}
+                    {...register("password", {
+                      onChange: () => trigger("password"),
+                    })}
+                    isInvalid={!!errors.password}
+                  />
+                  {showRegPassword ? (
+                    <EyeOff
+                      size={20}
+                      className="position-absolute end-0 top-50 translate-middle-y me-2 cursor-pointer"
+                      onClick={() => setShowRegPassword(false)}
+                    />
+                  ) : (
+                    <Eye
+                      size={20}
+                      className="position-absolute end-0 top-50 translate-middle-y me-2 cursor-pointer"
+                      onClick={() => setShowRegPassword(true)}
+                    />
+                  )}
+                </div>
                 {errors.password && (
-                  <Form.Text className="text-danger">
+                  <Form.Text className="text-danger" style={{ marginTop: "1.5rem" }}>
                     {errors.password.message}
                   </Form.Text>
                 )}
@@ -287,23 +372,44 @@ const LoginRegistration = () => {
 
               <Form.Group className="mb-3">
                 <Form.Label>Confirm Password</Form.Label>
-                <Form.Control
-                  type="password"
-                  {...register("confirmPassword", {
-                    onChange: () => trigger("confirmPassword"),
-                  })}
-                  isInvalid={!!errors.confirmPassword}
-                />
+                <div className="position-relative">
+                  <Form.Control
+                    type={showRegConfirmPassword ? "text" : "password"}
+                    {...register("confirmPassword", {
+                      onChange: () => trigger("confirmPassword"),
+                    })}
+                    isInvalid={!!errors.confirmPassword}
+                  />
+                  {showRegConfirmPassword ? (
+                    <EyeOff
+                      size={20}
+                      className="position-absolute end-0 top-50 translate-middle-y me-2 cursor-pointer"
+                      onClick={() => setShowRegConfirmPassword(false)}
+                    />
+                  ) : (
+                    <Eye
+                      size={20}
+                      className="position-absolute end-0 top-50 translate-middle-y me-2 cursor-pointer"
+                      onClick={() => setShowRegConfirmPassword(true)}
+                    />
+                  )}
+                </div>
                 {errors.confirmPassword && (
-                  <Form.Text className="text-danger">
+                  <Form.Text className="text-danger" style={{ marginTop: "1.5rem" }}>
                     {errors.confirmPassword.message}
                   </Form.Text>
                 )}
               </Form.Group>
 
-              <div className="d-grid">
+              <div className="d-grid gap-2 mb-3">
                 <Button type="submit" className={styles.customBtn}>
                   Register
+                </Button>
+                <Button
+                  variant="outline-danger"
+                  className="d-flex align-items-center justify-content-center"
+                >
+                  <FaGoogle size={20} className="me-2" /> Sign in with Google
                 </Button>
               </div>
             </Form>
@@ -322,8 +428,13 @@ const LoginRegistration = () => {
           </div>
         </div>
 
-        {/* Role Selection Modal */}
-        <Modal show={showRoleModal} centered backdrop="static">
+        {/* Role Selection Modal with gradient background */}
+        <Modal
+          show={showRoleModal}
+          centered
+          backdrop="static"
+          contentClassName={styles.customModalContent}
+        >
           <Modal.Body className={styles.modalBody}>
             <div className="d-grid gap-3">
               <Button

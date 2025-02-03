@@ -91,6 +91,17 @@
   text-decoration: underline;
 }
 
+/* New modal content style with gradient */
+.customModalContent {
+  background: linear-gradient(135deg, #ff7a45, #ff4a17);
+  border: none;
+}
+
 .modalBody {
-  background: linear-gradient(45deg, #ff4a17, #ff7a45);
+  background: transparent;
+}
+
+/* Add margin to error messages in password fields */
+.text-danger {
+  margin-top: 1.5rem !important;
 }
