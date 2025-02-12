@@ -1,75 +1,107 @@
 .formContainer {
-    max-width: 600px !important;
-    width: 100%;
-  }
-  
-  .profileSection {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    margin-bottom: 2rem;
-  }
-  
-  .profilePreview {
-    width: 120px;
-    height: 120px;
-    border-radius: 50%;
-    background-color: #f0f0f0;
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    margin-bottom: 1rem;
-    overflow: hidden;
-  }
-  
-  .profileImage {
-    width: 100%;
-    height: 100%;
-    object-fit: cover;
-  }
-  
-  .passwordStrength {
-    margin-top: 0.5rem;
-    font-size: 0.875rem;
-  }
-  
-  .passwordCriteria {
-    display: flex;
-    flex-direction: column;
-    gap: 0.25rem;
-    margin-top: 0.5rem;
-  }
-  
-  .criteriaItem {
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
-    font-size: 0.875rem;
-  }
-  
-  .criteriaItem.met {
-    color: #198754;
-  }
-  
-  .criteriaItem.unmet {
-    color: #dc3545;
-  }
-  
-  .modalOverlay {
-    background-color: rgba(0, 0, 0, 0.5);
-  }
-  
-  .roleDescription {
-    font-size: 0.875rem;
-    margin-top: 0.5rem;
-    color: #6c757d;
-  }
-  
-  .customBtn {
-    background-color: #ff4a17;
-    border: none;
-  }
-  
-  .customBtn:hover {
-    background-color: #e53e00;
-  }
+  max-width: 500px !important;
+  width: 100%;
+}
+
+.profileSection {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  margin-bottom: 2rem;
+}
+
+.profilePreview {
+  width: 120px;
+  height: 120px;
+  border-radius: 50%;
+  background-color: #f0f0f0;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  margin-bottom: 1rem;
+  overflow: hidden;
+}
+
+.profileImage {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.passwordStrength {
+  margin-top: 0.5rem;
+  font-size: 0.875rem;
+}
+
+.passwordCriteria {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  margin-top: 0.5rem;
+}
+
+.criteriaItem {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.875rem;
+}
+
+.criteriaItem.met {
+  color: #198754;
+}
+
+.criteriaItem.unmet {
+  color: #dc3545;
+}
+
+.modalOverlay {
+  background-color: rgba(0, 0, 0, 0.5);
+}
+
+.roleDescription {
+  font-size: 0.875rem;
+  margin-top: 0.5rem;
+  color: #6c757d;
+}
+
+.customBtn {
+  background-color: #ff4a17;
+  border: none;
+}
+
+.customBtn:hover {
+  background-color: #e53e00;
+}
+
+.forgotPassword {
+  font-size: 0.875rem;
+  color: #198754;
+}
+
+.forgotPassword:hover {
+  text-decoration: underline;
+}
+
+.registerLink {
+  color: #198754;
+}
+
+.registerLink:hover {
+  text-decoration: underline;
+}
+
+/* New modal content style with gradient */
+.customModalContent {
+  background: linear-gradient(135deg, #ff7a45, #ff4a17);
+  border: none;
+}
+
+.modalBody {
+  background: transparent;
+}
+
+/* Add margin to error messages in password fields */
+.text-danger {
+  margin-top: 1.5rem !important;
+}
