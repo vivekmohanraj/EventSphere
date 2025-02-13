@@ -1,3 +1,4 @@
+from twilio.rest import Client
 from django.shortcuts import render
 
 # Create your views here.
@@ -25,8 +26,17 @@ class RegisterView(generics.CreateAPIView):
         
         serializer = UserSerializer(data=data)
         if serializer.is_valid():
-            serializer.save()
-            return Response({"message": "User registered successfully"}, status=status.HTTP_201_CREATED)
+            user = serializer.save()  # Save the user
+
+            # Generate tokens for the newly registered user
+            refresh = RefreshToken.for_user(user)
+            return Response({
+                "message": "User registered successfully",
+                "refresh": str(refresh),
+                "access": str(refresh.access_token),
+                "user": UserSerializer(user).data,  # Include user data in the response
+            }, status=status.HTTP_201_CREATED)
+        
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 class LoginView(generics.GenericAPIView):
@@ -34,10 +44,11 @@ class LoginView(generics.GenericAPIView):
     permission_classes = [AllowAny]
 
     def post(self, request):
-        email = request.data.get("email")
+        login = request.data.get("login")
         password = request.data.get("password")
         try:
-            user = User.objects.get(email=email)
+            user = User.objects.filter(email=login).first() or \
+                User.objects.filter(username=login).first()
         except User.DoesNotExist:
             return Response({"error": "Invalid credentials"}, status=status.HTTP_401_UNAUTHORIZED)
         
@@ -61,6 +72,7 @@ class ForgotPasswordView(APIView):
         # TODO: Implement password reset logic
         return Response({"message": "Password reset link sent"}, status=status.HTTP_200_OK)
 
+
 class OTPLoginView(APIView):
     permission_classes = [AllowAny]
 
@@ -71,7 +83,20 @@ class OTPLoginView(APIView):
             return Response({"error": "User not found"}, status=status.HTTP_404_NOT_FOUND)
         
         otp = random.randint(100000, 999999)
-        # TODO: Send OTP using Twilio
+        user.otp = otp
+        user.save()
+
+        # Send OTP using Twilio
+        account_sid = "your_account_sid"
+        auth_token = "your_auth_token"
+        client = Client(account_sid, auth_token)
+
+        message = client.messages.create(
+            body=f"Your OTP is {otp}",
+            from_="+1234567890",  # Your Twilio phone number
+            to=phone,
+        )
+
         return Response({"message": f"OTP sent to {phone}"}, status=status.HTTP_200_OK)
 
 class GoogleAuthView(APIView):
@@ -86,6 +111,9 @@ class GoogleAuthView(APIView):
             return Response({"error": "Invalid token"}, status=400)
         
         google_data = response.json()
+        if google_data.get("aud") != "your_google_client_id":  # Replace with your Google Client ID
+            return Response({"error": "Invalid token audience"}, status=400)
+        
         email = google_data.get("email")
         google_id = google_data.get("sub")
         first_name = google_data.get("given_name", "")
@@ -103,4 +131,5 @@ class GoogleAuthView(APIView):
         return Response({
             "refresh": str(refresh),
             "access": str(refresh.access_token),
+            "user": UserSerializer(user).data,  # Include user data in the response
         })

@@ -9,6 +9,8 @@ import { FaGoogle } from "react-icons/fa";
 import "react-toastify/dist/ReactToastify.css";
 import "bootstrap/dist/css/bootstrap.min.css";
 import styles from "../assets/css/login_reg.module.css";
+import api from "../utils/api"; // Adjust the path as needed
+import { ACCESS_TOKEN } from "../utils/constants"; // Import ACCESS_TOKEN if not already imported
 
 // Dummy async functions to simulate username and email availability checks.
 const checkUsernameAvailability = async (username) => {
@@ -63,6 +65,11 @@ const registerSchema = z
     confirmPassword: z.string(),
     profilePic: z.instanceof(File).optional(),
     role: z.enum(["User", "Event Coordinator"]),
+    phoneNumber: z
+      .string()
+      .min(10, "Phone number must be 10 digits")
+      .max(10, "Phone number must be 10 digits")
+      .regex(/^[6-9]\d{9}$/, "Phone number must start with 6, 7, 8, or 9"),
   })
   .refine((data) => data.password === data.confirmPassword, {
     message: "Passwords don't match",
@@ -113,13 +120,55 @@ const LoginRegistration = () => {
     }
   };
 
-  const onSubmitLogin = (data) => {
-    toast.success("Login successful!");
-  };
+  const onSubmitLogin = async (data) => {
+    try {
+      const response = await api.post("/users/login/", {
+        login: data.login, // Assuming `login` is the username/email field
+        password: data.password,
+      });
 
-  const onSubmitRegister = (data) => {
-    toast.success("Registration successful!");
+      // Store the access token in localStorage
+      localStorage.setItem(ACCESS_TOKEN, response.data.access);
+
+      toast.success("Login successful!");
+      console.log("Logged in user:", response.data.user);
+
+      // Redirect or update state as needed
+    } catch (error) {
+      toast.error(error.response?.data?.message || "Login failed");
+    }
   };
+  const onSubmitRegister = async (data) => {
+  try {
+    const response = await api.post("/users/register/", {
+      username: data.username,
+      email: data.email,
+      password: data.password,
+      confirm_password: data.password,  // ✅ Fix: Add confirm_password
+      first_name: data.firstName,
+      last_name: data.lastName,
+      phone: data.phoneNumber,  // ✅ Fix: Change phone_number -> phone
+      user_type: data.role,  // ✅ Fix: Change role -> user_type
+    });
+
+    toast.success("Registration successful!");
+    console.log("Registered user:", response.data.user);
+
+    // Auto-login after registration
+    const loginResponse = await api.post("/users/login/", {
+      login: data.username,  // ✅ Fix: Your login API expects "login" instead of "username"
+      password: data.password,
+    });
+
+    localStorage.setItem(ACCESS_TOKEN, loginResponse.data.access);
+
+    toast.success("Logged in successfully!");
+  } catch (error) {
+    console.error("Registration Error:", error.response?.data);
+    toast.error(error.response?.data?.error || "Registration failed");
+  }
+};
+
 
   // Check username availability on blur
   const handleUsernameBlur = async (e) => {
@@ -201,7 +250,10 @@ const LoginRegistration = () => {
                   )}
                 </div>
                 {loginErrors.password && (
-                  <Form.Text className="text-danger" style={{ marginTop: "1.5rem" }}>
+                  <Form.Text
+                    className="text-danger"
+                    style={{ marginTop: "1.5rem" }}
+                  >
                     {loginErrors.password.message}
                   </Form.Text>
                 )}
@@ -293,7 +345,7 @@ const LoginRegistration = () => {
                     onChange: () => trigger("username"),
                     onBlur: handleUsernameBlur,
                   })}
-                  isInvalid={!!errors.username || (usernameAvailable === false)}
+                  isInvalid={!!errors.username || usernameAvailable === false}
                   style={
                     usernameAvailable
                       ? { boxShadow: "0 0 0 0.25rem rgba(40, 167, 69, 0.5)" }
@@ -320,7 +372,7 @@ const LoginRegistration = () => {
                     onChange: () => trigger("email"),
                     onBlur: handleEmailBlur,
                   })}
-                  isInvalid={!!errors.email || (emailAvailable === false)}
+                  isInvalid={!!errors.email || emailAvailable === false}
                   style={
                     emailAvailable
                       ? { boxShadow: "0 0 0 0.25rem rgba(40, 167, 69, 0.5)" }
@@ -334,7 +386,29 @@ const LoginRegistration = () => {
                 )}
                 {emailAvailable === false && (
                   <Form.Text className="text-danger">
-                    This mail is associated with another account. Would you like to login?
+                    This mail is associated with another account. Would you like
+                    to login?
+                  </Form.Text>
+                )}
+              </Form.Group>
+              <Form.Group className="mb-3">
+                <Form.Label>Phone Number</Form.Label>
+                <div className="input-group">
+                  <span className="input-group-text" id="basic-addon1">
+                    +91
+                  </span>
+                  <Form.Control
+                    type="tel"
+                    {...register("phoneNumber", {
+                      onChange: () => trigger("phoneNumber"),
+                    })}
+                    isInvalid={!!errors.phoneNumber}
+                    placeholder="Enter your phone number"
+                  />
+                </div>
+                {errors.phoneNumber && (
+                  <Form.Text className="text-danger">
+                    {errors.phoneNumber.message}
                   </Form.Text>
                 )}
               </Form.Group>
@@ -364,7 +438,10 @@ const LoginRegistration = () => {
                   )}
                 </div>
                 {errors.password && (
-                  <Form.Text className="text-danger" style={{ marginTop: "1.5rem" }}>
+                  <Form.Text
+                    className="text-danger"
+                    style={{ marginTop: "1.5rem" }}
+                  >
                     {errors.password.message}
                   </Form.Text>
                 )}
@@ -395,7 +472,10 @@ const LoginRegistration = () => {
                   )}
                 </div>
                 {errors.confirmPassword && (
-                  <Form.Text className="text-danger" style={{ marginTop: "1.5rem" }}>
+                  <Form.Text
+                    className="text-danger"
+                    style={{ marginTop: "1.5rem" }}
+                  >
                     {errors.confirmPassword.message}
                   </Form.Text>
                 )}
@@ -440,7 +520,7 @@ const LoginRegistration = () => {
               <Button
                 variant="outline-primary"
                 className="text-start p-3 d-flex align-items-center"
-                onClick={() => handleRoleSelect("User")}
+                onClick={() => handleRoleSelect("normal")}
               >
                 <User size={24} className="me-3" />
                 <div>
@@ -454,7 +534,7 @@ const LoginRegistration = () => {
               <Button
                 variant="outline-success"
                 className="text-start p-3 d-flex align-items-center"
-                onClick={() => handleRoleSelect("Event Coordinator")}
+                onClick={() => handleRoleSelect("coordinator")}
               >
                 <Calendar size={24} className="me-3" />
                 <div>
