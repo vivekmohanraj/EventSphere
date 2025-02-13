@@ -10,7 +10,7 @@ import "react-toastify/dist/ReactToastify.css";
 import "bootstrap/dist/css/bootstrap.min.css";
 import styles from "../assets/css/login_reg.module.css";
 import api from "../utils/api"; // Adjust the path as needed
-import { ACCESS_TOKEN } from "../utils/constants"; // Import ACCESS_TOKEN if not already imported
+import { ACCESS_TOKEN, REFRESH_TOKEN } from "../utils/constants"; // Import ACCESS_TOKEN if not already imported
 
 // Dummy async functions to simulate username and email availability checks.
 const checkUsernameAvailability = async (username) => {
@@ -64,7 +64,7 @@ const registerSchema = z
       .regex(/[!@#$%^&*]/, "Must contain at least one special character"),
     confirmPassword: z.string(),
     profilePic: z.instanceof(File).optional(),
-    role: z.enum(["User", "Event Coordinator"]),
+    role: z.enum(["normal", "coordinator"]),
     phoneNumber: z
       .string()
       .min(10, "Phone number must be 10 digits")
@@ -120,54 +120,80 @@ const LoginRegistration = () => {
     }
   };
 
+
   const onSubmitLogin = async (data) => {
     try {
-      const response = await api.post("/users/login/", {
-        login: data.login, // Assuming `login` is the username/email field
+      const response = await api.post("users/login/", {  // No leading slash
+        login: data.login,
         password: data.password,
       });
-
-      // Store the access token in localStorage
-      localStorage.setItem(ACCESS_TOKEN, response.data.access);
-
+  
+      // const { access, refresh } = response.data;
+      localStorage.setItem("ACCESS_TOKEN", response.data.access);
+      localStorage.setItem("REFRESH_TOKEN", response.data.refresh);
+  
       toast.success("Login successful!");
-      console.log("Logged in user:", response.data.user);
-
-      // Redirect or update state as needed
     } catch (error) {
-      toast.error(error.response?.data?.message || "Login failed");
+      console.error("Login error:", error.response?.data || error.message);
+      toast.error(error.response?.data?.error || "Login failed.");
     }
   };
+  
+  
   const onSubmitRegister = async (data) => {
-  try {
-    const response = await api.post("/users/register/", {
-      username: data.username,
-      email: data.email,
-      password: data.password,
-      confirm_password: data.password,  // ✅ Fix: Add confirm_password
-      first_name: data.firstName,
-      last_name: data.lastName,
-      phone: data.phoneNumber,  // ✅ Fix: Change phone_number -> phone
-      user_type: data.role,  // ✅ Fix: Change role -> user_type
-    });
-
-    toast.success("Registration successful!");
-    console.log("Registered user:", response.data.user);
-
-    // Auto-login after registration
-    const loginResponse = await api.post("/users/login/", {
-      login: data.username,  // ✅ Fix: Your login API expects "login" instead of "username"
-      password: data.password,
-    });
-
-    localStorage.setItem(ACCESS_TOKEN, loginResponse.data.access);
-
-    toast.success("Logged in successfully!");
-  } catch (error) {
-    console.error("Registration Error:", error.response?.data);
-    toast.error(error.response?.data?.error || "Registration failed");
-  }
-};
+    console.log("Register form submitted", data);
+    try {
+      // Create FormData object to handle file uploads
+      const formData = new FormData();
+      formData.append("username", data.username);
+      formData.append("email", data.email);
+      formData.append("password", data.password);
+      formData.append("confirm_password", data.confirmPassword); // Match backend field name
+      formData.append("first_name", data.firstName); // Match backend field name
+      formData.append("last_name", data.lastName); // Match backend field name
+      formData.append("phone", data.phoneNumber); // Match backend field name
+      formData.append("user_type", data.role); // Match backend field name
+  
+      // Append profile picture if it exists
+      if (data.profilePic) {
+        formData.append("profile_pic", data.profilePic); // Match backend field name
+      }
+  
+      // Send registration request
+      const response = await api.post("users/register/", formData, {
+        headers: {
+          "Content-Type": "multipart/form-data", // Required for file uploads
+        },
+      });
+  
+      toast.success("Registration successful!");
+      console.log("Registered user:", response.data.user);
+  
+      // Auto-login after registration
+      const loginResponse = await api.post("users/login/", {
+        login: data.username, // Use "login" field for login
+        password: data.password,
+      });
+  
+      // Save tokens to localStorage
+      localStorage.setItem(ACCESS_TOKEN, loginResponse.data.access);
+      localStorage.setItem(REFRESH_TOKEN, loginResponse.data.refresh);
+  
+      toast.success("Logged in successfully!");
+    } catch (error) {
+      console.error("Registration Error:", error.response?.data);
+      if (error.response?.data) {
+        // Display specific error messages from the backend
+        toast.error(
+          error.response.data.error ||
+            Object.values(error.response.data).join(", ") ||
+            "Registration failed"
+        );
+      } else {
+        toast.error("Registration failed. Please try again.");
+      }
+    }
+  };
 
 
   // Check username availability on blur
@@ -520,7 +546,7 @@ const LoginRegistration = () => {
               <Button
                 variant="outline-primary"
                 className="text-start p-3 d-flex align-items-center"
-                onClick={() => handleRoleSelect("normal")}
+                onClick={() => handleRoleSelect("User")}
               >
                 <User size={24} className="me-3" />
                 <div>
@@ -534,7 +560,7 @@ const LoginRegistration = () => {
               <Button
                 variant="outline-success"
                 className="text-start p-3 d-flex align-items-center"
-                onClick={() => handleRoleSelect("coordinator")}
+                onClick={() => handleRoleSelect("Event Coordinator")}
               >
                 <Calendar size={24} className="me-3" />
                 <div>

@@ -1,5 +1,5 @@
 """
-WSGI config for eventsphere_bacakend project.
+WSGI config for eventsphere_backend project.
 
 It exposes the WSGI callable as a module-level variable named ``application``.
 

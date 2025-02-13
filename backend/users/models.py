@@ -1,4 +1,5 @@
 from django.db import models
+from django.db.models import Q
 from django.contrib.auth.models import AbstractUser, Group, Permission
 
 # Create your models here.
@@ -34,7 +35,7 @@ class UserManager(BaseUserManager):
             email=email,
             phone=phone,
             password=password,
-            user_type='admin'
+            user_role='admin'
         )
         user.is_staff = True
         user.is_superuser = True
@@ -42,7 +43,7 @@ class UserManager(BaseUserManager):
         return user
 
 class User(AbstractBaseUser, PermissionsMixin):
-    USER_TYPE_CHOICES = (
+    USER_ROLE_CHOICES = (
         ('admin', 'Admin'),
         ('normal', 'Normal'),
         ('coordinator', 'Coordinator')
@@ -57,7 +58,7 @@ class User(AbstractBaseUser, PermissionsMixin):
     password = models.CharField(max_length=255, null=True, blank=True)
     profile_photo = models.CharField(max_length=255, null=True, blank=True)
     google_id = models.CharField(max_length=255, null=True, blank=True)
-    user_type = models.CharField(max_length=15, choices=USER_TYPE_CHOICES, default='normal')
+    user_role = models.CharField(max_length=15, choices=USER_ROLE_CHOICES, default='normal')
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
     

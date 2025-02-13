@@ -1,5 +1,5 @@
 """
-ASGI config for eventsphere_bacakend project.
+ASGI config for eventsphere_backend project.
 
 It exposes the ASGI callable as a module-level variable named ``application``.
 

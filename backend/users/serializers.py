@@ -7,7 +7,7 @@ class UserSerializer(serializers.ModelSerializer):
     
     class Meta:
         model = User
-        fields = ['id', 'first_name', 'last_name', 'username', 'email', 'phone', 'password', 'confirm_password', 'profile_photo', 'google_id', 'user_type', 'created_at', 'updated_at']
+        fields = ['id', 'first_name', 'last_name', 'username', 'email', 'phone', 'password', 'confirm_password', 'profile_photo', 'google_id', 'user_role', 'created_at', 'updated_at']
         extra_kwargs = {
             'password': {'write_only': True},
             'confirm_password': {'write_only': True},
@@ -24,5 +24,5 @@ class UserSerializer(serializers.ModelSerializer):
         return super().create(validated_data)
 
 class LoginSerializer(serializers.Serializer):
-    email = serializers.EmailField()
+    login = serializers.EmailField()
     password = serializers.CharField(write_only=True)
