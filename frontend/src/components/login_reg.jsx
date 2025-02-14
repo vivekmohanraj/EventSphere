@@ -4,6 +4,7 @@ import { ToastContainer, toast } from "react-toastify";
 import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
+import { GoogleOAuthProvider, GoogleLogin } from "@react-oauth/google";
 import { Camera, User, Calendar, Eye, EyeOff } from "lucide-react";
 import { FaGoogle } from "react-icons/fa";
 import "react-toastify/dist/ReactToastify.css";
@@ -12,6 +13,8 @@ import styles from "../assets/css/login_reg.module.css";
 import api from "../utils/api"; // Adjust the path as needed
 import { ACCESS_TOKEN, REFRESH_TOKEN } from "../utils/constants"; // Import ACCESS_TOKEN if not already imported
 
+const CLIENT_ID = import.meta.env.VITE_CLIENT_ID;
+console.log(CLIENT_ID)
 // Dummy async functions to simulate username and email availability checks.
 const checkUsernameAvailability = async (username) => {
   // Simulate API delay
@@ -120,26 +123,25 @@ const LoginRegistration = () => {
     }
   };
 
-
   const onSubmitLogin = async (data) => {
     try {
-      const response = await api.post("users/login/", {  // No leading slash
+      const response = await api.post("users/login/", {
+        // No leading slash
         login: data.login,
         password: data.password,
       });
-  
+
       // const { access, refresh } = response.data;
       localStorage.setItem("ACCESS_TOKEN", response.data.access);
       localStorage.setItem("REFRESH_TOKEN", response.data.refresh);
-  
+
       toast.success("Login successful!");
     } catch (error) {
       console.error("Login error:", error.response?.data || error.message);
       toast.error(error.response?.data?.error || "Login failed.");
     }
   };
-  
-  
+
   const onSubmitRegister = async (data) => {
     console.log("Register form submitted", data);
     try {
@@ -153,32 +155,32 @@ const LoginRegistration = () => {
       formData.append("last_name", data.lastName); // Match backend field name
       formData.append("phone", data.phoneNumber); // Match backend field name
       formData.append("user_type", data.role); // Match backend field name
-  
+
       // Append profile picture if it exists
       if (data.profilePic) {
         formData.append("profile_pic", data.profilePic); // Match backend field name
       }
-  
+
       // Send registration request
       const response = await api.post("users/register/", formData, {
         headers: {
           "Content-Type": "multipart/form-data", // Required for file uploads
         },
       });
-  
+
       toast.success("Registration successful!");
       console.log("Registered user:", response.data.user);
-  
+
       // Auto-login after registration
       const loginResponse = await api.post("users/login/", {
         login: data.username, // Use "login" field for login
         password: data.password,
       });
-  
+
       // Save tokens to localStorage
       localStorage.setItem(ACCESS_TOKEN, loginResponse.data.access);
       localStorage.setItem(REFRESH_TOKEN, loginResponse.data.refresh);
-  
+
       toast.success("Logged in successfully!");
     } catch (error) {
       console.error("Registration Error:", error.response?.data);
@@ -195,7 +197,28 @@ const LoginRegistration = () => {
     }
   };
 
+  const responseGoogle = async (response) => {
+    if (response.error) {
+      console.error("Google login error:", response.error);
+      return;
+    }
 
+    const googleToken = response.clientId;
+
+    try {
+      const res = await api.post("users/google-login/", {
+        token: googleToken,
+      });
+      console.log("Success:", res.data);
+
+      localStorage.setItem("access_token", res.data.access);
+      localStorage.setItem("refresh_token", res.data.refresh);
+
+      window.location.href = "/"; // Redirect user after login
+    } catch (error) {
+      console.error("Error:", error);
+    }
+  };
   // Check username availability on blur
   const handleUsernameBlur = async (e) => {
     const val = e.target.value.toLowerCase();
@@ -289,12 +312,24 @@ const LoginRegistration = () => {
                 <Button type="submit" className={styles.customBtn}>
                   Login
                 </Button>
-                <Button
-                  variant="outline-danger"
-                  className="d-flex align-items-center justify-content-center"
-                >
-                  <FaGoogle size={20} className="me-2" /> Sign in with Google
-                </Button>
+                <GoogleOAuthProvider clientId={CLIENT_ID}>
+                <GoogleLogin
+                  clientId={CLIENT_ID}
+                  onSuccess={responseGoogle}
+                  onFailure={responseGoogle}
+                  cookiePolicy={"single_host_origin"}
+                  render={(renderProps) => (
+                    <button
+                      type="button" // Prevents form submission
+                      onClick={renderProps.onClick}
+                      disabled={renderProps.disabled}
+                      className="d-flex align-items-center justify-content-center btn btn-outline-danger"
+                    >
+                      <FaGoogle size={20} className="me-2" /> Sign in with
+                      Google
+                    </button>
+                  )}
+                /></GoogleOAuthProvider>
                 <Button variant="link" className={styles.forgotPassword}>
                   Forgot Password?
                 </Button>

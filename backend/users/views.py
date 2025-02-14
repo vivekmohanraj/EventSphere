@@ -93,26 +93,44 @@ class GoogleAuthView(APIView):
 
     def post(self, request):
         google_token = request.data.get("token")
+        selected_role = request.data.get("role")  # Get the selected role from the frontend
+
+        # Validate the selected role
+        valid_roles = [role[0] for role in User.USER_ROLE_CHOICES]  # Fetch valid roles from the User model
+        if selected_role not in valid_roles:
+            return Response({"error": "Invalid role"}, status=400)
+
+        # Verify the Google token
         google_url = "https://oauth2.googleapis.com/tokeninfo"
         response = requests.get(google_url, params={"id_token": google_token})
-        
+
         if response.status_code != 200:
-            return Response({"error": "Invalid token"}, status=400)
-        
+            return Response({"error": "Invalid Google token"}, status=400)
+
         google_data = response.json()
         email = google_data.get("email")
         google_id = google_data.get("sub")
         first_name = google_data.get("given_name", "")
         last_name = google_data.get("family_name", "")
 
-        user, created = User.objects.get_or_create(email=email, defaults={
-            "username": email.split("@")[0],
-            "first_name": first_name,
-            "last_name": last_name,
-            "google_id": google_id,
-            "user_role": "normal"
-        })
+        # Check if the user already exists
+        user, created = User.objects.get_or_create(
+            email=email,
+            defaults={
+                "username": email.split("@")[0],
+                "first_name": first_name,
+                "last_name": last_name,
+                "google_id": google_id,
+                "user_role": selected_role,  # Use the selected role
+            }
+        )
 
+        # If the user already exists, validate their role
+        if not created:
+            if user.user_role != selected_role:
+                return Response({"error": "Role mismatch. Please log in with the correct role."}, status=400)
+
+        # Generate JWT tokens
         refresh = RefreshToken.for_user(user)
         return Response({
             "refresh": str(refresh),
