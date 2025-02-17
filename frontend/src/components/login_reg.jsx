@@ -199,26 +199,28 @@ const LoginRegistration = () => {
 
   const responseGoogle = async (response) => {
     if (response.error) {
-      console.error("Google login error:", response.error);
-      return;
+        console.error("Google login error:", response.error);
+        return;
     }
 
-    const googleToken = response.clientId;
+    const googleToken = response.credential; // Corrected field
 
     try {
-      const res = await api.post("users/google-login/", {
-        token: googleToken,
-      });
-      console.log("Success:", res.data);
+        const res = await api.post("users/google-login/", {
+            token: googleToken,
+            role: "normal", // Make sure the role is sent
+        });
 
-      localStorage.setItem("access_token", res.data.access);
-      localStorage.setItem("refresh_token", res.data.refresh);
+        console.log("Success:", res.data);
+        localStorage.setItem("access_token", res.data.access);
+        localStorage.setItem("refresh_token", res.data.refresh);
 
-      window.location.href = "/"; // Redirect user after login
+        window.location.href = "/"; 
     } catch (error) {
-      console.error("Error:", error);
+        console.error("Error:", error);
     }
-  };
+};
+
   // Check username availability on blur
   const handleUsernameBlur = async (e) => {
     const val = e.target.value.toLowerCase();
