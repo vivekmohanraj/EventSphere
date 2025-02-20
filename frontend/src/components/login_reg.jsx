@@ -9,6 +9,7 @@ import { Camera, User, Calendar, Eye, EyeOff } from "lucide-react";
 import { FaGoogle } from "react-icons/fa";
 import "react-toastify/dist/ReactToastify.css";
 import "bootstrap/dist/css/bootstrap.min.css";
+import { Link } from "react-router-dom";
 import styles from "../assets/css/login_reg.module.css";
 import api from "../utils/api"; // Adjust the path as needed
 import { ACCESS_TOKEN, REFRESH_TOKEN } from "../utils/constants"; // Import ACCESS_TOKEN if not already imported
@@ -332,9 +333,8 @@ const LoginRegistration = () => {
                     </button>
                   )}
                 /></GoogleOAuthProvider>
-                <Button variant="link" className={styles.forgotPassword}>
-                  Forgot Password?
-                </Button>
+                <Link to="/reset-link-sent" className={styles.forgotPassword}>
+                  Forgot Password?</Link>
               </div>
             </Form>
           ) : (

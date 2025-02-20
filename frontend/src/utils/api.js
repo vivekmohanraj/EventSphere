@@ -33,4 +33,27 @@ api.interceptors.response.use(
   }
 );
 
+// Function to send reset password link
+export const sendResetLink = async (email) => {
+  try {
+    const response = await api.post("/api/forgot-password/", { email });
+    return response.data;
+  } catch (error) {
+    throw error.response?.data || error.message;
+  }
+};
+
+// Function to reset password
+export const resetPassword = async (token, newPassword) => {
+  try {
+    const response = await api.post("/api/reset-password/", {
+      token,
+      new_password: newPassword,
+    });
+    return response.data;
+  } catch (error) {
+    throw error.response?.data || error.message;
+  }
+};
+
 export default api;

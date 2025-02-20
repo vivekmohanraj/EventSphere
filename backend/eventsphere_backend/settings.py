@@ -182,3 +182,23 @@ SOCIALACCOUNT_PROVIDERS = {
 }
 
 SOCIALACCOUNT_STORE_TOKENS = True
+
+
+FRONTEND_URL = "http://localhost:5173"  # Change to your frontend domain
+
+EMAIL_BACKEND = "django.core.mail.backends.smtp.EmailBackend"
+EMAIL_HOST = "smtp.gmail.com"
+EMAIL_PORT = 587
+EMAIL_USE_TLS = True
+EMAIL_HOST_USER = "vivekmohanraj5@gmail.com"
+EMAIL_HOST_PASSWORD = "hzakyyoeasjkdcvf"
+DEFAULT_FROM_EMAIL = "vivekmohanraj5@gmail.com"
+
+
+# Use database-backed sessions
+SESSION_ENGINE = 'django.contrib.sessions.backends.db'
+
+# Optional: Set session expiration time (e.g., 1 day)
+SESSION_COOKIE_AGE = 86400  # 24 hours
+SESSION_EXPIRE_AT_BROWSER_CLOSE = False
+SESSION_SAVE_EVERY_REQUEST = True

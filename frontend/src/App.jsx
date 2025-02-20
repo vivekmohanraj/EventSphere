@@ -12,6 +12,9 @@ import Footer from "./components/footer.jsx"; // Import the LoginPage component
 import Homejs from "./components/homejs";
 import ProtectedRoute from "./components/protectedRoute.jsx";
 import LoginRegistration from "./components/login_reg.jsx";
+// import { PasswordReset, ResetLinkSent } from "./components/forgotResetPassword";
+import SendResetLink from "./components/sendResetLink.jsx";
+import ResetPassword from "./components/forgotResetPassword.jsx";
 
 function logout() {
   localStorage.clear();
@@ -31,6 +34,8 @@ function App() {
       <Routes>
         <Route path="/" element={<Home />} /> {/* Home page route */}
         <Route path="/login_reg" element={<LoginRegistration />} />{" "}
+        <Route path="/reset-link-sent" element={<SendResetLink/>} />
+        <Route path="/reset-password/:uid/:token" element={<ResetPassword />} />
         {/* Home page route */}
       </Routes>
       <Footer />

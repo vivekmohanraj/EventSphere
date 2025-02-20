@@ -1,4 +1,13 @@
 from django.shortcuts import render
+from django.core.mail import send_mail
+from django.utils.crypto import get_random_string
+from django.core.mail import send_mail
+from django.contrib.auth.tokens import default_token_generator
+from django.utils.http import urlsafe_base64_encode
+from django.utils.encoding import force_bytes
+from django.conf import settings
+
+from django.utils.encoding import force_str
 
 # Create your views here.
 from django.contrib.auth import authenticate
@@ -8,6 +17,8 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 from rest_framework.permissions import AllowAny
 from rest_framework_simplejwt.tokens import RefreshToken
+from django.utils.http import urlsafe_base64_decode
+
 from .models import User
 from .serializers import UserSerializer, LoginSerializer
 import random
@@ -68,25 +79,72 @@ class ForgotPasswordView(APIView):
     permission_classes = [AllowAny]
 
     def post(self, request):
-        email = request.data.get("email")
+        email = request.data.get("login")  # Use "login" field as per your serializer
         user = User.objects.filter(email=email).first()
+
         if not user:
             return Response({"error": "User not found"}, status=status.HTTP_404_NOT_FOUND)
-        # TODO: Implement password reset logic
-        return Response({"message": "Password reset link sent"}, status=status.HTTP_200_OK)
 
-class OTPLoginView(APIView):
+        # Generate a secure reset token
+        token = default_token_generator.make_token(user)
+        uid = urlsafe_base64_encode(force_bytes(user.pk))
+
+        # Generate the reset URL
+        reset_url = f"{settings.FRONTEND_URL}/reset-password/{uid}/{token}/"
+
+        # Send the reset password email
+        subject = "Password Reset Request"
+        message = f"Click the link below to reset your password:\n\n{reset_url}\n\nIf you did not request this, please ignore this email."
+        from_email = settings.DEFAULT_FROM_EMAIL
+        recipient_list = [email]
+
+        try:
+            send_mail(subject, message, from_email, recipient_list, fail_silently=False)
+            return Response({"message": "Password reset link sent to your email"}, status=status.HTTP_200_OK)
+        except Exception as e:
+            logger.error(f"Failed to send email: {e}")
+            return Response({"error": "Failed to send email"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+class ResetPasswordView(APIView):
     permission_classes = [AllowAny]
 
     def post(self, request):
-        phone = request.data.get("phone")
-        user = User.objects.filter(phone=phone).first()
-        if not user:
-            return Response({"error": "User not found"}, status=status.HTTP_404_NOT_FOUND)
+        uidb64 = request.data.get("uid")
+        token = request.data.get("token")
+        new_password = request.data.get("new_password")
+
+        if not uidb64 or not token or not new_password:
+            return Response({"error": "Invalid request"}, status=status.HTTP_400_BAD_REQUEST)
+
+        try:
+            # Decode the uidb64 to get the user's primary key
+            uid = force_str(urlsafe_base64_decode(uidb64))
+            user = User.objects.get(pk=uid)
+        except (TypeError, ValueError, OverflowError, User.DoesNotExist):
+            user = None
+
+        # Validate the token
+        if user and default_token_generator.check_token(user, token):
+            user.set_password(new_password)
+            user.save()
+            return Response({"message": "Password reset successful"}, status=status.HTTP_200_OK)
+        else:
+            return Response({"error": "Invalid or expired token"}, status=status.HTTP_400_BAD_REQUEST)
+
+
+# class OTPLoginView(APIView):
+#     permission_classes = [AllowAny]
+
+#     def post(self, request):
+#         phone = request.data.get("phone")
+#         user = User.objects.filter(phone=phone).first()
+#         if not user:
+#             return Response({"error": "User not found"}, status=status.HTTP_404_NOT_FOUND)
         
-        otp = random.randint(100000, 999999)
-        # TODO: Send OTP using Twilio
-        return Response({"message": f"OTP sent to {phone}"}, status=status.HTTP_200_OK)
+#         otp = random.randint(100000, 999999)
+#         # TODO: Send OTP using Twilio
+#         return Response({"message": f"OTP sent to {phone}"}, status=status.HTTP_200_OK)
 
 class GoogleAuthView(APIView):
     permission_classes = [AllowAny]
@@ -124,7 +182,6 @@ class GoogleAuthView(APIView):
                 "user_role": selected_role,  # Use the selected role
             }
         )
-
         # If the user already exists, validate their role
         if not created:
             if user.user_role != selected_role:
@@ -136,3 +193,4 @@ class GoogleAuthView(APIView):
             "refresh": str(refresh),
             "access": str(refresh.access_token),
         })
+
