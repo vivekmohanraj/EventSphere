@@ -73,6 +73,7 @@ class LoginView(generics.GenericAPIView):
         return Response({
             "refresh": str(refresh),
             "access": str(refresh.access_token),
+            "username": str(user.username)
         })
 
 class ForgotPasswordView(APIView):
@@ -192,5 +193,6 @@ class GoogleAuthView(APIView):
         return Response({
             "refresh": str(refresh),
             "access": str(refresh.access_token),
+            "username": str(user.username)
         })
 

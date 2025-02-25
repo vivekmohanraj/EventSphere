@@ -560,6 +560,52 @@
   }
 }
 
+
+/* Add these styles after your existing .header-css .navmenu styles */
+
+.header-css .navmenu .user-dropdown a {
+  color: var(--nav-color);
+  font-size: 13px;
+  font-family: var(--nav-font);
+  font-weight: 500;
+  text-transform: uppercase;
+  padding: 0 2px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.header-css .navmenu .user-dropdown button {
+  width: 100%;
+  background: none;
+  border: none;
+  font-size: 15px;
+  padding: 10px 20px;
+  color: var(--nav-dropdown-color);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+}
+
+.header-css .navmenu .user-dropdown button:hover {
+  color: var(--nav-dropdown-hover-color);
+}
+
+@media (max-width: 1199px) {
+  .header-css .navmenu .user-dropdown ul {
+    position: static;
+    display: none;
+    padding: 10px 0;
+    margin: 10px 20px;
+    background-color: var(--nav-dropdown-background-color);
+  }
+  
+  .header-css .navmenu .user-dropdown.show ul {
+    display: block;
+  }
+}
+
 /*--------------------------------------------------------------
 # Global Footer
 --------------------------------------------------------------*/

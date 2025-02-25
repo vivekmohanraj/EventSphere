@@ -1,9 +1,42 @@
 // images import
 import logo from "../assets/img/logo.png";
-
-import { Link } from "react-router-dom";
+import { useState, useEffect } from "react";
+import { Link, useNavigate } from "react-router-dom";
+import { ACCESS_TOKEN, REFRESH_TOKEN } from "../utils/constants";
 
 function Header() {
+  const [isLoggedIn, setIsLoggedIn] = useState(false);
+  const [username, setUsername] = useState("");
+  const navigate = useNavigate();
+
+  useEffect(() => {
+    const checkAuth = () => {
+      const userData = localStorage.getItem("user");
+      const token = localStorage.getItem(ACCESS_TOKEN);
+      if (userData && token) {
+        try {
+          const user = JSON.parse(userData);
+          setUsername(user.username);
+          // console.log(user.username)
+          setIsLoggedIn(true);
+        } catch (error) {
+          console.error("Error parsing user data:", error);
+          handleLogout();
+        }
+      }
+    };
+
+    checkAuth();
+  }, []);
+
+  const handleLogout = () => {
+    localStorage.removeItem(ACCESS_TOKEN);
+    localStorage.removeItem("user");
+    setIsLoggedIn(false);
+    setUsername("");
+    navigate("/");
+  };
+
   return (
     <div className="general">
       <div className="header-css">
@@ -86,10 +119,37 @@ function Header() {
               </ul>
               <i className="mobile-nav-toggle d-xl-none bi bi-list"></i>
             </nav>
-
-            <Link className="cta-btn" to="/login_reg">
-              Login/Signup
-            </Link>
+            {isLoggedIn ? (
+              <nav id="navmenu" className="navmenu">
+                <ul>
+                  <li className="dropdown user-dropdown">
+                    <Link to="#">
+                      <i className="bi bi-person-circle"></i>
+                      <span>{username}</span>
+                      <i className="bi bi-chevron-down toggle-dropdown"></i>
+                    </Link>
+                    <ul>
+                      <li>
+                        <Link to="/dashboard">
+                          <i className="bi bi-speedometer2"></i>
+                          <span>Dashboard</span>
+                        </Link>
+                      </li>
+                      <li>
+                        <button onClick={handleLogout}>
+                          <i className="bi bi-box-arrow-right"></i>
+                          <span>Logout</span>
+                        </button>
+                      </li>
+                    </ul>
+                  </li>
+                </ul>
+              </nav>
+            ) : (
+              <Link className="cta-btn" to="/login_reg">
+                Login/Signup
+              </Link>
+            )}
           </div>
         </header>
       </div>

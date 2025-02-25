@@ -5,8 +5,7 @@ import { useParams } from "react-router-dom"; // Assuming you're using React Rou
 import api from "../utils/api";
 
 const ResetPassword = () => {
-  const {uid, token } = useParams(); 
-  console.log("UID:", uid, "Token:", token);// Get the token from the URL
+  const { uid, token } = useParams();
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [message, setMessage] = useState("");
@@ -45,7 +44,7 @@ const ResetPassword = () => {
 
     try {
       const response = await api.post("/users/reset-password/", {
-        uid,  // Include UID
+        uid, // Include UID
         token,
         new_password: newPassword,
       });
@@ -62,7 +61,10 @@ const ResetPassword = () => {
       <h2 style={{ color: "#ff4a17" }}>Reset Password</h2>
       <form onSubmit={handleSubmit}>
         <div style={{ marginBottom: "15px" }}>
-          <label htmlFor="newPassword" style={{ display: "block", marginBottom: "5px" }}>
+          <label
+            htmlFor="newPassword"
+            style={{ display: "block", marginBottom: "5px" }}
+          >
             New Password
           </label>
           <input
@@ -72,11 +74,19 @@ const ResetPassword = () => {
             value={newPassword}
             onChange={(e) => setNewPassword(e.target.value)}
             required
-            style={{ width: "100%", padding: "8px", borderRadius: "4px", border: "1px solid #ccc" }}
+            style={{
+              width: "100%",
+              padding: "8px",
+              borderRadius: "4px",
+              border: "1px solid #ccc",
+            }}
           />
         </div>
         <div style={{ marginBottom: "15px" }}>
-          <label htmlFor="confirmPassword" style={{ display: "block", marginBottom: "5px" }}>
+          <label
+            htmlFor="confirmPassword"
+            style={{ display: "block", marginBottom: "5px" }}
+          >
             Confirm Password
           </label>
           <input
@@ -86,7 +96,12 @@ const ResetPassword = () => {
             value={confirmPassword}
             onChange={(e) => setConfirmPassword(e.target.value)}
             required
-            style={{ width: "100%", padding: "8px", borderRadius: "4px", border: "1px solid #ccc" }}
+            style={{
+              width: "100%",
+              padding: "8px",
+              borderRadius: "4px",
+              border: "1px solid #ccc",
+            }}
           />
         </div>
         <button
@@ -103,7 +118,9 @@ const ResetPassword = () => {
           Reset Password
         </button>
       </form>
-      {message && <p style={{ color: "green", marginTop: "10px" }}>{message}</p>}
+      {message && (
+        <p style={{ color: "green", marginTop: "10px" }}>{message}</p>
+      )}
       {error && <p style={{ color: "red", marginTop: "10px" }}>{error}</p>}
     </div>
   );

@@ -15,7 +15,6 @@ import api from "../utils/api"; // Adjust the path as needed
 import { ACCESS_TOKEN, REFRESH_TOKEN } from "../utils/constants"; // Import ACCESS_TOKEN if not already imported
 
 const CLIENT_ID = import.meta.env.VITE_CLIENT_ID;
-console.log(CLIENT_ID)
 // Dummy async functions to simulate username and email availability checks.
 const checkUsernameAvailability = async (username) => {
   // Simulate API delay
@@ -133,9 +132,14 @@ const LoginRegistration = () => {
       });
 
       // const { access, refresh } = response.data;
-      localStorage.setItem("ACCESS_TOKEN", response.data.access);
-      localStorage.setItem("REFRESH_TOKEN", response.data.refresh);
-
+      localStorage.setItem(ACCESS_TOKEN, response.data.access);
+      localStorage.setItem(REFRESH_TOKEN, response.data.refresh);
+       
+    // Store user data
+    const userData = {
+      username: response.data.username
+    };
+    localStorage.setItem('user', JSON.stringify(userData));
       toast.success("Login successful!");
     } catch (error) {
       console.error("Login error:", error.response?.data || error.message);
@@ -215,6 +219,7 @@ const LoginRegistration = () => {
         console.log("Success:", res.data);
         localStorage.setItem("access_token", res.data.access);
         localStorage.setItem("refresh_token", res.data.refresh);
+        localStorage.setItem("username", res.data.username);
 
         window.location.href = "/"; 
     } catch (error) {
