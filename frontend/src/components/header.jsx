@@ -36,6 +36,13 @@ function Header() {
     setUsername("");
     navigate("/");
   };
+  
+const handleDashboard = () => {
+    navigate("/dashboard");
+  };
+
+  const token = localStorage.getItem(ACCESS_TOKEN);
+  console.log(token);
 
   return (
     <div className="general">
@@ -130,10 +137,10 @@ function Header() {
                     </Link>
                     <ul>
                       <li>
-                        <Link to="/dashboard">
+                        <button onClick={handleDashboard}>
                           <i className="bi bi-speedometer2"></i>
-                          <span>Dashboard</span>
-                        </Link>
+                          <span style={{ margin: '0' }}>Dashboard</span>
+                        </button>
                       </li>
                       <li>
                         <button onClick={handleLogout}>

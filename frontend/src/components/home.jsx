@@ -1,4 +1,4 @@
-import React, { useEffect } from "react";
+import React, { useEffect,useState } from "react";
 import { Link } from "react-router-dom";
 import herojpg from "../assets/img/hero-bg.jpeg";
 import aboutjpg from "../assets/img/about.jpeg";
@@ -37,8 +37,22 @@ import portfoliio_books3jpg from "../assets/img/portfolio/books-3.jpg";
 import team1jpg from "../assets/img/team/team-1.jpg";
 import team2jpg from "../assets/img/team/team-2.jpg";
 import team3jpg from "../assets/img/team/team-3.jpg";
+import { ACCESS_TOKEN, REFRESH_TOKEN } from "../utils/constants";
 
 function Home() {
+  const [isLoggedIn, setIsLoggedIn] = useState(false);
+
+  useEffect(() => {
+    const checkAuth = () => {
+      const token = localStorage.getItem(ACCESS_TOKEN);
+      if (token) {
+        setIsLoggedIn(true);
+      }
+    };
+
+    checkAuth(); // Call the function inside useEffect
+  }, []); 
+
   return (
     <>
       <div className="general">
@@ -60,10 +74,15 @@ function Home() {
                   className="d-flex mt-4"
                   data-aos="fade-up"
                   data-aos-delay="300"
-                >
+                >{isLoggedIn ? (
+                  <Link to="/events" className="btn-get-started">
+                    Explore Events
+                  </Link>
+                ) : (
                   <Link to="/login_reg" className="btn-get-started">
                     Login/Signup
                   </Link>
+                )}
                   <a
                     href="https://www.youtube.com/watch?v=Y7f98aduVJ8"
                     className="glightbox btn-watch-video d-flex align-items-center"

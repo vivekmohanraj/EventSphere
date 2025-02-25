@@ -134,13 +134,14 @@ const LoginRegistration = () => {
       // const { access, refresh } = response.data;
       localStorage.setItem(ACCESS_TOKEN, response.data.access);
       localStorage.setItem(REFRESH_TOKEN, response.data.refresh);
-       
-    // Store user data
-    const userData = {
-      username: response.data.username
-    };
-    localStorage.setItem('user', JSON.stringify(userData));
+
+      // Store user data
+      const userData = {
+        username: response.data.username,
+      };
+      localStorage.setItem("user", JSON.stringify(userData));
       toast.success("Login successful!");
+      window.location.href = "/";
     } catch (error) {
       console.error("Login error:", error.response?.data || error.message);
       toast.error(error.response?.data?.error || "Login failed.");
@@ -186,7 +187,14 @@ const LoginRegistration = () => {
       localStorage.setItem(ACCESS_TOKEN, loginResponse.data.access);
       localStorage.setItem(REFRESH_TOKEN, loginResponse.data.refresh);
 
+      // Store user data
+      const userData = {
+        username: loginResponse.data.username,
+      };
+      localStorage.setItem("user", JSON.stringify(userData));
+
       toast.success("Logged in successfully!");
+      window.location.href = "/";
     } catch (error) {
       console.error("Registration Error:", error.response?.data);
       if (error.response?.data) {
@@ -204,28 +212,36 @@ const LoginRegistration = () => {
 
   const responseGoogle = async (response) => {
     if (response.error) {
-        console.error("Google login error:", response.error);
-        return;
+      console.error("Google login error:", response.error);
+      return;
     }
 
     const googleToken = response.credential; // Corrected field
 
     try {
-        const res = await api.post("users/google-login/", {
-            token: googleToken,
-            role: "normal", // Make sure the role is sent
-        });
+      const res = await api.post("users/google-login/", {
+        token: googleToken,
+        role: "normal", // Make sure the role is sent
+      });
 
-        console.log("Success:", res.data);
-        localStorage.setItem("access_token", res.data.access);
-        localStorage.setItem("refresh_token", res.data.refresh);
-        localStorage.setItem("username", res.data.username);
+      console.log("Success:", res.data);
+      localStorage.setItem(ACCESS_TOKEN, res.data.access);
+      localStorage.setItem(REFRESH_TOKEN, res.data.refresh);
 
-        window.location.href = "/"; 
+      // Store user data
+      const userData = {
+        username: res.data.username,
+      };
+      localStorage.setItem("user", JSON.stringify(userData));
+
+      toast.success("Login successful!");
+
+      window.location.href = "/";
     } catch (error) {
-        console.error("Error:", error);
+      toast.error(error.response?.data?.error || "Login failed.");
+      console.error("Error:", error);
     }
-};
+  };
 
   // Check username availability on blur
   const handleUsernameBlur = async (e) => {
@@ -321,25 +337,27 @@ const LoginRegistration = () => {
                   Login
                 </Button>
                 <GoogleOAuthProvider clientId={CLIENT_ID}>
-                <GoogleLogin
-                  clientId={CLIENT_ID}
-                  onSuccess={responseGoogle}
-                  onFailure={responseGoogle}
-                  cookiePolicy={"single_host_origin"}
-                  render={(renderProps) => (
-                    <button
-                      type="button" // Prevents form submission
-                      onClick={renderProps.onClick}
-                      disabled={renderProps.disabled}
-                      className="d-flex align-items-center justify-content-center btn btn-outline-danger"
-                    >
-                      <FaGoogle size={20} className="me-2" /> Sign in with
-                      Google
-                    </button>
-                  )}
-                /></GoogleOAuthProvider>
+                  <GoogleLogin
+                    clientId={CLIENT_ID}
+                    onSuccess={responseGoogle}
+                    onFailure={responseGoogle}
+                    cookiePolicy={"single_host_origin"}
+                    render={(renderProps) => (
+                      <button
+                        type="button" // Prevents form submission
+                        onClick={renderProps.onClick}
+                        disabled={renderProps.disabled}
+                        className="d-flex align-items-center justify-content-center btn btn-outline-danger"
+                      >
+                        <FaGoogle size={20} className="me-2" /> Sign in with
+                        Google
+                      </button>
+                    )}
+                  />
+                </GoogleOAuthProvider>
                 <Link to="/reset-link-sent" className={styles.forgotPassword}>
-                  Forgot Password?</Link>
+                  Forgot Password?
+                </Link>
               </div>
             </Form>
           ) : (

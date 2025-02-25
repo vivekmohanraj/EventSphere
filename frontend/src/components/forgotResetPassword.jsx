@@ -57,72 +57,83 @@ const ResetPassword = () => {
   };
 
   return (
-    <div style={{ maxWidth: "400px", margin: "0 auto", padding: "20px" }}>
-      <h2 style={{ color: "#ff4a17" }}>Reset Password</h2>
-      <form onSubmit={handleSubmit}>
-        <div style={{ marginBottom: "15px" }}>
-          <label
-            htmlFor="newPassword"
-            style={{ display: "block", marginBottom: "5px" }}
-          >
-            New Password
-          </label>
-          <input
-            type="password"
-            id="newPassword"
-            placeholder="Enter new password"
-            value={newPassword}
-            onChange={(e) => setNewPassword(e.target.value)}
-            required
+    <>
+      <div
+        className="dummy"
+        style={{
+          height: "90px",
+          width: "100%",
+          backgroundColor: "rgba(21, 34, 43, 0.85)",
+          position: "relative",
+        }}
+      ></div>
+      <div style={{ maxWidth: "400px", margin: "0 auto", padding: "20px" }}>
+        <h2 style={{ color: "#ff4a17" }}>Reset Password</h2>
+        <form onSubmit={handleSubmit}>
+          <div style={{ marginBottom: "15px" }}>
+            <label
+              htmlFor="newPassword"
+              style={{ display: "block", marginBottom: "5px" }}
+            >
+              New Password
+            </label>
+            <input
+              type="password"
+              id="newPassword"
+              placeholder="Enter new password"
+              value={newPassword}
+              onChange={(e) => setNewPassword(e.target.value)}
+              required
+              style={{
+                width: "100%",
+                padding: "8px",
+                borderRadius: "4px",
+                border: "1px solid #ccc",
+              }}
+            />
+          </div>
+          <div style={{ marginBottom: "15px" }}>
+            <label
+              htmlFor="confirmPassword"
+              style={{ display: "block", marginBottom: "5px" }}
+            >
+              Confirm Password
+            </label>
+            <input
+              type="password"
+              id="confirmPassword"
+              placeholder="Confirm new password"
+              value={confirmPassword}
+              onChange={(e) => setConfirmPassword(e.target.value)}
+              required
+              style={{
+                width: "100%",
+                padding: "8px",
+                borderRadius: "4px",
+                border: "1px solid #ccc",
+              }}
+            />
+          </div>
+          <button
+            type="submit"
             style={{
-              width: "100%",
-              padding: "8px",
+              backgroundColor: "#ff4a17",
+              color: "#fff",
+              padding: "10px 15px",
+              border: "none",
               borderRadius: "4px",
-              border: "1px solid #ccc",
+              cursor: "pointer",
             }}
-          />
-        </div>
-        <div style={{ marginBottom: "15px" }}>
-          <label
-            htmlFor="confirmPassword"
-            style={{ display: "block", marginBottom: "5px" }}
           >
-            Confirm Password
-          </label>
-          <input
-            type="password"
-            id="confirmPassword"
-            placeholder="Confirm new password"
-            value={confirmPassword}
-            onChange={(e) => setConfirmPassword(e.target.value)}
-            required
-            style={{
-              width: "100%",
-              padding: "8px",
-              borderRadius: "4px",
-              border: "1px solid #ccc",
-            }}
-          />
-        </div>
-        <button
-          type="submit"
-          style={{
-            backgroundColor: "#ff4a17",
-            color: "#fff",
-            padding: "10px 15px",
-            border: "none",
-            borderRadius: "4px",
-            cursor: "pointer",
-          }}
-        >
-          Reset Password
-        </button>
-      </form>
-      {message && (
-        <p style={{ color: "green", marginTop: "10px" }}>{message}</p>
-      )}
-      {error && <p style={{ color: "red", marginTop: "10px" }}>{error}</p>}
-    </div>
+            Reset Password
+          </button>
+        </form>
+        {message && (
+          <p style={{ color: "green", marginTop: "10px" }}>{message}</p>
+        )}
+        {error && <p style={{ color: "red", marginTop: "10px" }}>{error}</p>}
+      </div>
+    </>
   );
 };
 
