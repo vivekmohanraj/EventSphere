@@ -17,16 +17,23 @@ import { ACCESS_TOKEN, REFRESH_TOKEN } from "../utils/constants"; // Import ACCE
 const CLIENT_ID = import.meta.env.VITE_CLIENT_ID;
 // Dummy async functions to simulate username and email availability checks.
 const checkUsernameAvailability = async (username) => {
-  // Simulate API delay
-  await new Promise((r) => setTimeout(r, 500));
-  // If username is "taken", then it's unavailable.
-  return username.toLowerCase() !== "taken";
+  try {
+    const response = await api.post("users/check-username/", { username });
+    return response.data.available;
+  } catch (error) {
+    console.error("Error checking username:", error);
+    throw error;
+  }
 };
 
 const checkEmailAvailability = async (email) => {
-  await new Promise((r) => setTimeout(r, 500));
-  // If email is "taken@example.com", then it's unavailable.
-  return email.toLowerCase() !== "taken@example.com";
+  try {
+    const response = await api.post("users/check-email/", { email });
+    return response.data.available;
+  } catch (error) {
+    console.error("Error checking email:", error);
+    throw error;
+  }
 };
 
 // Zod Schemas
@@ -243,29 +250,60 @@ const LoginRegistration = () => {
     }
   };
 
-  // Check username availability on blur
+  // Replace your existing handleUsernameBlur and handleEmailBlur functions
   const handleUsernameBlur = async (e) => {
-    const val = e.target.value.toLowerCase();
-    setValue("username", val);
+    const val = e.target.value.trim().toLowerCase();
     if (val.length >= 3) {
-      const available = await checkUsernameAvailability(val);
-      setUsernameAvailable(available);
+      try {
+        const available = await checkUsernameAvailability(val);
+        setUsernameAvailable(available);
+        if (!available) {
+          toast.error("Username is already taken", {
+            position: "top-right",
+            autoClose: 3000,
+          });
+        }
+      } catch (error) {
+        setUsernameAvailable(null);
+        toast.error("Error checking username availability");
+      }
     } else {
       setUsernameAvailable(null);
     }
   };
 
-  // Check email availability on blur
   const handleEmailBlur = async (e) => {
-    const val = e.target.value;
-    if (val) {
-      const available = await checkEmailAvailability(val);
-      setEmailAvailable(available);
+    const val = e.target.value.trim();
+    if (val && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(val)) {
+      try {
+        const available = await checkEmailAvailability(val);
+        setEmailAvailable(available);
+        if (!available) {
+          toast.info(
+            <div>
+              An account with this email already exists.{" "}
+              <Link
+                to="/login_reg"
+                onClick={() => setIsLogin(true)}
+                style={{ color: "#007bff", textDecoration: "underline" }}
+              >
+                Click here to login
+              </Link>
+            </div>,
+            {
+              position: "top-right",
+              autoClose: 5000,
+            }
+          );
+        }
+      } catch (error) {
+        setEmailAvailable(null);
+        toast.error("Error checking email availability");
+      }
     } else {
       setEmailAvailable(null);
     }
   };
-
   return (
     <>
       <div
@@ -432,11 +470,7 @@ const LoginRegistration = () => {
                     onBlur: handleUsernameBlur,
                   })}
                   isInvalid={!!errors.username || usernameAvailable === false}
-                  style={
-                    usernameAvailable
-                      ? { boxShadow: "0 0 0 0.25rem rgba(40, 167, 69, 0.5)" }
-                      : {}
-                  }
+                  isValid={usernameAvailable === true}
                 />
                 {errors.username && (
                   <Form.Text className="text-danger">
@@ -445,7 +479,7 @@ const LoginRegistration = () => {
                 )}
                 {usernameAvailable === false && (
                   <Form.Text className="text-danger">
-                    Username is already taken.
+                    This username is already taken
                   </Form.Text>
                 )}
               </Form.Group>
@@ -459,11 +493,7 @@ const LoginRegistration = () => {
                     onBlur: handleEmailBlur,
                   })}
                   isInvalid={!!errors.email || emailAvailable === false}
-                  style={
-                    emailAvailable
-                      ? { boxShadow: "0 0 0 0.25rem rgba(40, 167, 69, 0.5)" }
-                      : {}
-                  }
+                  isValid={emailAvailable === true}
                 />
                 {errors.email && (
                   <Form.Text className="text-danger">
@@ -471,9 +501,11 @@ const LoginRegistration = () => {
                   </Form.Text>
                 )}
                 {emailAvailable === false && (
-                  <Form.Text className="text-danger">
-                    This mail is associated with another account. Would you like
-                    to login?
+                  <Form.Text className="text-primary">
+                    An account with this email already exists.{" "}
+                    <Link to="/login_reg" onClick={() => setIsLogin(true)}>
+                      Click here to login
+                    </Link>
                   </Form.Text>
                 )}
               </Form.Group>

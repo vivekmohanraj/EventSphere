@@ -1,7 +1,6 @@
 import React, { useState } from "react";
-import axios from "axios";
-import { sendResetLink } from "../utils/api.js";
 import api from "../utils/api";
+import { toast } from "react-toastify";
 
 const SendResetLink = () => {
   const [email, setEmail] = useState("");
@@ -16,9 +15,16 @@ const SendResetLink = () => {
       });
       setMessage(response.data.message);
       setError("");
+      toast.success("Reset link sent successfully!");
     } catch (err) {
-      setError(err.response?.data?.error || "Something went wrong");
+      const errorMessage =
+        err.response?.status === 404
+          ? "No account found with this email address"
+          : err.response?.data?.error || "Something went wrong";
+
+      setError(errorMessage);
       setMessage("");
+      toast.error(errorMessage);
     }
   };
 

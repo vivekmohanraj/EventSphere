@@ -2,7 +2,7 @@
 import logo from "../assets/img/logo.png";
 import { useState, useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { ACCESS_TOKEN, REFRESH_TOKEN } from "../utils/constants";
+import { ACCESS_TOKEN} from "../utils/constants";
 
 function Header() {
   const [isLoggedIn, setIsLoggedIn] = useState(false);
@@ -66,7 +66,7 @@ const handleDashboard = () => {
                   </Link>
                 </li>
                 <li>
-                  <Link to="/">About</Link>
+                  <Link to="#about">About</Link>
                 </li>
                 <li>
                   <Link to="#services">Services</Link>

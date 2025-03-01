@@ -1,0 +1,89 @@
+commit af451d01ef699af98fc41467565ce04d56bde3de 
+Author: vivekmohanraj <vivekmohanraj5@gmail.com> 
+Date:   Tue Feb 25 12:32:52 2025 +0530 
+
+    sessions in home successful 
+
+commit 32cd374a07c275f168a3d0c1e1f152e5067dd6b2 
+Author: vivekmohanraj <vivekmohanraj5@gmail.com> 
+Date:   Tue Feb 25 11:08:48 2025 +0530 
+
+    sessions working 
+
+commit ca0634262e14c346416aa4d63dd32e63d51c9539 
+Author: vivekmohanraj <vivekmohanraj5@gmail.com> 
+Date:   Thu Feb 20 06:52:09 2025 +0530 
+
+    reset password successfull 
+
+commit a0f060e01b88abfb2e989487c245c2caaebec94b 
+Author: vivekmohanraj <vivekmohanraj5@gmail.com> 
+Date:   Mon Feb 17 10:34:52 2025 +0530 
+
+    google sign in added 
+
+commit 7e805e10bd0a85b1aff4cd61fc105466520afac6 
+Author: vivekmohanraj <vivekmohanraj5@gmail.com> 
+Date:   Fri Feb 14 07:11:35 2025 +0530 
+
+    added google sign in 
+
+commit 7043db63d2a3fc075ec18ba063632977d1315836 
+Author: vivekmohanraj <vivekmohanraj5@gmail.com> 
+Date:   Thu Feb 13 22:23:48 2025 +0530 
+
+    login and regsistration successfull 
+
+commit 9c0f795a6cf2bd8dfe374424cf50fd6f5975ab41 
+Author: vivekmohanraj <vivekmohanraj5@gmail.com> 
+Date:   Thu Feb 13 09:46:30 2025 +0530 
+
+    login usccessfull 
+
+commit aa49893cc2ba34aec9afe32edf460297c1c7833f 
+Author: vivekmohanraj <vivekmohanraj5@gmail.com> 
+Date:   Wed Feb 12 12:33:26 2025 +0530 
+
+    made apps in django 
+
+commit b76d3469fc21654fddbf0e4e43d3f9d763a29b9b 
+Author: vivekmohanraj <vivekmohanraj5@gmail.com> 
+Date:   Wed Feb 12 12:24:30 2025 +0530 
+
+    backend created 
+
+commit 6f755ad1a9c20a86e6ac9e61a53b922dd11794c9 
+Author: vivekmohanraj <vivekmohanraj5@gmail.com> 
+Date:   Thu Jan 30 09:27:20 2025 +0530 
+
+    uml diagrams added 
+
+commit 1be0c229adeb441c456ab4144c13a11690c18da7 
+Author: vivekmohanraj <vivekmohanraj5@gmail.com> 
+Date:   Wed Jan 29 00:00:36 2025 +0530 
+
+    login_reg added 
+
+commit 8f3bc90e9fed1344ad942020286580fa168fa9a4 
+Author: vivekmohanraj <vivekmohanraj5@gmail.com> 
+Date:   Tue Jan 28 13:31:58 2025 +0530 
+
+    css-fixed 
+
+commit 9632a4a2670a64dd221fd88e88b1f90064247301 
+Author: vivekmohanraj <vivekmohanraj5@gmail.com> 
+Date:   Tue Jan 28 07:04:38 2025 +0530 
+
+    landing page fully responsive 
+
+commit 0dbe0f1d28a8877b33e24ef97d171b5a2a1f772a 
+Author: vivekmohanraj <vivekmohanraj5@gmail.com> 
+Date:   Sun Jan 26 18:52:59 2025 +0530 
+
+    backup 
+
+commit d3ce99a827e5e9b3a82c319653a420ba1d3b4171 
+Author: vivekmohanraj <vivekmohanraj5@gmail.com> 
+Date:   Sat Jan 25 18:20:00 2025 +0530 
+
+    from new local repo 

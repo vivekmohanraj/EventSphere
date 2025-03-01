@@ -37,7 +37,7 @@ import portfoliio_books3jpg from "../assets/img/portfolio/books-3.jpg";
 import team1jpg from "../assets/img/team/team-1.jpg";
 import team2jpg from "../assets/img/team/team-2.jpg";
 import team3jpg from "../assets/img/team/team-3.jpg";
-import { ACCESS_TOKEN, REFRESH_TOKEN } from "../utils/constants";
+import { ACCESS_TOKEN } from "../utils/constants";
 
 function Home() {
   const [isLoggedIn, setIsLoggedIn] = useState(false);
@@ -1038,10 +1038,10 @@ function Home() {
                     <li data-filter="*" className="filter-active">
                       All
                     </li>
-                    <li data-filter=".filter-app">App</li>
-                    <li data-filter=".filter-product">Product</li>
-                    <li data-filter=".filter-branding">Branding</li>
-                    <li data-filter=".filter-books">Books</li>
+                    <li data-filter=".filter-app">Parties</li>
+                    <li data-filter=".filter-product">Marriage</li>
+                    <li data-filter=".filter-branding">Birthdays</li>
+                    <li data-filter=".filter-books">Celebrations</li>
                   </ul>
                   {/* <!-- End Portfolio Filters --> */}
 

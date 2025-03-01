@@ -196,3 +196,20 @@ class GoogleAuthView(APIView):
             "username": str(user.username)
         })
 
+class CheckUsernameView(APIView):
+    permission_classes = [AllowAny]
+
+    def post(self, request):
+        username = request.data.get('username')
+        if User.objects.filter(username__iexact=username).exists():
+            return Response({"available": False}, status=status.HTTP_200_OK)
+        return Response({"available": True}, status=status.HTTP_200_OK)
+
+class CheckEmailView(APIView):
+    permission_classes = [AllowAny]
+
+    def post(self, request):
+        email = request.data.get('email')
+        if User.objects.filter(email__iexact=email).exists():
+            return Response({"available": False}, status=status.HTTP_200_OK)
+        return Response({"available": True}, status=status.HTTP_200_OK)

@@ -56,4 +56,26 @@ export const resetPassword = async (token, newPassword) => {
   }
 };
 
+
+// Add these functions to your api.js
+export const checkUsernameAvailability = async (username) => {
+  try {
+    const response = await api.post('users/check-username/', { username });
+    return response.data.available;
+  } catch (error) {
+    console.error('Error checking username:', error);
+    throw error;
+  }
+};
+
+export const checkEmailAvailability = async (email) => {
+  try {
+    const response = await api.post('users/check-email/', { email });
+    return response.data.available;
+  } catch (error) {
+    console.error('Error checking email:', error);
+    throw error;
+  }
+};
+
 export default api;
