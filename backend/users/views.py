@@ -73,7 +73,8 @@ class LoginView(generics.GenericAPIView):
         return Response({
             "refresh": str(refresh),
             "access": str(refresh.access_token),
-            "username": str(user.username)
+            "username": str(user.username),
+            "role": str(user.user_role)
         })
 
 class ForgotPasswordView(APIView):
@@ -172,28 +173,29 @@ class GoogleAuthView(APIView):
         first_name = google_data.get("given_name", "")
         last_name = google_data.get("family_name", "")
 
-        # Check if the user already exists
-        user, created = User.objects.get_or_create(
-            email=email,
-            defaults={
-                "username": email.split("@")[0],
-                "first_name": first_name,
-                "last_name": last_name,
-                "google_id": google_id,
-                "user_role": selected_role,  # Use the selected role
-            }
-        )
-        # If the user already exists, validate their role
-        if not created:
-            if user.user_role != selected_role:
-                return Response({"error": "Role mismatch. Please log in with the correct role."}, status=400)
+        # First check if user exists with email
+        existing_user = User.objects.filter(Q(email=email) | Q(username=email.split("@")[0])).first()
+        if existing_user:
+            # Use existing user's role
+            user = existing_user
+        else:
+            # Create new user with selected role
+            user = User.objects.create(
+                email=email,
+                username=email.split("@")[0],
+                first_name=first_name,
+                last_name=last_name,
+                google_id=google_id,
+                user_role=selected_role
+            )
 
         # Generate JWT tokens
         refresh = RefreshToken.for_user(user)
         return Response({
             "refresh": str(refresh),
             "access": str(refresh.access_token),
-            "username": str(user.username)
+            "username": str(user.username),
+            "role": str(user.user_role)
         })
 
 class CheckUsernameView(APIView):
