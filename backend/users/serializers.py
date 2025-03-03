@@ -7,10 +7,15 @@ class UserSerializer(serializers.ModelSerializer):
     
     class Meta:
         model = User
-        fields = ['id', 'first_name', 'last_name', 'username', 'email', 'phone', 'password', 'confirm_password', 'profile_photo', 'google_id', 'user_role', 'created_at', 'updated_at']
+        fields = [
+            'id', 'first_name', 'last_name', 'username', 'email', 
+            'phone', 'password', 'confirm_password', 'profile_photo', 
+            'google_id', 'user_role', 'created_at', 'updated_at'
+        ]
         extra_kwargs = {
             'password': {'write_only': True},
             'confirm_password': {'write_only': True},
+            'user_role': {'read_only': True},  # Only admins can change roles
         }
     
     def validate(self, data):
@@ -21,6 +26,8 @@ class UserSerializer(serializers.ModelSerializer):
     def create(self, validated_data):
         validated_data.pop('confirm_password')
         validated_data['password'] = make_password(validated_data['password'])
+        # Set default role as 'user'
+        validated_data['user_role'] = 'user'
         return super().create(validated_data)
 
 class LoginSerializer(serializers.Serializer):

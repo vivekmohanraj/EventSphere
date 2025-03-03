@@ -76,19 +76,21 @@
 
 .forgotPassword {
   font-size: 0.875rem;
-  color: #198754;
+  color: #ff4a17;
+  text-decoration: none;
 }
 
 .forgotPassword:hover {
-  text-decoration: underline;
+  text-decoration: none;
 }
 
 .registerLink {
-  color: #198754;
+  color: #ff4a17;
+  text-decoration: none;
 }
 
 .registerLink:hover {
-  text-decoration: underline;
+  text-decoration: none;
 }
 
 /* New modal content style with gradient */
@@ -98,10 +100,156 @@
 }
 
 .modalBody {
-  background: transparent;
+  background: white;
+  padding: 2rem;
+  border-radius: 0 0 12px 12px;
 }
 
 /* Add margin to error messages in password fields */
 .text-danger {
   margin-top: 1.5rem !important;
+}
+
+.modalHeader {
+  border: none;
+  padding: 2rem 2rem 1rem;
+  text-align: center;
+  background-color: #ff4a17;
+  color: white;
+  border-radius: 12px 12px 0 0;
+}
+
+.modalHeader h4 {
+  width: 100%;
+  font-size: 1.75rem;
+  font-weight: 600;
+  margin: 0;
+}
+
+.roleCards {
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+}
+
+.roleCard {
+  display: flex;
+  align-items: center;
+  padding: 1.5rem;
+  border-radius: 12px;
+  border: 2px solid #e2e8f0;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  background: white;
+  position: relative;
+  overflow: hidden;
+}
+
+.roleCard::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: #ff4a17;
+  opacity: 0;
+  transition: opacity 0.2s ease;
+  z-index: 0;
+}
+
+.roleCard:hover {
+  border-color: #ff4a17;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 20px rgba(255, 74, 23, 0.1);
+}
+
+.roleCard:active {
+  transform: translateY(0);
+}
+
+.roleCard:hover .roleInfo h5,
+.roleCard:hover .roleInfo p {
+  color: #ff4a17;
+}
+
+.roleIcon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 52px;
+  height: 52px;
+  border-radius: 12px;
+  margin-right: 1.5rem;
+  background: #fff;
+  border: 2px solid #e2e8f0;
+  color: #ff4a17;
+  position: relative;
+  z-index: 1;
+  transition: all 0.2s ease;
+}
+
+.roleCard:hover .roleIcon {
+  border-color: #ff4a17;
+  background: #fff1ee;
+}
+
+.roleInfo {
+  flex: 1;
+  position: relative;
+  z-index: 1;
+}
+
+.roleInfo h5 {
+  margin: 0 0 0.5rem;
+  font-size: 1.25rem;
+  font-weight: 600;
+  /* color: #1e293b; */
+  transition: color 0.2s ease;
+}
+
+.roleInfo p {
+  margin: 0;
+  font-size: 0.95rem;
+  color: #64748b;
+  line-height: 1.5;
+  transition: color 0.2s ease;
+}
+
+/* Add different colors for coordinator role */
+.roleCard:last-child .roleIcon {
+  /* color: #22c55e; */
+}
+
+.roleCard:last-child:hover {
+  /* border-color: #22c55e; */
+}
+
+/* Make modal responsive */
+@media (max-width: 576px) {
+  .modalHeader {
+    padding: 1.5rem 1.5rem 1rem;
+  }
+
+  .modalBody {
+    padding: 1.5rem;
+  }
+
+  .roleCard {
+    flex-direction: column;
+    text-align: center;
+    padding: 1.25rem;
+  }
+
+  .roleIcon {
+    margin: 0 auto 1rem;
+  }
+
+  .roleInfo h5 {
+    font-size: 1.1rem;
+  }
+
+  .roleInfo p {
+    font-size: 0.9rem;
+  }
 }

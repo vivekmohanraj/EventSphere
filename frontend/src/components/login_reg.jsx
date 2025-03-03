@@ -120,6 +120,10 @@ const LoginRegistration = () => {
   const handleRoleSelect = (role) => {
     setValue("role", role);
     setShowRoleModal(false);
+    setIsLogin(false);
+    toast.success(
+      `Registered as ${role === "User" ? "nomral" : "Event Coordinator"}`
+    );
   };
 
   const handleFileChange = (e) => {
@@ -145,6 +149,7 @@ const LoginRegistration = () => {
       // Store user data
       const userData = {
         username: response.data.username,
+        role: response.data.role
       };
       localStorage.setItem("user", JSON.stringify(userData));
       toast.success("Login successful!");
@@ -197,6 +202,7 @@ const LoginRegistration = () => {
       // Store user data
       const userData = {
         username: loginResponse.data.username,
+        role: loginResponse.data.role
       };
       localStorage.setItem("user", JSON.stringify(userData));
 
@@ -238,6 +244,7 @@ const LoginRegistration = () => {
       // Store user data
       const userData = {
         username: res.data.username,
+        role: res.data.role,
       };
       localStorage.setItem("user", JSON.stringify(userData));
 

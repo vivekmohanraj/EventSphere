@@ -17,7 +17,7 @@ function Header() {
         try {
           const user = JSON.parse(userData);
           setUsername(user.username);
-          // console.log(user.username)
+          // console.log(user.user_role)
           setIsLoggedIn(true);
         } catch (error) {
           console.error("Error parsing user data:", error);
@@ -40,9 +40,6 @@ function Header() {
 const handleDashboard = () => {
     navigate("/dashboard");
   };
-
-  const token = localStorage.getItem(ACCESS_TOKEN);
-  console.log(token);
 
   return (
     <div className="general">

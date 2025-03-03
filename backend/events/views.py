@@ -3,6 +3,7 @@ from rest_framework import viewsets, permissions, status
 from rest_framework.decorators import action
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
+from rest_framework_simplejwt.authentication import JWTAuthentication
 from django.utils import timezone
 from .models import CoordinatorRequest, Event, EventPhoto, EventParticipant, EventUpdate
 from .serializers import (
@@ -33,16 +34,18 @@ class EventViewSet(viewsets.ModelViewSet):
     queryset = Event.objects.all()
     serializer_class = EventSerializer
     permission_classes = [IsAuthenticated]
+    authentication_classes = [JWTAuthentication]
 
     def get_queryset(self):
         """Filter events based on user role"""
-        user = self.request.user
-        if user.user_type == 'admin':
-            return Event.objects.all()
-        elif user.user_type == 'coordinator':
-            return Event.objects.filter(created_by=user)
-        return Event.objects.filter(status='upcoming')
-    
+        queryset = Event.objects.all().order_by('-created_at')  # Add ordering
+        return queryset
+
+    def list(self, request, *args, **kwargs):
+        queryset = self.get_queryset()
+        serializer = self.get_serializer(queryset, many=True)
+        return Response(serializer.data)
+
     def perform_create(self, serializer):
         serializer.save(created_by=self.request.user)
 

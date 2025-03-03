@@ -1,0 +1,406 @@
+.dummy {
+  height: 90px;
+  width: 100%;
+  background-color: rgba(21, 34, 43, 0.85);
+  position: relative;
+}
+
+.eventsSection {
+  padding: 60px 0;
+  background-color: var(--background-color);
+}
+
+.sectionTitle {
+  text-align: center;
+  margin-bottom: 40px;
+}
+
+.sectionTitle h2 {
+  font-size: 14px;
+  font-weight: 500;
+  padding: 0;
+  line-height: 1px;
+  margin: 0 0 5px 0;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  color: #aaaaaa;
+}
+
+.sectionTitle p {
+  margin: 0;
+  font-size: 36px;
+  font-weight: 700;
+  text-transform: uppercase;
+  font-family: var(--heading-font);
+  color: var(--heading-color);
+}
+
+.filterContainer {
+  margin-bottom: 30px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 20px;
+}
+
+.searchBar input {
+  padding: 10px 20px;
+  border: 1px solid #ddd;
+  border-radius: 30px;
+  width: 300px;
+  font-size: 14px;
+  transition: all 0.3s ease;
+}
+
+.searchBar input:focus {
+  outline: none;
+  border-color: var(--accent-color);
+  box-shadow: 0 0 0 2px rgba(255, 74, 23, 0.1);
+}
+
+.filterButtons {
+  display: flex;
+  gap: 10px;
+}
+
+.filterButtons button {
+  padding: 8px 20px;
+  border: 1px solid #ddd;
+  border-radius: 20px;
+  background: transparent;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  font-size: 14px;
+  color: var(--default-color);
+}
+
+.filterButtons button.active,
+.filterButtons button:hover {
+  background-color: var(--accent-color);
+  color: white;
+  border-color: var(--accent-color);
+}
+
+.eventsGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  gap: 30px;
+  margin-top: 30px;
+}
+
+.eventCard {
+  background: white;
+  border-radius: 15px;
+  overflow: hidden;
+  box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
+  transition: transform 0.3s ease;
+}
+
+.eventCard:hover {
+  transform: translateY(-5px);
+}
+
+.eventImage {
+  position: relative;
+  height: 200px;
+  overflow: hidden;
+}
+
+.eventImage img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  transition: transform 0.3s ease;
+}
+
+.eventCard:hover .eventImage img {
+  transform: scale(1.1);
+}
+
+.eventStatus {
+  position: absolute;
+  top: 15px;
+  right: 15px;
+}
+
+.eventStatus span {
+  padding: 5px 15px;
+  border-radius: 20px;
+  font-size: 12px;
+  font-weight: 600;
+  text-transform: uppercase;
+}
+
+.upcoming {
+  background-color: #4caf50;
+  color: white;
+}
+
+.ongoing {
+  background-color: #2196f3;
+  color: white;
+}
+
+.completed {
+  background-color: #9e9e9e;
+  color: white;
+}
+
+.canceled {
+  background-color: #f44336;
+  color: white;
+}
+
+.eventContent {
+  padding: 20px;
+}
+
+.eventContent h3 {
+  margin: 0 0 15px 0;
+  font-size: 20px;
+  color: var(--heading-color);
+}
+
+.eventDetails {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(100px, 1fr));
+  gap: 10px;
+  margin-bottom: 15px;
+}
+
+.eventDetails p {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0;
+  font-size: 14px;
+  color: #666;
+}
+
+.eventDetails svg {
+  color: var(--accent-color);
+}
+
+.eventDescription {
+  margin: 0 0 20px 0;
+  font-size: 14px;
+  line-height: 1.6;
+  color: #666;
+}
+
+.viewDetails {
+  display: inline-block;
+  padding: 8px 20px;
+  background-color: var(--accent-color);
+  color: white;
+  border-radius: 20px;
+  text-decoration: none;
+  font-size: 14px;
+  transition: background-color 0.3s ease;
+}
+
+.viewDetails:hover {
+  background-color: #e53e00;
+}
+
+.noEvents {
+  text-align: center;
+  padding: 40px 0;
+}
+
+.noEvents h3 {
+  color: var(--heading-color);
+  margin-bottom: 10px;
+}
+
+.noEvents p {
+  color: #666;
+}
+
+.loaderContainer {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  min-height: 400px;
+}
+
+.loader {
+  width: 50px;
+  height: 50px;
+  border: 5px solid #f3f3f3;
+  border-top: 5px solid var(--accent-color);
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  0% {
+    transform: rotate(0deg);
+  }
+  100% {
+    transform: rotate(360deg);
+  }
+}
+
+.coordinatorCta {
+  background: linear-gradient(45deg, #ff4a17, #ff6b3d);
+  padding: 30px 0;
+  margin-bottom: 40px;
+}
+
+.ctaContent {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 0 20px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 20px;
+}
+
+.ctaContent h3 {
+  color: white;
+  margin: 0;
+  font-size: 24px;
+  font-weight: 600;
+}
+
+.ctaContent p {
+  color: rgba(255, 255, 255, 0.9);
+  margin: 5px 0 0;
+  font-size: 16px;
+}
+
+.ctaButton {
+  display: inline-block;
+  padding: 12px 30px;
+  background-color: white;
+  color: #ff4a17;
+  border-radius: 50px;
+  text-decoration: none;
+  font-weight: 600;
+  transition: all 0.3s ease;
+  border: 2px solid white;
+}
+
+.ctaButton:hover {
+  background-color: transparent;
+  color: white;
+}
+
+.coordinatorModal :global(.modal-content) {
+  border: none;
+  border-radius: 15px;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+}
+
+.modalBody {
+  padding: 30px;
+  text-align: center;
+}
+
+.modalBody h4 {
+  color: var(--heading-color);
+  margin-bottom: 15px;
+  font-size: 24px;
+  font-weight: 600;
+}
+
+.modalBody p {
+  color: #666;
+  margin-bottom: 25px;
+  font-size: 16px;
+  line-height: 1.6;
+}
+
+.modalActions {
+  display: flex;
+  gap: 15px;
+  justify-content: center;
+}
+
+.primaryBtn,
+.secondaryBtn {
+  padding: 10px 25px;
+  border-radius: 25px;
+  font-size: 14px;
+  font-weight: 600;
+  transition: all 0.3s ease;
+  border: 2px solid transparent;
+}
+
+.primaryBtn {
+  background-color: var(--accent-color);
+  color: white;
+}
+
+.primaryBtn:hover {
+  background-color: #e53e00;
+}
+
+.secondaryBtn {
+  background-color: transparent;
+  color: #666;
+  border-color: #ddd;
+}
+
+.secondaryBtn:hover {
+  background-color: #f5f5f5;
+  border-color: #ccc;
+}
+
+@media (max-width: 768px) {
+  .filterContainer {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .searchBar input {
+    width: 100%;
+  }
+
+  .filterButtons {
+    justify-content: center;
+  }
+
+  .sectionTitle p {
+    font-size: 28px;
+  }
+
+  .eventCard {
+    max-width: 400px;
+    margin: 0 auto;
+  }
+  s n .ctaContent {
+    text-align: center;
+    justify-content: center;
+  }
+
+  .ctaContent h3 {
+    font-size: 20px;
+  }
+
+  .ctaContent p {
+    font-size: 14px;
+  }
+}
+
+@media (max-width: 576px) {
+  .modalActions {
+    flex-direction: column;
+  }
+
+  .modalBody {
+    padding: 20px;
+  }
+
+  .modalBody h4 {
+    font-size: 20px;
+  }
+
+  .modalBody p {
+    font-size: 14px;
+  }
+}

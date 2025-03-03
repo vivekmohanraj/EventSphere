@@ -42,11 +42,17 @@ class UserManager(BaseUserManager):
         user.save(using=self._db)
         return user
 
-class User(AbstractBaseUser, PermissionsMixin):
-    USER_ROLE_CHOICES = (
-        ('admin', 'Admin'),
-        ('normal', 'Normal'),
-        ('coordinator', 'Coordinator')
+class User(AbstractUser):
+    USER_ROLE_CHOICES = [
+        ('user', 'Normal User'),
+        ('coordinator', 'Event Coordinator'),
+        ('admin', 'Admin')
+    ]
+    
+    user_type = models.CharField(
+        max_length=20,
+        choices=USER_ROLE_CHOICES,
+        default='user'
     )
 
     id = models.BigAutoField(primary_key=True)
@@ -54,11 +60,11 @@ class User(AbstractBaseUser, PermissionsMixin):
     last_name = models.CharField(max_length=255)
     username = models.CharField(max_length=255, unique=True)
     email = models.EmailField(unique=True)
-    phone = models.CharField(max_length=10, unique=True)
+    phone = models.CharField(max_length=15, null=True, blank=True)
     password = models.CharField(max_length=255, null=True, blank=True)
-    profile_photo = models.CharField(max_length=255, null=True, blank=True)
+    profile_photo = models.ImageField(upload_to='profile_photos/', null=True, blank=True)
     google_id = models.CharField(max_length=255, null=True, blank=True)
-    user_role = models.CharField(max_length=15, choices=USER_ROLE_CHOICES, default='normal')
+    user_role = models.CharField(max_length=20, choices=USER_ROLE_CHOICES, default='user')
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
     
