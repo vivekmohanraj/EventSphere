@@ -158,7 +158,7 @@ class GoogleAuthView(APIView):
         # Validate the selected role
         valid_roles = [role[0] for role in User.USER_ROLE_CHOICES]  # Fetch valid roles from the User model
         if selected_role not in valid_roles:
-            return Response({"error": "Invalid role"}, status=400)
+            return Response({"error": "Invalid role","role": selected_role}, status=400)
 
         # Verify the Google token
         google_url = "https://oauth2.googleapis.com/tokeninfo"

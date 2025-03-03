@@ -122,7 +122,7 @@ const LoginRegistration = () => {
     setShowRoleModal(false);
     setIsLogin(false);
     toast.success(
-      `Registered as ${role === "User" ? "nomral" : "Event Coordinator"}`
+      `Registered as ${role === "User" ? "normal" : "coordinator"}`
     );
   };
 
@@ -234,8 +234,8 @@ const LoginRegistration = () => {
     try {
       const res = await api.post("users/google-login/", {
         token: googleToken,
-        role: "normal", // Make sure the role is sent
-      });
+        role: getValues("role") || "normal",// Make sure the role is sent
+      },console.log(getValues("role")));
 
       console.log("Success:", res.data);
       localStorage.setItem(ACCESS_TOKEN, res.data.access);
@@ -254,6 +254,7 @@ const LoginRegistration = () => {
     } catch (error) {
       toast.error(error.response?.data?.error || "Login failed.");
       console.error("Error:", error);
+      console.log(error.role)
     }
   };
 
