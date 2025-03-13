@@ -14,19 +14,32 @@ Including another URLconf
     1. Import the include() function: from django.urls import include, path
     2. Add a URL to urlpatterns:  path('blog/', include('blog.urls'))
 """
-from django.contrib import admin
-from django.urls import path, include
-from rest_framework_simplejwt.views import TokenObtainPairView, TokenRefreshView
+
 from django.conf import settings
 from django.conf.urls.static import static
+from django.contrib import admin
+from django.urls import include, path
+from events.views import EventViewSet
+from payments.views import PaymentViewSet
+from rest_framework.routers import DefaultRouter
+from rest_framework_simplejwt.views import TokenObtainPairView, TokenRefreshView
+from users.views import UserViewSet
+
+# Create router for admin endpoints
+admin_router = DefaultRouter()
+admin_router.register(r"admin-users", UserViewSet, basename="admin-users")
+admin_router.register(r"admin-events", EventViewSet, basename="admin-events")
+admin_router.register(r"admin-payments", PaymentViewSet, basename="admin-payments")
 
 urlpatterns = [
-    path('admin/', admin.site.urls),
     path("users/", include("users.urls")),
-    path("token/", TokenObtainPairView.as_view(), name="get_token"),
-    path("token/refresh/", TokenRefreshView.as_view(), name="refresh"),
-    path("users-auth/", include("rest_framework.urls")),
-    path('events/', include('events.urls')),
-    path('payments/', include('payments.urls')),
+    path("events/", include("events.urls")),
+    path("payments/", include("payments.urls")),
+    path("token/", TokenObtainPairView.as_view(), name="token_obtain_pair"),
+    path("token/refresh/", TokenRefreshView.as_view(), name="token_refresh"),
+    path("auth/", include("rest_framework.urls"))
+]
 
-] + static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
+# Serve media files in development
+if settings.DEBUG:
+    urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)

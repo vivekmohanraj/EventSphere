@@ -1,0 +1,218 @@
+.container {
+  background: white;
+  border-radius: 12px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  padding: 1.5rem;
+}
+
+.header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 2rem;
+}
+
+.filters {
+  display: flex;
+  gap: 1rem;
+  align-items: center;
+}
+
+.searchBar {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem 1rem;
+  border: 1px solid #ddd;
+  border-radius: 8px;
+  background: white;
+}
+
+.searchBar input {
+  border: none;
+  outline: none;
+  width: 200px;
+}
+
+.statusFilter {
+  padding: 0.5rem 1rem;
+  border: 1px solid #ddd;
+  border-radius: 8px;
+  outline: none;
+}
+
+.requestsGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
+  gap: 1.5rem;
+}
+
+.requestCard {
+  background: white;
+  border-radius: 12px;
+  padding: 1.5rem;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.userInfo {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  margin-bottom: 1.5rem;
+  position: relative;
+}
+
+.userPhoto {
+  width: 60px;
+  height: 60px;
+  border-radius: 50%;
+  object-fit: cover;
+}
+
+.userInfo h3 {
+  margin: 0;
+  font-size: 1.1rem;
+}
+
+.userInfo p {
+  margin: 0.25rem 0 0 0;
+  color: #666;
+}
+
+.statusBadge {
+  position: absolute;
+  top: 0;
+  right: 0;
+  padding: 0.25rem 0.75rem;
+  border-radius: 20px;
+  font-size: 0.85rem;
+  font-weight: 500;
+}
+
+.statusBadge.pending {
+  background: #fff3e0;
+  color: #ef6c00;
+}
+.statusBadge.approved {
+  background: #e8f5e9;
+  color: #2e7d32;
+}
+.statusBadge.rejected {
+  background: #ffebee;
+  color: #c62828;
+}
+
+.requestDetails {
+  margin-bottom: 1.5rem;
+}
+
+.detail {
+  margin-bottom: 1rem;
+}
+
+.detail label {
+  display: block;
+  color: #666;
+  font-size: 0.9rem;
+  margin-bottom: 0.25rem;
+}
+
+.message {
+  background: #f8f9fa;
+  padding: 1rem;
+  border-radius: 8px;
+  margin-top: 1rem;
+}
+
+.message label {
+  display: block;
+  color: #666;
+  font-size: 0.9rem;
+  margin-bottom: 0.5rem;
+}
+
+.message p {
+  margin: 0;
+  color: #333;
+  line-height: 1.5;
+}
+
+.actions {
+  display: flex;
+  gap: 1rem;
+}
+
+.actionButton {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  padding: 0.75rem;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  font-weight: 500;
+}
+
+.approveButton {
+  background: #ff4a17;
+  color: white;
+}
+
+.approveButton:hover {
+  background: #e64315;
+}
+
+.rejectButton {
+  background: #f5f5f5;
+  color: #666;
+}
+
+.rejectButton:hover {
+  background: #ffebee;
+  color: #c62828;
+}
+
+.noData {
+  text-align: center;
+  color: #666;
+  padding: 2rem;
+  grid-column: 1 / -1;
+}
+
+.loader {
+  text-align: center;
+  padding: 2rem;
+  color: #666;
+}
+
+@media (max-width: 768px) {
+  .header {
+    flex-direction: column;
+    gap: 1rem;
+  }
+
+  .filters {
+    flex-direction: column;
+    width: 100%;
+  }
+
+  .searchBar,
+  .statusFilter {
+    width: 100%;
+  }
+
+  .searchBar input {
+    width: 100%;
+  }
+
+  .requestsGrid {
+    grid-template-columns: 1fr;
+  }
+
+  .actions {
+    flex-direction: column;
+  }
+}

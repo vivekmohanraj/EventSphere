@@ -1,0 +1,116 @@
+.settingsContainer {
+    display: flex;
+    gap: 2rem;
+    background: white;
+    border-radius: 12px;
+    box-shadow: 0 2px 12px rgba(0, 0, 0, 0.1);
+  }
+  
+  .settingsSidebar {
+    width: 250px;
+    padding: 1.5rem;
+    border-right: 1px solid #eee;
+  }
+  
+  .sectionButton {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    width: 100%;
+    padding: 1rem;
+    border: none;
+    background: none;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    text-align: left;
+  }
+  
+  .sectionButton:hover {
+    background: #f5f5f5;
+  }
+  
+  .sectionButton.active {
+    background: #e91e63;
+    color: white;
+  }
+  
+  .settingsContent {
+    flex: 1;
+    padding: 1.5rem;
+  }
+  
+  .section h2 {
+    margin-bottom: 1.5rem;
+    font-size: 1.5rem;
+  }
+  
+  .form {
+    max-width: 400px;
+  }
+  
+  .formGroup {
+    margin-bottom: 1.5rem;
+  }
+  
+  .formGroup label {
+    display: block;
+    margin-bottom: 0.5rem;
+    font-weight: 500;
+  }
+  
+  .formGroup input {
+    width: 100%;
+    padding: 0.75rem;
+    border: 1px solid #ddd;
+    border-radius: 6px;
+  }
+  
+  .saveButton {
+    padding: 0.75rem 1.5rem;
+    background: #e91e63;
+    color: white;
+    border: none;
+    border-radius: 6px;
+    cursor: pointer;
+    transition: all 0.3s ease;
+  }
+  
+  .saveButton:hover {
+    background: #d81b60;
+  }
+  
+  .notificationSettings {
+    display: grid;
+    gap: 1rem;
+  }
+  
+  .notificationOption {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+  }
+  
+  .themeSelector {
+    max-width: 300px;
+  }
+  
+  .themeSelector select {
+    width: 100%;
+    padding: 0.75rem;
+    border: 1px solid #ddd;
+    border-radius: 6px;
+    margin-top: 0.5rem;
+  }
+  
+  @media (max-width: 768px) {
+    .settingsContainer {
+      flex-direction: column;
+    }
+  
+    .settingsSidebar {
+      width: 100%;
+      border-right: none;
+      border-bottom: 1px solid #eee;
+    }
+  }

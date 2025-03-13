@@ -18,6 +18,7 @@ import ResetPassword from "./components/forgotResetPassword.jsx";
 import EventList from "./components/events.jsx";
 import EventCreation from "./components/eventCreatoin.jsx";
 import EventDetails from "./components/eventDetails";
+import Dashboard from "./components/adminDashboard.jsx";
 
 function logout() {
   localStorage.clear();
@@ -32,55 +33,78 @@ function registerAndLogout() {
 function App() {
   return (
     <Router>
-      <Homejs></Homejs>
-      <Header />
       <Routes>
-        <Route path="/" element={<Home />} /> {/* Home page route */}
-        <Route path="/login_reg" element={<LoginRegistration />} />{" "}
         <Route
-          path="/reset-link-sent"
+          path="/dashboard/*"
           element={
             <ProtectedRoute>
-              {" "}
-              <SendResetLink />
+              <Dashboard />
             </ProtectedRoute>
           }
         />
         <Route
-          path="/reset-password/:uid/:token"
+          path="*"
           element={
-            <ProtectedRoute>
-              <ResetPassword />
-            </ProtectedRoute>
+            <>
+              <Homejs />
+              <Header />
+              <Routes>
+                <Route path="/" element={<Home />} />
+                <Route path="/login_reg" element={<LoginRegistration />} />
+                <Route
+                  path="/reset-link-sent"
+                  element={
+                    <ProtectedRoute>
+                      <SendResetLink />
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/reset-password/:uid/:token"
+                  element={
+                    <ProtectedRoute>
+                      <ResetPassword />
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/events"
+                  element={
+                    <ProtectedRoute>
+                      <EventList />
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/create-event"
+                  element={
+                    <ProtectedRoute>
+                      <EventCreation />
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/events/:id"
+                  element={
+                    <ProtectedRoute>
+                      <EventDetails />
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/dashboard"
+                  element={
+                    <ProtectedRoute>
+                      <Dashboard />
+                    </ProtectedRoute>
+                  }
+                />
+              </Routes>
+              <Footer />
+            </>
           }
         />
-        <Route
-          path="/events"
-          element={
-            <ProtectedRoute>
-              <EventList />
-            </ProtectedRoute>
-          }
-        />
-        <Route
-          path="/create-event"
-          element={
-            <ProtectedRoute>
-              <EventCreation />
-            </ProtectedRoute>
-          }
-        />
-        <Route
-          path="/events/:id"
-          element={
-            <ProtectedRoute>
-              <EventDetails />
-            </ProtectedRoute>
-          }
-        />
-        {/* Home page route */}
       </Routes>
-      <Footer />
     </Router>
   );
 }

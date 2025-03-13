@@ -1,88 +1,203 @@
+/* Define accent color variable */
+:root {
+  --accent-color: #ff4a17;
+}
+
 .eventDetailsContainer {
   max-width: 1200px;
   margin: 2rem auto;
-  padding: 0 1rem;
+  padding: 1.5rem;
+  background-color: #fff;
+  border-radius: 8px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
 }
 
 .eventHeader {
-  margin-bottom: 2rem;
   text-align: center;
+  margin-bottom: 2rem;
 }
 
 .eventHeader h1 {
   font-size: 2.5rem;
   margin-bottom: 0.5rem;
+  color: #333;
+}
+
+.headerActions {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 1rem;
+  flex-wrap: wrap;
 }
 
 .eventType {
   display: inline-block;
   padding: 0.5rem 1rem;
   background-color: var(--accent-color);
-  color: white;
+  color: #fff;
   border-radius: 20px;
   font-size: 0.9rem;
+  text-transform: uppercase;
+}
+
+.adminActions button {
+  margin: 0 5px;
 }
 
 .imageGallery {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
   gap: 1rem;
   margin-bottom: 2rem;
 }
 
-.eventImage {
+.mainImage {
   width: 100%;
-  height: 250px;
+  max-height: 500px;
   object-fit: cover;
   border-radius: 8px;
 }
 
+.thumbnails {
+  display: flex;
+  gap: 0.5rem;
+  justify-content: center;
+  margin-top: 0.5rem;
+}
+
+.thumbnail {
+  width: 60px;
+  height: 60px;
+  object-fit: cover;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: transform 0.2s ease, border 0.2s ease;
+}
+
+.thumbnail:hover {
+  transform: scale(1.05);
+}
+
+.active {
+  border: 2px solid var(--accent-color);
+}
+
 .eventInfo {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
   gap: 1rem;
-  margin-bottom: 2rem;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
   padding: 1rem;
-  background-color: #f5f5f5;
+  background-color: #f8f9fa;
   border-radius: 8px;
+  margin-bottom: 2rem;
 }
 
 .infoItem {
   display: flex;
   align-items: center;
   gap: 0.5rem;
+  font-size: 1rem;
+  color: #555;
 }
 
 .description {
   margin-bottom: 2rem;
+  padding: 0 1rem;
+  color: #444;
 }
 
 .description h2 {
   margin-bottom: 1rem;
+  color: #333;
 }
 
+/* Updated button styles using accent color */
 .actions {
   display: flex;
   justify-content: center;
   gap: 1rem;
+  flex-wrap: wrap;
+  padding: 0 1rem 2rem;
 }
 
-.backButton {
+.registerButton,
+.backButton,
+.editButton,
+.deleteButton {
   padding: 0.75rem 1.5rem;
-  background-color: var(--accent-color);
-  color: white;
   border: none;
   border-radius: 4px;
   cursor: pointer;
-  transition: background-color 0.3s ease;
+  transition: background-color 0.3s ease, transform 0.2s ease;
+  font-size: 1rem;
+}
+
+/* Primary action uses accent color */
+.registerButton {
+  background-color: var(--accent-color);
+  color: #fff;
+}
+
+.registerButton:hover {
+  background-color: #e04413; /* slightly darker accent */
+  transform: translateY(-2px);
+}
+
+/* Secondary action with transparent background */
+.backButton {
+  background-color: transparent;
+  color: var(--accent-color);
+  border: 2px solid var(--accent-color);
 }
 
 .backButton:hover {
-  background-color: var(--accent-color-dark);
+  background-color: var(--accent-color);
+  color: #fff;
+  transform: translateY(-2px);
 }
 
-.loading, .error {
+/* Admin actions (edit/delete) */
+.editButton {
+  background-color: #17a2b8;
+  color: #fff;
+}
+
+.editButton:hover {
+  background-color: #138496;
+  transform: translateY(-2px);
+}
+
+.deleteButton {
+  background-color: #dc3545;
+  color: #fff;
+}
+
+.deleteButton:hover {
+  background-color: #c82333;
+  transform: translateY(-2px);
+}
+
+.loading,
+.error {
   text-align: center;
   padding: 2rem;
   font-size: 1.2rem;
+  color: #777;
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+  .eventHeader h1 {
+    font-size: 2rem;
+  }
+  .eventInfo {
+    padding: 0.5rem;
+  }
+  .registerButton,
+  .backButton,
+  .editButton,
+  .deleteButton {
+    width: 100%;
+    margin-bottom: 0.5rem;
+  }
 }
