@@ -1,17 +1,47 @@
 import axios from "axios";
 import { ACCESS_TOKEN, REFRESH_TOKEN } from "./constants";
 
+// Use the existing API URL from the project
 const apiUrl = "http://127.0.0.1:8000/";
 
+// Export the base URL for use in components that need to construct full URLs
+export const getBaseUrl = () => {
+  return import.meta.env.VITE_API_URL ? import.meta.env.VITE_API_URL : apiUrl;
+};
+
+// Export a function to get the full media URL
+export const getMediaUrl = (relativePath) => {
+  if (!relativePath) return null;
+  if (relativePath.startsWith('http')) return relativePath;
+  
+  const baseUrl = getBaseUrl();
+  // Ensure proper path joining with slash handling
+  const baseWithTrailingSlash = baseUrl.endsWith('/') ? baseUrl : `${baseUrl}/`;
+  const pathWithoutLeadingSlash = relativePath.startsWith('/') ? relativePath.substring(1) : relativePath;
+  return `${baseWithTrailingSlash}${pathWithoutLeadingSlash}`;
+};
+
 const api = axios.create({
-  baseURL: import.meta.env.VITE_API_URL ? import.meta.env.VITE_API_URL : apiUrl,
+  baseURL: getBaseUrl(),
+  headers: {
+    'Content-Type': 'application/json',
+    'Accept': 'application/json'
+  }
 });
 
+// Add request interceptor for handling auth tokens
 api.interceptors.request.use(
   (config) => {
     const token = localStorage.getItem(ACCESS_TOKEN);
     if (token) {
-      config.headers['Authorization'] = `Bearer ${token}`;
+      // Try both common auth header formats based on token format
+      if (token.split('.').length === 3) {
+        // Looks like a JWT token
+        config.headers['Authorization'] = `Bearer ${token}`;
+      } else {
+        // Might be a simple token
+        config.headers['Authorization'] = `Token ${token}`;
+      }
     }
     return config;
   },
@@ -20,10 +50,14 @@ api.interceptors.request.use(
   }
 );
 
+// Add response interceptor with original refresh token functionality
 api.interceptors.response.use(
   (response) => response,
   async (error) => {
     const originalRequest = error.config;
+    
+    // Log error details for debugging
+    console.error('API Error:', error.response ? `Status: ${error.response.status}` : error.message);
     
     if (error.response?.status === 401 && !originalRequest._retry) {
       originalRequest._retry = true;
@@ -33,7 +67,7 @@ api.interceptors.response.use(
           throw new Error('No refresh token available');
         }
 
-        const response = await axios.post(`${apiUrl}token/refresh/`, {
+        const response = await axios.post(`${getBaseUrl()}token/refresh/`, {
           refresh: refreshToken,
         });
 
@@ -44,12 +78,14 @@ api.interceptors.response.use(
           return api(originalRequest);
         }
       } catch (error) {
+        console.error('Token refresh failed:', error);
         localStorage.removeItem(ACCESS_TOKEN);
         localStorage.removeItem(REFRESH_TOKEN);
         window.location.href = '/login_reg';
         return Promise.reject(error);
       }
     }
+    
     return Promise.reject(error);
   }
 );

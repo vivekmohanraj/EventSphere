@@ -18,7 +18,11 @@ import ResetPassword from "./components/forgotResetPassword.jsx";
 import EventList from "./components/events.jsx";
 import EventCreation from "./components/eventCreatoin.jsx";
 import EventDetails from "./components/eventDetails";
-import Dashboard from "./components/adminDashboard.jsx";
+import AdminDashboard from "./components/admindashboard/adminDashboard.jsx";
+import CoordinatorDashboard from "./components/coordinatordashboard/coordinatorDashboard.jsx";
+import UserDashboard from "./components/userdashboard/userDashboard.jsx";
+// Import global CSS for font consistency
+import "./assets/css/fonts.css";
 
 function logout() {
   localStorage.clear();
@@ -33,24 +37,60 @@ function registerAndLogout() {
 function App() {
   return (
     <Router>
+      {/* Preloader handler component */}
+      <Homejs />
+      
       <Routes>
+        {/* Dashboard routes with their own layout - no Header/Footer */}
         <Route
-          path="/dashboard/*"
+          path="/admin-dashboard/*"
           element={
             <ProtectedRoute>
-              <Dashboard />
+              <AdminDashboard />
             </ProtectedRoute>
           }
         />
         <Route
-          path="*"
+          path="/coordinator-dashboard/*"
+          element={
+            <ProtectedRoute>
+              <CoordinatorDashboard />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/user-dashboard/*"
+          element={
+            <ProtectedRoute>
+              <UserDashboard />
+            </ProtectedRoute>
+          }
+        />
+        
+        {/* Legacy dashboard route - redirects to the admin dashboard */}
+        <Route
+          path="/dashboard/*"
+          element={
+            <ProtectedRoute>
+              <Navigate to="/admin-dashboard" replace />
+            </ProtectedRoute>
+          }
+        />
+        
+        {/* Routes with Header and Footer */}
+        <Route
+          path="/*"
           element={
             <>
-              <Homejs />
+              {/* Include Header for all routes except dashboard */}
               <Header />
+              
               <Routes>
+                {/* Main routes */}
                 <Route path="/" element={<Home />} />
                 <Route path="/login_reg" element={<LoginRegistration />} />
+                
+                {/* Protected routes */}
                 <Route
                   path="/reset-link-sent"
                   element={
@@ -91,15 +131,9 @@ function App() {
                     </ProtectedRoute>
                   }
                 />
-                <Route
-                  path="/dashboard"
-                  element={
-                    <ProtectedRoute>
-                      <Dashboard />
-                    </ProtectedRoute>
-                  }
-                />
               </Routes>
+              
+              {/* Include Footer for all routes except dashboard */}
               <Footer />
             </>
           }

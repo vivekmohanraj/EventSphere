@@ -7,6 +7,7 @@ import { ACCESS_TOKEN} from "../utils/constants";
 function Header() {
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [username, setUsername] = useState("");
+  const [userRole, setUserRole] = useState("");
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -17,7 +18,9 @@ function Header() {
         try {
           const user = JSON.parse(userData);
           setUsername(user.username);
-          // console.log(user.user_role)
+          // Get user role from localStorage
+          const role = user.role || user.user_role;
+          setUserRole(role);
           setIsLoggedIn(true);
         } catch (error) {
           console.error("Error parsing user data:", error);
@@ -34,11 +37,20 @@ function Header() {
     localStorage.removeItem("user");
     setIsLoggedIn(false);
     setUsername("");
+    setUserRole("");
     navigate("/");
   };
   
 const handleDashboard = () => {
-    navigate("/dashboard");
+    // Navigate to the appropriate dashboard based on user role
+    if (userRole === "admin") {
+      navigate("/admin-dashboard");
+    } else if (userRole === "coordinator") {
+      navigate("/coordinator-dashboard");
+    } else {
+      // Default to user dashboard for normal users or undefined roles
+      navigate("/user-dashboard");
+    }
   };
 
   return (
@@ -63,62 +75,15 @@ const handleDashboard = () => {
                   </Link>
                 </li>
                 <li>
-                  <Link to="#about">About</Link>
+                  <Link to="/events">Events</Link>
                 </li>
+                {isLoggedIn && userRole === "coordinator" && (
+                  <li>
+                    <Link to="/create-event">Create Event</Link>
+                  </li>
+                )}
                 <li>
-                  <Link to="#services">Services</Link>
-                </li>
-                <li>
-                  <Link to="#portfolio">Portfolio</Link>
-                </li>
-                <li>
-                  <a href="#team">Team</a>
-                </li>
-                <li className="dropdown">
-                  <Link to="/#">
-                    <span>Dropdown</span>{" "}
-                    <i className="bi bi-chevron-down toggle-dropdown"></i>
-                  </Link>
-                  <ul>
-                    <li>
-                      <Link to="/#">Dropdown 1</Link>
-                    </li>
-                    <li className="dropdown">
-                      <Link to="/#">
-                        <span>Deep Dropdown</span>{" "}
-                        <i className="bi bi-chevron-down toggle-dropdown"></i>
-                      </Link>
-                      <ul>
-                        <li>
-                          <Link to="/#">Deep Dropdown 1</Link>
-                        </li>
-                        <li>
-                          <Link to="/#">Deep Dropdown 2</Link>
-                        </li>
-                        <li>
-                          <Link to="/#">Deep Dropdown 3</Link>
-                        </li>
-                        <li>
-                          <Link to="/#">Deep Dropdown 4</Link>
-                        </li>
-                        <li>
-                          <Link to="/#">Deep Dropdown 5</Link>
-                        </li>
-                      </ul>
-                    </li>
-                    <li>
-                      <Link to="/#">Dropdown 2</Link>
-                    </li>
-                    <li>
-                      <Link to="/#">Dropdown 3</Link>
-                    </li>
-                    <li>
-                      <Link to="/#">Dropdown 4</Link>
-                    </li>
-                  </ul>
-                </li>
-                <li>
-                  <Link to="/#contact">Contact</Link>
+                  <Link to="/about">About Us</Link>
                 </li>
               </ul>
               <i className="mobile-nav-toggle d-xl-none bi bi-list"></i>
@@ -136,7 +101,13 @@ const handleDashboard = () => {
                       <li>
                         <button onClick={handleDashboard}>
                           <i className="bi bi-speedometer2"></i>
-                          <span style={{ margin: '0' }}>Dashboard</span>
+                          <span style={{ margin: '0' }}>
+                            {userRole === "admin" 
+                              ? "Admin Dashboard" 
+                              : userRole === "coordinator" 
+                                ? "Coordinator Dashboard" 
+                                : "My Dashboard"}
+                          </span>
                         </button>
                       </li>
                       <li>

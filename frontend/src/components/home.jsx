@@ -38,9 +38,17 @@ import team1jpg from "../assets/img/team/team-1.jpg";
 import team2jpg from "../assets/img/team/team-2.jpg";
 import team3jpg from "../assets/img/team/team-3.jpg";
 import { ACCESS_TOKEN } from "../utils/constants";
+import "../assets/css/fonts.css";
 
 function Home() {
   const [isLoggedIn, setIsLoggedIn] = useState(false);
+  const [stats, setStats] = useState({
+    totalUsers: 500,
+    totalEvents: 200,
+    supportAvailable: 24,
+    totalLocations: 50
+  });
+  const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
     const checkAuth = () => {
@@ -50,7 +58,34 @@ function Home() {
       }
     };
 
-    checkAuth(); // Call the function inside useEffect
+    const fetchStats = async () => {
+      try {
+        const response = await fetch('http://localhost:8080/api/stats', {
+          method: 'GET',
+          headers: {
+            'Content-Type': 'application/json'
+          }
+        });
+
+        if (response.ok) {
+          const data = await response.json();
+          setStats({
+            totalUsers: data.totalUsers || 500,
+            totalEvents: data.totalEvents || 200,
+            supportAvailable: data.supportAvailable || 24,
+            totalLocations: data.totalLocations || 50
+          });
+        }
+      } catch (error) {
+        console.error('Error fetching stats:', error);
+        // Keep the default values if fetch fails
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    checkAuth();
+    fetchStats();
   }, []); 
 
   return (
@@ -84,11 +119,11 @@ function Home() {
                   </Link>
                 )}
                   <a
-                    href="https://www.youtube.com/watch?v=Y7f98aduVJ8"
+                    href="#about"
                     className="glightbox btn-watch-video d-flex align-items-center"
                   >
-                    <i className="bi bi-play-circle"></i>
-                    <span>Watch Video</span>
+                    <i className="bi bi-info-circle"></i>
+                    <span>Learn More</span>
                   </a>
                 </div>
               </div>
@@ -209,11 +244,13 @@ function Home() {
                       <div>
                         <span
                           data-purecounter-start="0"
-                          data-purecounter-end="0"
+                          data-purecounter-end={stats.totalUsers}
                           data-purecounter-duration="1"
                           className="purecounter"
-                        ></span>
-                        <p>Happy Clients</p>
+                        >
+                          {isLoading ? "..." : `${stats.totalUsers}+`}
+                        </span>
+                        <p>Satisfied Users</p>
                       </div>
                     </div>
                   </div>
@@ -221,15 +258,17 @@ function Home() {
 
                   <div className="col-lg-3 col-md-6">
                     <div className="stats-item d-flex align-items-center w-100 h-100">
-                      <i className="bi bi-journal-richtext color-orange flex-shrink-0"></i>
+                      <i className="bi bi-calendar-event color-orange flex-shrink-0"></i>
                       <div>
                         <span
                           data-purecounter-start="0"
-                          data-purecounter-end="0"
+                          data-purecounter-end={stats.totalEvents}
                           data-purecounter-duration="1"
                           className="purecounter"
-                        ></span>
-                        <p>Projects</p>
+                        >
+                          {isLoading ? "..." : `${stats.totalEvents}+`}
+                        </span>
+                        <p>Events Hosted</p>
                       </div>
                     </div>
                   </div>
@@ -241,11 +280,13 @@ function Home() {
                       <div>
                         <span
                           data-purecounter-start="0"
-                          data-purecounter-end="24  "
+                          data-purecounter-end={stats.supportAvailable}
                           data-purecounter-duration="1"
                           className="purecounter"
-                        ></span>
-                        <p>Hours Of Support</p>
+                        >
+                          {isLoading ? "..." : `${stats.supportAvailable}/7`}
+                        </span>
+                        <p>Support Available</p>
                       </div>
                     </div>
                   </div>
@@ -253,15 +294,17 @@ function Home() {
 
                   <div className="col-lg-3 col-md-6">
                     <div className="stats-item d-flex align-items-center w-100 h-100">
-                      <i className="bi bi-people color-pink flex-shrink-0"></i>
+                      <i className="bi bi-geo-alt color-pink flex-shrink-0"></i>
                       <div>
                         <span
                           data-purecounter-start="0"
-                          data-purecounter-end="2"
+                          data-purecounter-end={stats.totalLocations}
                           data-purecounter-duration="1"
                           className="purecounter"
-                        ></span>
-                        <p>Hard Workers</p>
+                        >
+                          {isLoading ? "..." : `${stats.totalLocations}+`}
+                        </span>
+                        <p>Locations</p>
                       </div>
                     </div>
                   </div>
@@ -303,7 +346,7 @@ function Home() {
                           <i className="bi bi-activity"></i>
                         </div>
                         <a
-                          href="service-details.html"
+                          href="/events"
                           className="stretched-link"
                         >
                           <h3>Weddings & Celebrations</h3>
@@ -336,7 +379,7 @@ function Home() {
                           <i className="bi bi-broadcast"></i>
                         </div>
                         <a
-                          href="service-details.html"
+                          href="/events"
                           className="stretched-link"
                         >
                           <h3>Corporate Events</h3>
@@ -369,7 +412,7 @@ function Home() {
                           <i className="bi bi-easel"></i>
                         </div>
                         <a
-                          href="service-details.html"
+                          href="/events"
                           className="stretched-link"
                         >
                           <h3>Concerts & Entertainment Shows</h3>
@@ -446,7 +489,7 @@ function Home() {
                     >
                       <i className="bi bi-binoculars"></i>
                       <h4 className="d-none d-lg-block">
-                        Modi sit est dela pireda nest
+                        Event Planning
                       </h4>
                     </a>
                   </li>
@@ -458,7 +501,7 @@ function Home() {
                     >
                       <i className="bi bi-box-seam"></i>
                       <h4 className="d-none d-lg-block">
-                        Unde praesenti mara setra le
+                        Ticketing System
                       </h4>
                     </a>
                   </li>
@@ -470,7 +513,7 @@ function Home() {
                     >
                       <i className="bi bi-brightness-high"></i>
                       <h4 className="d-none d-lg-block">
-                        Pariatur explica nitro dela
+                        User Engagement
                       </h4>
                     </a>
                   </li>
@@ -482,7 +525,7 @@ function Home() {
                     >
                       <i className="bi bi-command"></i>
                       <h4 className="d-none d-lg-block">
-                        Nostrum qui dile node
+                        Analytics & Reports
                       </h4>
                     </a>
                   </li>
@@ -1019,7 +1062,7 @@ function Home() {
               {/* <!-- Section Title --> */}
               <div className="container section-title" data-aos="fade-up">
                 <h2>Portfolio</h2>
-                <p>CHECK OUR PORTFOLIO</p>
+                <p>EXPLORE OUR EVENTS</p>
               </div>
               {/* <!-- End Section Title --> */}
 
@@ -1039,9 +1082,9 @@ function Home() {
                       All
                     </li>
                     <li data-filter=".filter-app">Parties</li>
-                    <li data-filter=".filter-product">Marriage</li>
-                    <li data-filter=".filter-branding">Birthdays</li>
-                    <li data-filter=".filter-books">Celebrations</li>
+                    <li data-filter=".filter-product">Weddings</li>
+                    <li data-filter=".filter-branding">Corporate</li>
+                    <li data-filter=".filter-books">Concerts</li>
                   </ul>
                   {/* <!-- End Portfolio Filters --> */}
 
@@ -1549,7 +1592,7 @@ function Home() {
                         >
                           <i className="bi bi-geo-alt"></i>
                           <h3>Address</h3>
-                          <p>A108 Adam Street, New York, NY 535022</p>
+                          <p>123 Event Street, Event City, India 500032</p>
                         </div>
                       </div>
                       {/* <!-- End Info Item --> */}
@@ -1562,7 +1605,7 @@ function Home() {
                         >
                           <i className="bi bi-telephone"></i>
                           <h3>Call Us</h3>
-                          <p>+1 5589 55488 55</p>
+                          <p>+91 9876543210</p>
                         </div>
                       </div>
                       {/* <!-- End Info Item --> */}
@@ -1575,7 +1618,7 @@ function Home() {
                         >
                           <i className="bi bi-envelope"></i>
                           <h3>Email Us</h3>
-                          <p>info@example.com</p>
+                          <p>contact@eventsphere.com</p>
                         </div>
                       </div>
                       {/* <!-- End Info Item --> */}
@@ -1584,8 +1627,11 @@ function Home() {
 
                   <div className="col-lg-6">
                     <form
-                      action="forms/contact.php"
-                      method="post"
+                      onSubmit={(e) => {
+                        e.preventDefault();
+                        alert("Thank you for your message! We'll get back to you soon.");
+                        e.target.reset();
+                      }}
                       className="validate-email"
                       data-aos="fade-up"
                       data-aos-delay="500"
@@ -1597,7 +1643,7 @@ function Home() {
                             name="name"
                             className="form-control"
                             placeholder="Your Name"
-                            required=""
+                            required
                           />
                         </div>
 
@@ -1607,7 +1653,7 @@ function Home() {
                             className="form-control"
                             name="email"
                             placeholder="Your Email"
-                            required=""
+                            required
                           />
                         </div>
 
@@ -1617,7 +1663,7 @@ function Home() {
                             className="form-control"
                             name="subject"
                             placeholder="Subject"
-                            required=""
+                            required
                           />
                         </div>
 
@@ -1627,17 +1673,11 @@ function Home() {
                             name="message"
                             rows="4"
                             placeholder="Message"
-                            required=""
+                            required
                           ></textarea>
                         </div>
 
                         <div className="col-md-12 text-center">
-                          <div className="loading">Loading</div>
-                          <div className="error-message"></div>
-                          <div className="sent-message">
-                            Your message has been sent. Thank you!
-                          </div>
-
                           <button type="submit">Send Message</button>
                         </div>
                       </div>

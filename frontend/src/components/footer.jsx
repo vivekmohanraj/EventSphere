@@ -135,8 +135,6 @@ function Footer() {
         >
           <i className="bi bi-arrow-up-short"></i>
         </a>
-        {/* <!-- Preloader --> */}
-        <div id="preloader"></div>
         </div>
       </div>
     </>

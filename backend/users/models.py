@@ -65,6 +65,7 @@ class User(AbstractUser):
     profile_photo = models.ImageField(upload_to='profile_photos/', null=True, blank=True)
     google_id = models.CharField(max_length=255, null=True, blank=True)
     user_role = models.CharField(max_length=20, choices=USER_ROLE_CHOICES, default='user')
+    coordinator_request = models.BooleanField(default=False)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
     

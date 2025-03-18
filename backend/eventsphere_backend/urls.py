@@ -23,7 +23,7 @@ from events.views import EventViewSet
 from payments.views import PaymentViewSet
 from rest_framework.routers import DefaultRouter
 from rest_framework_simplejwt.views import TokenObtainPairView, TokenRefreshView
-from users.views import UserViewSet
+from users.views import UserViewSet, ProfileView, ChangePasswordView
 
 # Create router for admin endpoints
 admin_router = DefaultRouter()
@@ -37,7 +37,14 @@ urlpatterns = [
     path("payments/", include("payments.urls")),
     path("token/", TokenObtainPairView.as_view(), name="token_obtain_pair"),
     path("token/refresh/", TokenRefreshView.as_view(), name="token_refresh"),
-    path("auth/", include("rest_framework.urls"))
+    path("auth/", include("rest_framework.urls")),
+    
+    # Additional compatibility endpoints for the profile feature
+    path("api/", include("users.urls")),
+    path("api/profile/", ProfileView.as_view(), name="root-api-profile"),
+    path("api/users/me/", ProfileView.as_view(), name="root-api-me"),
+    path("auth/users/me/", ProfileView.as_view(), name="root-auth-me"),
+    path("auth/password/change/", ChangePasswordView.as_view(), name="root-auth-password"),
 ]
 
 # Serve media files in development

@@ -30,6 +30,16 @@ class UserSerializer(serializers.ModelSerializer):
         validated_data['user_role'] = 'user'
         return super().create(validated_data)
 
+# New serializer for user profile updates - doesn't require password fields
+class UserProfileSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = User
+        fields = [
+            'id', 'first_name', 'last_name', 'username', 'email', 
+            'phone', 'profile_photo', 'user_role', 'created_at', 'updated_at'
+        ]
+        read_only_fields = ['id', 'username', 'email', 'user_role', 'created_at', 'updated_at']
+
 class LoginSerializer(serializers.Serializer):
     login = serializers.EmailField()
     password = serializers.CharField(write_only=True)

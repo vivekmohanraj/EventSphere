@@ -4,7 +4,7 @@ import requests
 from django.conf import settings
 
 # Create your views here.
-from django.contrib.auth.hashers import check_password
+from django.contrib.auth.hashers import check_password, make_password
 from django.contrib.auth.tokens import default_token_generator
 from django.core.mail import send_mail
 from django.db.models import Q
@@ -19,11 +19,119 @@ from rest_framework_simplejwt.authentication import JWTAuthentication
 from rest_framework_simplejwt.tokens import RefreshToken
 
 from .models import User
-from .serializers import LoginSerializer, UserSerializer
+from .serializers import LoginSerializer, UserSerializer, UserProfileSerializer
 
 # Get an instance of a logger
 logger = logging.getLogger(__name__)
 
+# Combined user profile view for GET, PATCH, and PUT methods
+class ProfileView(APIView):
+    permission_classes = [IsAuthenticated]
+    authentication_classes = [JWTAuthentication]
+
+    def get(self, request):
+        """Get current user's profile data"""
+        user = request.user
+        serializer = UserProfileSerializer(user)
+        return Response(serializer.data)
+        
+    def patch(self, request):
+        """Update current user's profile data with PATCH"""
+        return self._update_profile(request)
+        
+    def put(self, request):
+        """Update current user's profile data with PUT"""
+        return self._update_profile(request)
+    
+    def _update_profile(self, request):
+        """Common method for profile update logic"""
+        user = request.user
+        
+        # Handle both form data and JSON
+        data = request.data.copy()
+        
+        # For multipart form data with file upload
+        if request.FILES.get('profile_photo'):
+            data['profile_photo'] = request.FILES['profile_photo']
+        # For compatibility with frontend using different field names
+        elif request.FILES.get('profilePhoto'):
+            data['profile_photo'] = request.FILES['profilePhoto']
+        elif request.FILES.get('avatar'):
+            data['profile_photo'] = request.FILES['avatar']
+        elif request.FILES.get('photo'):
+            data['profile_photo'] = request.FILES['photo']
+            
+        # Map camelCase field names to snake_case if present
+        if 'firstName' in data and 'first_name' not in data:
+            data['first_name'] = data['firstName']
+        if 'lastName' in data and 'last_name' not in data:
+            data['last_name'] = data['lastName']
+        if 'phoneNumber' in data and 'phone' not in data:
+            data['phone'] = data['phoneNumber']
+            
+        serializer = UserProfileSerializer(user, data=data, partial=True)
+        
+        if serializer.is_valid():
+            serializer.save()
+            return Response(serializer.data)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+# New view for changing password
+class ChangePasswordView(APIView):
+    permission_classes = [IsAuthenticated]
+    authentication_classes = [JWTAuthentication]
+
+    def post(self, request):
+        """Change user password"""
+        user = request.user
+        data = request.data
+        
+        # Try multiple field name formats for current password
+        current_password = (
+            data.get("current_password") or 
+            data.get("old_password") or 
+            data.get("currentPassword") or
+            data.get("oldPassword")
+        )
+        
+        # Try multiple field name formats for new password
+        new_password = (
+            data.get("new_password") or 
+            data.get("password") or 
+            data.get("newPassword") or
+            data.get("password1")
+        )
+        
+        # Check required fields
+        if not current_password or not new_password:
+            return Response(
+                {"error": "Current password and new password are required"},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        # Verify current password
+        if not check_password(current_password, user.password):
+            return Response(
+                {"error": "Current password is incorrect"},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        # Validate new password
+        if len(new_password) < 8:
+            return Response(
+                {"error": "Password must be at least 8 characters long"},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        # Update password
+        user.password = make_password(new_password)
+        user.save()
+        
+        return Response({"message": "Password updated successfully"})
+        
+    def put(self, request):
+        """Support for PUT method for password changes"""
+        return self.post(request)
 
 class UserStatsView(viewsets.ModelViewSet):
     queryset = User.objects.all()
@@ -55,6 +163,21 @@ class UserViewSet(viewsets.ModelViewSet):
             return Response({"message": "Role updated successfully"})
         except Exception as e:
             return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
+            
+    def retrieve(self, request, pk=None):
+        """Get detailed information for a single user"""
+        try:
+            user = self.get_object()
+            serializer = UserSerializer(user)
+            return Response(serializer.data)
+        except Exception as e:
+            return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
+            
+    def list(self, request):
+        """List all users with detailed information"""
+        queryset = self.get_queryset()
+        serializer = UserSerializer(queryset, many=True)
+        return Response(serializer.data)
 
 
 class RegisterView(generics.CreateAPIView):
