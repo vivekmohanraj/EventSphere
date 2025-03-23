@@ -25,7 +25,7 @@ import {
 } from "react-icons/fa";
 import { ToastContainer, toast } from "react-toastify";
 import api, { getMediaUrl } from "../../utils/api";
-import styles from "../../assets/css/Dashboard.module.css";
+import styles from "../../assets/css/adminDashboard.module.css";
 import UsersManagement from "./userManagement";
 import EventsManagement from "./eventsManagement";
 import PaymentsManagement from "./paymentsManagement";

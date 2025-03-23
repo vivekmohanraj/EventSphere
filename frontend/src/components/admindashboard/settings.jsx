@@ -1,8 +1,8 @@
 import React, { useState } from 'react';
 import { toast } from 'react-toastify';
-import { FaLock, FaEnvelope, FaBell, FaPalette } from 'react-icons/fa';
+import { FaLock, FaEnvelope, FaBell, FaPalette, FaSave, FaShieldAlt, FaDatabase } from 'react-icons/fa';
 import api from '../../utils/api';
-import styles from '../../assets/css/settings.module.css';
+import styles from '../../assets/css/adminDashboard.module.css';
 
 const Settings = () => {
   const [activeSection, setActiveSection] = useState('account');

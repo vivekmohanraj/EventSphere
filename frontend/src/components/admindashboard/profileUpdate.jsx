@@ -1,12 +1,12 @@
 import React, { useState, useEffect } from "react";
 import { toast } from "react-toastify";
-import { FaSave, FaUpload, FaKey, FaUser } from "react-icons/fa";
-import api from "../../utils/api";
-import styles from "../../assets/css/Dashboard.module.css";
+import { FaSave, FaUpload, FaKey, FaUser, FaEnvelope, FaPhone, FaCamera } from "react-icons/fa";
+import api, { getMediaUrl } from "../../utils/api";
+import styles from "../../assets/css/adminDashboard.module.css";
 import { jwtDecode } from "jwt-decode";
 import { ACCESS_TOKEN } from "../../utils/constants";
 
-const ProfileUpdate = () => {
+const ProfileUpdate = ({ userProfile, setUserProfile, setProfilePhotoPreview }) => {
   const [loading, setLoading] = useState(true);
   const [user, setUser] = useState(null);
   const [formData, setFormData] = useState({
@@ -394,7 +394,7 @@ const ProfileUpdate = () => {
           </div>
           <div className={styles.imageUploadContainer}>
             <label htmlFor="profile-image" className={styles.uploadButton}>
-              <FaUpload /> Change Photo
+              <FaCamera /> Change Photo
             </label>
             <input
               type="file"

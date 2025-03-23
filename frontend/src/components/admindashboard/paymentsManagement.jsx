@@ -2,7 +2,7 @@ import React, { useState, useEffect } from "react";
 import { toast } from "react-toastify";
 import { FaDownload, FaEye, FaSearch, FaFilter, FaCheckCircle, FaTimesCircle } from "react-icons/fa";
 import api from "../../utils/api";
-import styles from "../../assets/css/Dashboard.module.css";
+import styles from "../../assets/css/adminDashboard.module.css";
 
 const PaymentsManagement = () => {
   const [payments, setPayments] = useState([]);
@@ -162,8 +162,17 @@ const PaymentsManagement = () => {
   };
 
   return (
-    <div className={styles.paymentsManagement}>
-      {/* Payment Stats */}
+    <div className={styles.contentContainer}>
+      <div className={styles.sectionHeader}>
+        <h2 className={styles.sectionTitle}>Payments Management</h2>
+        <button 
+          className={`${styles.button} ${styles.primaryButton}`}
+          onClick={handleExportCSV}
+        >
+          <FaDownload /> Export Payments
+        </button>
+      </div>
+
       <div className={styles.statsGrid}>
         <div className={styles.statCard}>
           <div className={styles.statIcon}>₹</div>
@@ -199,29 +208,36 @@ const PaymentsManagement = () => {
         </div>
       </div>
 
-      {/* Filters and Export */}
-      <div className={styles.toolbarContainer}>
-        <div className={styles.filters}>
-          <div className={styles.searchContainer}>
-            <FaSearch className={styles.searchIcon} />
-            <input
-              type="text"
-              placeholder="Search by user, event, or transaction ID..."
-              className={styles.searchInput}
-              value={searchTerm}
-              onChange={handleSearch}
-            />
-          </div>
-          <select
+      <div className={styles.filterContainer}>
+        <div className={styles.searchBar}>
+          <FaSearch className={styles.searchIcon} />
+          <input
+            type="text"
+            placeholder="Search payments..."
+            className={styles.searchInput}
+            value={searchTerm}
+            onChange={handleSearch}
+          />
+        </div>
+        
+        <div className={styles.filterDropdown}>
+          <FaFilter className={styles.filterIcon} />
+          <select 
             value={statusFilter}
             onChange={handleStatusFilterChange}
-            className={styles.statusFilter}
+            className={styles.filterSelect}
           >
             <option value="all">All Statuses</option>
             <option value="completed">Completed</option>
             <option value="pending">Pending</option>
             <option value="failed">Failed</option>
           </select>
+        </div>
+      </div>
+
+      {/* Filters and Export */}
+      <div className={styles.toolbarContainer}>
+        <div className={styles.filters}>
           <div className={styles.dateRangeFilter}>
             <input
               type="date"
@@ -242,16 +258,13 @@ const PaymentsManagement = () => {
             />
           </div>
         </div>
-        <button className={styles.exportButton} onClick={handleExportCSV}>
-          <FaDownload /> Export CSV
-        </button>
       </div>
 
       {/* Payments Table */}
       {loading ? (
         <div className={styles.loader}>Loading payments...</div>
       ) : (
-        <div className={styles.tableContainer}>
+        <div className={styles.tableWrapper}>
           <table className={styles.table}>
             <thead>
               <tr>
@@ -316,7 +329,7 @@ const PaymentsManagement = () => {
                 ))
               ) : (
                 <tr>
-                  <td colSpan="7" style={{ textAlign: "center" }}>
+                  <td colSpan="7" className={styles.noData}>
                     No payments found
                   </td>
                 </tr>

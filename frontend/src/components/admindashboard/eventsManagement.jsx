@@ -8,28 +8,27 @@ import {
   FaSearch,
   FaPlus,
   FaEye,
+  FaMapMarkerAlt,
+  FaCalendarAlt,
 } from "react-icons/fa";
 import api from "../../utils/api";
-import styles from "../../assets/css/Dashboard.module.css";
+import styles from "../../assets/css/adminDashboard.module.css";
 
 const EventsManagement = () => {
   const [events, setEvents] = useState([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
-  const [statusFilter, setStatusFilter] = useState("all");
-  const [showModal, setShowModal] = useState(false);
   const [selectedEvent, setSelectedEvent] = useState(null);
-  const [viewDetails, setViewDetails] = useState(null);
+  const [isModalOpen, setIsModalOpen] = useState(false);
   const [formData, setFormData] = useState({
-    title: "",
+    event_name: "",
     description: "",
+    event_date: "",
     location: "",
-    start_date: "",
-    end_date: "",
-    category: "",
+    event_type: "conference",
+    capacity: "",
     price: "",
-    max_attendees: "",
-    is_approved: false,
+    status: "upcoming"
   });
 
   useEffect(() => {
@@ -39,26 +38,12 @@ const EventsManagement = () => {
   const fetchEvents = async () => {
     try {
       setLoading(true);
-      // Try multiple endpoints that could exist
-      try {
-        const response = await api.get("events/all/");
-        setEvents(response.data);
-      } catch (firstError) {
-        console.warn("Could not fetch from events/all/, trying events/events/");
-        try {
-          const fallbackResponse = await api.get("events/events/");
-          setEvents(Array.isArray(fallbackResponse.data) ? fallbackResponse.data : []);
-        } catch (secondError) {
-          console.warn("Could not fetch from events/events/, trying events/");
-          const lastFallbackResponse = await api.get("events/");
-          setEvents(Array.isArray(lastFallbackResponse.data) ? lastFallbackResponse.data : []);
-        }
-      }
+      const response = await api.get("events/");
+      setEvents(response.data);
+      setLoading(false);
     } catch (error) {
-      toast.error("Failed to fetch events");
       console.error("Error fetching events:", error);
-      setEvents([]);
-    } finally {
+      toast.error("Failed to load events");
       setLoading(false);
     }
   };
@@ -67,56 +52,25 @@ const EventsManagement = () => {
     setSearchTerm(e.target.value);
   };
 
-  const handleStatusFilterChange = (e) => {
-    setStatusFilter(e.target.value);
-  };
-
-  const filteredEvents = events.filter((event) => {
-    const matchesSearch = event.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                        event.description.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                        event.location.toLowerCase().includes(searchTerm.toLowerCase());
-    
-    if (statusFilter === "all") return matchesSearch;
-    if (statusFilter === "approved") return matchesSearch && event.is_approved;
-    if (statusFilter === "pending") return matchesSearch && !event.is_approved;
-    
-    return matchesSearch;
-  });
-
-  const handleAddNew = () => {
-    setSelectedEvent(null);
-    setFormData({
-      title: "",
-      description: "",
-      location: "",
-      start_date: "",
-      end_date: "",
-      category: "",
-      price: "",
-      max_attendees: "",
-      is_approved: false,
-    });
-    setShowModal(true);
-  };
+  const filteredEvents = events.filter((event) =>
+    event.event_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    event.location?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    event.event_type?.toLowerCase().includes(searchTerm.toLowerCase())
+  );
 
   const handleEdit = (event) => {
     setSelectedEvent(event);
     setFormData({
-      title: event.title,
-      description: event.description,
-      location: event.location,
-      start_date: event.start_date.split("T")[0],
-      end_date: event.end_date.split("T")[0],
-      category: event.category,
-      price: event.price,
-      max_attendees: event.max_attendees,
-      is_approved: event.is_approved,
+      event_name: event.event_name || "",
+      description: event.description || "",
+      event_date: event.event_date || event.start_date || "",
+      location: event.location || "",
+      event_type: event.event_type || "conference",
+      capacity: event.capacity || "",
+      price: event.price || "",
+      status: event.status || "upcoming"
     });
-    setShowModal(true);
-  };
-
-  const handleView = (event) => {
-    setViewDetails(event);
+    setIsModalOpen(true);
   };
 
   const handleDelete = async (eventId) => {
@@ -126,116 +80,87 @@ const EventsManagement = () => {
         toast.success("Event deleted successfully");
         fetchEvents();
       } catch (error) {
-        toast.error("Failed to delete event");
         console.error("Error deleting event:", error);
+        toast.error("Failed to delete event");
       }
     }
+  };
+
+  const handleInputChange = (e) => {
+    const { name, value } = e.target;
+    setFormData({
+      ...formData,
+      [name]: value
+    });
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     try {
-      const eventData = {
-        ...formData,
-        price: parseFloat(formData.price),
-        max_attendees: parseInt(formData.max_attendees, 10),
-      };
-
       if (selectedEvent) {
-        // Edit existing event
-        await api.put(`events/${selectedEvent.id}/`, eventData);
+        await api.put(`events/${selectedEvent.id}/`, formData);
         toast.success("Event updated successfully");
       } else {
-        // Add new event
-        await api.post("events/create/", eventData);
+        await api.post("events/", formData);
         toast.success("Event created successfully");
       }
-      setShowModal(false);
+      setIsModalOpen(false);
       fetchEvents();
     } catch (error) {
-      toast.error(
-        error.response?.data?.message || "Failed to process event data"
-      );
       console.error("Error saving event:", error);
+      toast.error("Failed to save event");
     }
   };
 
-  const handleApproveEvent = async (eventId, approve) => {
-    try {
-      // Try multiple endpoints that could exist
-      try {
-        await api.patch(`events/${eventId}/approve/`, { is_approved: approve });
-      } catch (firstError) {
-        if (firstError.response && firstError.response.status === 404) {
-          console.warn(`Could not patch events/${eventId}/approve/, trying events/${eventId}/status/`);
-          await api.patch(`events/${eventId}/status/`, { 
-            status: approve ? "approved" : "rejected" 
-          });
-        } else {
-          throw firstError;
-        }
-      }
-      toast.success(approve ? "Event approved" : "Event rejected");
-      fetchEvents();
-    } catch (error) {
-      toast.error("Failed to update event status");
-      console.error("Error updating event status:", error);
-    }
-  };
-
-  const handleInputChange = (e) => {
-    const { name, value, type, checked } = e.target;
+  const openAddEventModal = () => {
+    setSelectedEvent(null);
     setFormData({
-      ...formData,
-      [name]: type === "checkbox" ? checked : value,
+      event_name: "",
+      description: "",
+      event_date: "",
+      location: "",
+      event_type: "conference",
+      capacity: "",
+      price: "",
+      status: "upcoming"
     });
-  };
-
-  const formatDate = (dateString) => {
-    const options = { year: "numeric", month: "short", day: "numeric" };
-    return new Date(dateString).toLocaleDateString(undefined, options);
+    setIsModalOpen(true);
   };
 
   return (
-    <div className={styles.eventsManagement}>
-      <div className={styles.toolbarContainer}>
-        <div className={styles.filters}>
-          <div className={styles.searchContainer}>
-            <FaSearch className={styles.searchIcon} />
-            <input
-              type="text"
-              placeholder="Search events..."
-              className={styles.searchInput}
-              value={searchTerm}
-              onChange={handleSearch}
-            />
-          </div>
-          <select
-            value={statusFilter}
-            onChange={handleStatusFilterChange}
-            className={styles.statusFilter}
-          >
-            <option value="all">All Events</option>
-            <option value="approved">Approved</option>
-            <option value="pending">Pending</option>
-          </select>
-        </div>
-        <button className={styles.addButton} onClick={handleAddNew}>
+    <div className={styles.contentContainer}>
+      <div className={styles.sectionHeader}>
+        <h2 className={styles.sectionTitle}>Event Management</h2>
+        <button 
+          className={`${styles.button} ${styles.primaryButton}`}
+          onClick={openAddEventModal}
+        >
           <FaPlus /> Add New Event
         </button>
+      </div>
+
+      <div className={styles.searchBar}>
+        <FaSearch className={styles.searchIcon} />
+        <input
+          type="text"
+          placeholder="Search events..."
+          className={styles.searchInput}
+          value={searchTerm}
+          onChange={handleSearch}
+        />
       </div>
 
       {loading ? (
         <div className={styles.loader}>Loading events...</div>
       ) : (
-        <div className={styles.tableContainer}>
+        <div className={styles.tableWrapper}>
           <table className={styles.table}>
             <thead>
               <tr>
-                <th>Title</th>
+                <th>Event Name</th>
                 <th>Date</th>
                 <th>Location</th>
-                <th>Price</th>
+                <th>Type</th>
                 <th>Status</th>
                 <th>Actions</th>
               </tr>
@@ -244,62 +169,54 @@ const EventsManagement = () => {
               {filteredEvents.length > 0 ? (
                 filteredEvents.map((event) => (
                   <tr key={event.id}>
-                    <td>{event.title}</td>
-                    <td>{formatDate(event.start_date)}</td>
-                    <td>{event.location}</td>
-                    <td>₹{event.price.toFixed(2)}</td>
+                    <td>{event.event_name}</td>
                     <td>
-                      <span
-                        className={`${styles.statusChip} ${
-                          event.is_approved ? styles.approved : styles.pending
-                        }`}
-                      >
-                        {event.is_approved ? "Approved" : "Pending"}
+                      <div className={styles.flexCenter}>
+                        <FaCalendarAlt className={styles.iconSmall} />
+                        {new Date(event.event_date || event.start_date || event.created_at).toLocaleDateString()}
+                      </div>
+                    </td>
+                    <td>
+                      <div className={styles.flexCenter}>
+                        <FaMapMarkerAlt className={styles.iconSmall} />
+                        {event.location || 'N/A'}
+                      </div>
+                    </td>
+                    <td>{event.event_type || 'Other'}</td>
+                    <td>
+                      <span className={styles.statusIndicator + ' ' + 
+                        (event.status === 'upcoming' 
+                          ? styles.statusActive 
+                          : event.status === 'completed' 
+                            ? styles.statusComplete 
+                            : event.status === 'cancelled' 
+                              ? styles.statusRejected 
+                              : '')
+                      }>
+                        {event.status || 'N/A'}
                       </span>
                     </td>
                     <td>
                       <div className={styles.actionButtons}>
-                        <button
-                          className={`${styles.actionButton} ${styles.viewButton}`}
-                          onClick={() => handleView(event)}
-                        >
-                          <FaEye />
-                        </button>
-                        <button
-                          className={`${styles.actionButton} ${styles.editButton}`}
+                        <button 
+                          className={styles.actionButton}
                           onClick={() => handleEdit(event)}
                         >
                           <FaEdit />
                         </button>
-                        <button
+                        <button 
                           className={`${styles.actionButton} ${styles.deleteButton}`}
                           onClick={() => handleDelete(event.id)}
                         >
                           <FaTrash />
                         </button>
-                        {!event.is_approved && (
-                          <button
-                            className={`${styles.actionButton} ${styles.approveButton}`}
-                            onClick={() => handleApproveEvent(event.id, true)}
-                          >
-                            <FaCheck />
-                          </button>
-                        )}
-                        {event.is_approved && (
-                          <button
-                            className={`${styles.actionButton} ${styles.rejectButton}`}
-                            onClick={() => handleApproveEvent(event.id, false)}
-                          >
-                            <FaTimes />
-                          </button>
-                        )}
                       </div>
                     </td>
                   </tr>
                 ))
               ) : (
                 <tr>
-                  <td colSpan="6" style={{ textAlign: "center" }}>
+                  <td colSpan="6" className={styles.noData}>
                     No events found
                   </td>
                 </tr>
@@ -309,58 +226,50 @@ const EventsManagement = () => {
         </div>
       )}
 
-      {showModal && (
+      {isModalOpen && (
         <div className={styles.modalBackdrop}>
           <div className={styles.modal}>
-            <h2>{selectedEvent ? "Edit Event" : "Add New Event"}</h2>
+            <h3>{selectedEvent ? "Edit Event" : "Add New Event"}</h3>
             <form onSubmit={handleSubmit}>
               <div className={styles.formGroup}>
-                <label>Title</label>
+                <label className={styles.formLabel}>Event Name</label>
                 <input
                   type="text"
-                  name="title"
-                  value={formData.title}
+                  name="event_name"
+                  className={styles.formControl}
+                  value={formData.event_name}
                   onChange={handleInputChange}
                   required
                 />
               </div>
               <div className={styles.formGroup}>
-                <label>Description</label>
+                <label className={styles.formLabel}>Description</label>
                 <textarea
                   name="description"
+                  className={styles.formControl}
                   value={formData.description}
                   onChange={handleInputChange}
-                  rows="4"
+                  rows="3"
                   required
                 />
               </div>
-              <div className={styles.formRow}>
-                <div className={styles.formGroup}>
-                  <label>Start Date</label>
-                  <input
-                    type="date"
-                    name="start_date"
-                    value={formData.start_date}
-                    onChange={handleInputChange}
-                    required
-                  />
-                </div>
-                <div className={styles.formGroup}>
-                  <label>End Date</label>
-                  <input
-                    type="date"
-                    name="end_date"
-                    value={formData.end_date}
-                    onChange={handleInputChange}
-                    required
-                  />
-                </div>
+              <div className={styles.formGroup}>
+                <label className={styles.formLabel}>Event Date</label>
+                <input
+                  type="datetime-local"
+                  name="event_date"
+                  className={styles.formControl}
+                  value={formData.event_date}
+                  onChange={handleInputChange}
+                  required
+                />
               </div>
               <div className={styles.formGroup}>
-                <label>Location</label>
+                <label className={styles.formLabel}>Location</label>
                 <input
                   type="text"
                   name="location"
+                  className={styles.formControl}
                   value={formData.location}
                   onChange={handleInputChange}
                   required
@@ -368,125 +277,77 @@ const EventsManagement = () => {
               </div>
               <div className={styles.formRow}>
                 <div className={styles.formGroup}>
-                  <label>Category</label>
+                  <label className={styles.formLabel}>Event Type</label>
                   <select
-                    name="category"
-                    value={formData.category}
+                    name="event_type"
+                    className={styles.formControl}
+                    value={formData.event_type}
                     onChange={handleInputChange}
                     required
                   >
-                    <option value="">Select Category</option>
-                    <option value="Conference">Conference</option>
-                    <option value="Workshop">Workshop</option>
-                    <option value="Seminar">Seminar</option>
-                    <option value="Meetup">Meetup</option>
-                    <option value="Concert">Concert</option>
-                    <option value="Exhibition">Exhibition</option>
-                    <option value="Other">Other</option>
+                    <option value="conference">Conference</option>
+                    <option value="seminar">Seminar</option>
+                    <option value="workshop">Workshop</option>
+                    <option value="networking">Networking</option>
+                    <option value="other">Other</option>
                   </select>
                 </div>
                 <div className={styles.formGroup}>
-                  <label>Maximum Attendees</label>
-                  <input
-                    type="number"
-                    name="max_attendees"
-                    value={formData.max_attendees}
+                  <label className={styles.formLabel}>Status</label>
+                  <select
+                    name="status"
+                    className={styles.formControl}
+                    value={formData.status}
                     onChange={handleInputChange}
-                    min="1"
                     required
-                  />
+                  >
+                    <option value="upcoming">Upcoming</option>
+                    <option value="ongoing">Ongoing</option>
+                    <option value="completed">Completed</option>
+                    <option value="cancelled">Cancelled</option>
+                  </select>
                 </div>
               </div>
               <div className={styles.formRow}>
                 <div className={styles.formGroup}>
-                  <label>Price (₹)</label>
+                  <label className={styles.formLabel}>Capacity</label>
                   <input
                     type="number"
-                    name="price"
-                    value={formData.price}
+                    name="capacity"
+                    className={styles.formControl}
+                    value={formData.capacity}
                     onChange={handleInputChange}
-                    min="0"
-                    step="0.01"
-                    required
+                    min="1"
                   />
                 </div>
                 <div className={styles.formGroup}>
-                  <label className={styles.checkboxLabel}>
-                    <input
-                      type="checkbox"
-                      name="is_approved"
-                      checked={formData.is_approved}
-                      onChange={handleInputChange}
-                    />
-                    <span>Approve Event</span>
-                  </label>
+                  <label className={styles.formLabel}>Price (₹)</label>
+                  <input
+                    type="number"
+                    name="price"
+                    className={styles.formControl}
+                    value={formData.price}
+                    onChange={handleInputChange}
+                    min="0"
+                  />
                 </div>
               </div>
-              <div className={styles.modalActions}>
-                <button
-                  type="button"
-                  className={styles.cancelButton}
-                  onClick={() => setShowModal(false)}
+              <div className={styles.modalFooter}>
+                <button 
+                  type="button" 
+                  className={`${styles.button} ${styles.secondaryButton}`}
+                  onClick={() => setIsModalOpen(false)}
                 >
                   Cancel
                 </button>
-                <button type="submit" className={styles.saveButton}>
+                <button 
+                  type="submit" 
+                  className={`${styles.button} ${styles.primaryButton}`}
+                >
                   {selectedEvent ? "Update" : "Create"}
                 </button>
               </div>
             </form>
-          </div>
-        </div>
-      )}
-
-      {viewDetails && (
-        <div className={styles.modalBackdrop}>
-          <div className={styles.modal}>
-            <h2>{viewDetails.title}</h2>
-            <div className={styles.eventDetails}>
-              <div className={styles.detailRow}>
-                <span className={styles.detailLabel}>Description:</span>
-                <span className={styles.detailValue}>{viewDetails.description}</span>
-              </div>
-              <div className={styles.detailRow}>
-                <span className={styles.detailLabel}>Date:</span>
-                <span className={styles.detailValue}>
-                  {formatDate(viewDetails.start_date)} - {formatDate(viewDetails.end_date)}
-                </span>
-              </div>
-              <div className={styles.detailRow}>
-                <span className={styles.detailLabel}>Location:</span>
-                <span className={styles.detailValue}>{viewDetails.location}</span>
-              </div>
-              <div className={styles.detailRow}>
-                <span className={styles.detailLabel}>Category:</span>
-                <span className={styles.detailValue}>{viewDetails.category}</span>
-              </div>
-              <div className={styles.detailRow}>
-                <span className={styles.detailLabel}>Price:</span>
-                <span className={styles.detailValue}>₹{viewDetails.price.toFixed(2)}</span>
-              </div>
-              <div className={styles.detailRow}>
-                <span className={styles.detailLabel}>Max Attendees:</span>
-                <span className={styles.detailValue}>{viewDetails.max_attendees}</span>
-              </div>
-              <div className={styles.detailRow}>
-                <span className={styles.detailLabel}>Status:</span>
-                <span className={`${styles.statusChip} ${
-                  viewDetails.is_approved ? styles.approved : styles.pending
-                }`}>
-                  {viewDetails.is_approved ? "Approved" : "Pending"}
-                </span>
-              </div>
-            </div>
-            <div className={styles.modalActions}>
-              <button
-                className={styles.cancelButton}
-                onClick={() => setViewDetails(null)}
-              >
-                Close
-              </button>
-            </div>
           </div>
         </div>
       )}
