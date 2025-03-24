@@ -1,10 +1,26 @@
 import React, { useState, useEffect } from "react";
 import { toast } from "react-toastify";
-import { FaSave, FaUpload, FaKey, FaUser, FaEnvelope, FaPhone, FaCamera } from "react-icons/fa";
+import { FaSave, FaUpload, FaKey, FaUser, FaEnvelope, FaPhone, FaCamera, FaInfoCircle } from "react-icons/fa";
 import api, { getMediaUrl } from "../../utils/api";
 import styles from "../../assets/css/adminDashboard.module.css";
 import { jwtDecode } from "jwt-decode";
 import { ACCESS_TOKEN } from "../../utils/constants";
+import { z } from "zod"; // Import zod for validation
+
+// Define password validation schema using Zod
+const passwordSchema = z.object({
+  new_password: z
+    .string()
+    .min(8, "Password must be at least 8 characters")
+    .regex(/[A-Z]/, "Must contain at least one uppercase letter")
+    .regex(/[a-z]/, "Must contain at least one lowercase letter")
+    .regex(/[0-9]/, "Must contain at least one number")
+    .regex(/[!@#$%^&*]/, "Must contain at least one special character"),
+  confirm_password: z.string()
+}).refine(data => data.new_password === data.confirm_password, {
+  message: "Passwords don't match",
+  path: ["confirm_password"]
+});
 
 const ProfileUpdate = ({ userProfile, setUserProfile, setProfilePhotoPreview }) => {
   const [loading, setLoading] = useState(true);
@@ -15,12 +31,15 @@ const ProfileUpdate = ({ userProfile, setUserProfile, setProfilePhotoPreview }) 
     email: "",
     phone: "",
     username: "",
+    current_password: "", // Added field for verification
   });
   const [passwordForm, setPasswordForm] = useState({
     current_password: "",
     new_password: "",
     confirm_password: "",
   });
+  const [passwordErrors, setPasswordErrors] = useState({});
+  const [formError, setFormError] = useState("");
   const [showPasswordForm, setShowPasswordForm] = useState(false);
   const [profileImage, setProfileImage] = useState(null);
   const [imagePreview, setImagePreview] = useState(null);
@@ -130,11 +149,23 @@ const ProfileUpdate = ({ userProfile, setUserProfile, setProfilePhotoPreview }) 
   const handleInputChange = (e) => {
     const { name, value } = e.target;
     setFormData({ ...formData, [name]: value });
+    
+    // Clear any form error when user starts typing
+    if (name === "current_password") {
+      setFormError("");
+    }
   };
 
   const handlePasswordChange = (e) => {
     const { name, value } = e.target;
     setPasswordForm({ ...passwordForm, [name]: value });
+    
+    // Clear related error when user types
+    if (passwordErrors[name]) {
+      const newErrors = {...passwordErrors};
+      delete newErrors[name];
+      setPasswordErrors(newErrors);
+    }
   };
 
   const handleImageChange = (e) => {
@@ -146,222 +177,171 @@ const ProfileUpdate = ({ userProfile, setUserProfile, setProfilePhotoPreview }) 
     }
   };
 
+  const validatePasswordForm = () => {
+    try {
+      passwordSchema.parse(passwordForm);
+      setPasswordErrors({});
+      return true;
+    } catch (error) {
+      const formattedErrors = {};
+      error.errors.forEach(err => {
+        formattedErrors[err.path[0]] = err.message;
+      });
+      setPasswordErrors(formattedErrors);
+      return false;
+    }
+  };
+
   const handleProfileUpdate = async (e) => {
     e.preventDefault();
+    
+    // Require current password for profile update
+    if (!formData.current_password) {
+      setFormError("Please enter your current password to save changes");
+      return;
+    }
+    
     try {
-      // First create the FormData object with both snake_case and camelCase keys
-      // to handle different API naming conventions
-      const formDataToSend = new FormData();
+      const updateData = new FormData();
+      updateData.append("first_name", formData.first_name);
+      updateData.append("last_name", formData.last_name);
+      updateData.append("phone", formData.phone);
+      updateData.append("current_password", formData.current_password);
       
-      // Add the data in multiple formats to ensure compatibility
-      // Snake case (Django standard)
-      formDataToSend.append("first_name", formData.first_name);
-      formDataToSend.append("last_name", formData.last_name);
-      formDataToSend.append("phone", formData.phone);
-      
-      // Camel case (potentially used by some APIs)
-      formDataToSend.append("firstName", formData.first_name);
-      formDataToSend.append("lastName", formData.last_name);
-      formDataToSend.append("phoneNumber", formData.phone);
-      
-      // Only include profile image if it's been changed
       if (profileImage) {
-        formDataToSend.append("profile_photo", profileImage);
-        formDataToSend.append("profilePhoto", profileImage);
-        formDataToSend.append("avatar", profileImage);
-        formDataToSend.append("photo", profileImage);
+        updateData.append("profile_photo", profileImage);
       }
       
-      // Set the correct content type for form data
-      const config = {
-        headers: {
-          'Content-Type': 'multipart/form-data'
-        }
-      };
-      
-      console.log("Attempting to update profile with fields:", 
-        Object.fromEntries(formDataToSend.entries()));
-      
-      // Django REST Framework specific endpoints to try
-      const endpointsToTry = [
-        [`users/profile/`, 'PATCH'],
-        [`users/me/`, 'PATCH'],
-        [`users/${user.id}/`, 'PATCH'],
-        [`auth/users/me/`, 'PATCH'],
-        [`api/users/me/`, 'PATCH'],
-        [`api/users/${user.id}/`, 'PATCH'],
-        [`api/profile/`, 'PATCH'],
-        [`accounts/profile/`, 'PATCH'],
-        [`users/profile/`, 'PUT'],
-        [`users/me/`, 'PUT'],
-        [`users/${user.id}/`, 'PUT']
+      // Try multiple endpoints
+      const endpoints = [
+        `users/profile/update/`,
+        `users/update/`,
+        `users/${user.id}/`,
       ];
       
       let success = false;
-      let attempts = 0;
       
-      for (const [endpoint, method] of endpointsToTry) {
-        attempts++;
+      for (const endpoint of endpoints) {
         try {
-          console.log(`Attempt ${attempts}: Trying to ${method} to ${endpoint}`);
+          const response = await api.patch(endpoint, updateData, {
+            headers: {
+              "Content-Type": "multipart/form-data",
+            },
+          });
+          success = true;
           
-          let response;
-          if (method === 'PATCH') {
-            response = await api.patch(endpoint, formDataToSend, config);
-          } else {
-            response = await api.put(endpoint, formDataToSend, config);
+          // Update the user profile in parent components if needed
+          if (setUserProfile) {
+            setUserProfile({
+              ...userProfile,
+              first_name: formData.first_name,
+              last_name: formData.last_name,
+              phone: formData.phone,
+            });
           }
           
-          console.log(`Success! Profile updated at ${endpoint} with ${method}`);
-          success = true;
+          // Update profile photo preview if needed
+          if (response.data.profile_photo && setProfilePhotoPreview) {
+            setProfilePhotoPreview(response.data.profile_photo);
+          }
+          
+          toast.success("Profile updated successfully");
+          
+          // Clear password field after successful update
+          setFormData({
+            ...formData,
+            current_password: ""
+          });
+          
           break;
         } catch (error) {
-          console.log(`Endpoint ${endpoint} with ${method} failed:`, 
-            error.response ? `Status: ${error.response.status}, Message: ${JSON.stringify(error.response.data)}` : error.message);
-          // Continue to next endpoint
+          console.warn(`Failed to update profile using ${endpoint}`);
         }
       }
       
-      if (success) {
-        toast.success("Profile updated successfully");
-        fetchUserProfile(); // Refresh the data
-      } else {
-        throw new Error(`Failed to update profile after ${attempts} attempts`);
+      if (!success) {
+        throw new Error("Could not update profile");
       }
     } catch (error) {
-      let errorMessage = "Failed to update profile";
-      
-      if (error.response) {
-        if (error.response.data?.non_field_errors) {
-          errorMessage = error.response.data.non_field_errors[0];
-        } else if (error.response.data?.detail) {
-          errorMessage = error.response.data.detail;
-        } else if (error.response.data?.message) {
-          errorMessage = error.response.data.message;
-        } else if (error.response.data?.error) {
-          errorMessage = error.response.data.error;
-        }
-      }
-      
-      toast.error(errorMessage);
       console.error("Error updating profile:", error);
+      
+      // Handle specific error for invalid password
+      if (error.response?.data?.detail?.includes("password") || 
+          error.response?.data?.current_password) {
+        setFormError("Current password is incorrect");
+      } else {
+        toast.error("Failed to update profile");
+      }
     }
   };
 
   const handlePasswordUpdate = async (e) => {
     e.preventDefault();
     
-    // Validate passwords
-    if (passwordForm.new_password !== passwordForm.confirm_password) {
-      toast.error("New passwords do not match");
+    // Validate password using schema before submitting
+    if (!validatePasswordForm()) {
       return;
     }
     
-    if (passwordForm.new_password.length < 8) {
-      toast.error("Password must be at least 8 characters long");
+    // Check if passwords match (although our schema already does this)
+    if (passwordForm.new_password !== passwordForm.confirm_password) {
+      setPasswordErrors({
+        confirm_password: "Passwords don't match"
+      });
       return;
     }
     
     try {
-      // Prepare data with all possible naming conventions for Django REST
-      const passwordData = {
-        // Django Rest Framework auth patterns
-        current_password: passwordForm.current_password,
-        new_password: passwordForm.new_password,
-        re_new_password: passwordForm.confirm_password,
-        
-        // Django standard patterns
-        old_password: passwordForm.current_password,
-        password: passwordForm.new_password,
-        password1: passwordForm.new_password,
-        password2: passwordForm.confirm_password,
-        
-        // Camel case alternatives
-        currentPassword: passwordForm.current_password,
-        newPassword: passwordForm.new_password,
-        confirmPassword: passwordForm.confirm_password,
-        
-        // Additional field for some APIs
-        username: formData.username,
-        email: formData.email
-      };
-      
-      console.log("Attempting to change password");
-      
-      // Django REST Framework standard endpoints + common variations
-      const endpointsToTry = [
-        [`users/change-password/`, 'POST'],
-        [`users/password/`, 'POST'],
-        [`users/password-change/`, 'POST'],
-        [`auth/users/set_password/`, 'POST'],
-        [`auth/password/change/`, 'POST'],
-        [`api/password/change/`, 'POST'],
-        [`api/users/change-password/`, 'POST'],
-        [`api/auth/password/`, 'POST'],
-        [`accounts/password_change/`, 'POST'],
-        [`users/password/`, 'PUT'],
-        [`users/reset-password/`, 'POST']
+      // Try multiple endpoints
+      const endpoints = [
+        "users/change-password/",
+        "auth/password/change/",
+        "password/change/",
       ];
       
       let success = false;
-      let attempts = 0;
       
-      for (const [endpoint, method] of endpointsToTry) {
-        attempts++;
+      for (const endpoint of endpoints) {
         try {
-          console.log(`Attempt ${attempts}: Trying to ${method} to ${endpoint}`);
+          await api.post(endpoint, {
+            current_password: passwordForm.current_password,
+            new_password: passwordForm.new_password,
+          });
           
-          let response;
-          if (method === 'POST') {
-            response = await api.post(endpoint, passwordData);
-          } else {
-            response = await api.put(endpoint, passwordData);
-          }
-          
-          console.log(`Success! Password changed at ${endpoint} with ${method}`);
           success = true;
+          toast.success("Password updated successfully");
+          
+          // Reset password form
+          setPasswordForm({
+            current_password: "",
+            new_password: "",
+            confirm_password: "",
+          });
+          
+          // Hide password form
+          setShowPasswordForm(false);
+          
           break;
         } catch (error) {
-          console.log(`Endpoint ${endpoint} with ${method} failed:`, 
-            error.response ? `Status: ${error.response.status}, Message: ${JSON.stringify(error.response.data)}` : error.message);
-          // Continue to next endpoint
+          console.warn(`Failed to change password using ${endpoint}`);
         }
       }
       
-      if (success) {
-        toast.success("Password updated successfully");
-        
-        // Reset password form
-        setPasswordForm({
-          current_password: "",
-          new_password: "",
-          confirm_password: "",
-        });
-        
-        setShowPasswordForm(false);
-      } else {
-        throw new Error(`Failed to update password after ${attempts} attempts`);
+      if (!success) {
+        throw new Error("Could not change password");
       }
     } catch (error) {
-      // Detailed error handling
-      let errorMessage = "Failed to update password";
+      console.error("Error changing password:", error);
       
-      if (error.response) {
-        if (error.response.data?.non_field_errors) {
-          errorMessage = error.response.data.non_field_errors[0];
-        } else if (error.response.data?.detail) {
-          errorMessage = error.response.data.detail;
-        } else if (error.response.data?.message) {
-          errorMessage = error.response.data.message;
-        } else if (error.response.data?.error) {
-          errorMessage = error.response.data.error;
-        } else if (error.response.status === 401) {
-          errorMessage = "Current password is incorrect";
-        }
+      // Handle specific error for incorrect current password
+      if (error.response?.data?.current_password || 
+          error.response?.data?.detail?.includes("password")) {
+        setPasswordErrors({
+          current_password: "Current password is incorrect"
+        });
+      } else {
+        toast.error("Failed to change password");
       }
-      
-      toast.error(errorMessage);
-      console.error("Error updating password:", error);
     }
   };
 
@@ -370,169 +350,208 @@ const ProfileUpdate = ({ userProfile, setUserProfile, setProfilePhotoPreview }) 
   }
 
   return (
-    <div className={styles.profileUpdate}>
-      <h2 className={styles.sectionTitle}>
-        <FaUser /> Profile Settings
-      </h2>
+    <div className={styles.contentContainer}>
+      <div className={styles.sectionHeader}>
+        <h2 className={styles.sectionTitle}>My Profile</h2>
+      </div>
       
-      <div className={styles.profileContainer}>
-        {/* Profile Image */}
-        <div className={styles.profileImageSection}>
-          <div className={styles.profileImageContainer}>
-            {imagePreview ? (
-              <img
-                src={imagePreview}
-                alt="Profile"
-                className={styles.profileImage}
-              />
-            ) : (
-              <div className={styles.profilePlaceholder}>
-                {formData.first_name.charAt(0)}
-                {formData.last_name.charAt(0)}
-              </div>
-            )}
-          </div>
-          <div className={styles.imageUploadContainer}>
-            <label htmlFor="profile-image" className={styles.uploadButton}>
-              <FaCamera /> Change Photo
-            </label>
-            <input
-              type="file"
-              id="profile-image"
-              accept="image/*"
-              onChange={handleImageChange}
-              className={styles.fileInput}
-            />
-          </div>
-        </div>
-        
-        {/* Profile Details Form */}
-        <div className={styles.profileDetailsSection}>
-          <form onSubmit={handleProfileUpdate}>
-            <div className={styles.formRow}>
-              <div className={styles.formGroup}>
-                <label>Username</label>
-                <input
-                  type="text"
-                  name="username"
-                  value={formData.username}
-                  disabled
-                  className={styles.disabledInput}
+      {loading ? (
+        <div className={styles.loader}>Loading profile...</div>
+      ) : (
+        <div className={styles.profileContainer}>
+          {/* Profile Image Section */}
+          <div className={styles.profileImageSection}>
+            <div className={styles.profileImageContainer}>
+              {imagePreview ? (
+                <img
+                  src={imagePreview}
+                  alt="Profile"
+                  className={styles.profileImage}
                 />
-                <p className={styles.inputHelper}>Username cannot be changed</p>
-              </div>
-              <div className={styles.formGroup}>
-                <label>Email</label>
-                <input
-                  type="email"
-                  name="email"
-                  value={formData.email}
-                  disabled
-                  className={styles.disabledInput}
-                />
-                <p className={styles.inputHelper}>Email cannot be changed</p>
-              </div>
+              ) : (
+                <div className={styles.profilePlaceholder}>
+                  {formData.first_name ? formData.first_name.charAt(0).toUpperCase() : ""}
+                  {formData.last_name ? formData.last_name.charAt(0).toUpperCase() : ""}
+                </div>
+              )}
             </div>
-            
-            <div className={styles.formRow}>
-              <div className={styles.formGroup}>
-                <label>First Name</label>
-                <input
-                  type="text"
-                  name="first_name"
-                  value={formData.first_name}
-                  onChange={handleInputChange}
-                  required
-                />
-              </div>
-              <div className={styles.formGroup}>
-                <label>Last Name</label>
-                <input
-                  type="text"
-                  name="last_name"
-                  value={formData.last_name}
-                  onChange={handleInputChange}
-                  required
-                />
-              </div>
-            </div>
-            
-            <div className={styles.formGroup}>
-              <label>Phone</label>
+            <div className={styles.imageUploadContainer}>
+              <label htmlFor="profile-image" className={styles.uploadButton}>
+                <FaCamera /> Change Photo
+              </label>
               <input
-                type="text"
-                name="phone"
-                value={formData.phone}
-                onChange={handleInputChange}
+                type="file"
+                id="profile-image"
+                accept="image/*"
+                onChange={handleImageChange}
+                className={styles.fileInput}
               />
             </div>
-            
-            <div className={styles.formActions}>
-              <button type="submit" className={styles.saveButton}>
-                <FaSave /> Save Changes
-              </button>
-            </div>
-          </form>
+          </div>
           
-          {/* Password Management Section */}
-          <div className={styles.passwordSection}>
-            <div className={styles.sectionHeader}>
-              <h3>Change Password</h3>
-              <button
-                type="button"
-                onClick={() => setShowPasswordForm(!showPasswordForm)}
-                className={styles.toggleButton}
-              >
-                <FaKey /> {showPasswordForm ? "Cancel" : "Change Password"}
-              </button>
-            </div>
-            
-            {showPasswordForm && (
-              <form onSubmit={handlePasswordUpdate}>
+          {/* Profile Details Form */}
+          <div className={styles.profileDetailsSection}>
+            <form onSubmit={handleProfileUpdate}>
+              <div className={styles.formRow}>
                 <div className={styles.formGroup}>
-                  <label>Current Password</label>
+                  <label>Username</label>
                   <input
-                    type="password"
-                    name="current_password"
-                    value={passwordForm.current_password}
-                    onChange={handlePasswordChange}
+                    type="text"
+                    name="username"
+                    value={formData.username}
+                    disabled
+                    className={styles.disabledInput}
+                  />
+                  <p className={styles.inputHelper}>Username cannot be changed</p>
+                </div>
+                <div className={styles.formGroup}>
+                  <label>Email</label>
+                  <input
+                    type="email"
+                    name="email"
+                    value={formData.email}
+                    disabled
+                    className={styles.disabledInput}
+                  />
+                  <p className={styles.inputHelper}>Email cannot be changed</p>
+                </div>
+              </div>
+              
+              <div className={styles.formRow}>
+                <div className={styles.formGroup}>
+                  <label>First Name</label>
+                  <input
+                    type="text"
+                    name="first_name"
+                    value={formData.first_name}
+                    onChange={handleInputChange}
                     required
                   />
                 </div>
-                <div className={styles.formRow}>
+                <div className={styles.formGroup}>
+                  <label>Last Name</label>
+                  <input
+                    type="text"
+                    name="last_name"
+                    value={formData.last_name}
+                    onChange={handleInputChange}
+                    required
+                  />
+                </div>
+              </div>
+              
+              <div className={styles.formGroup}>
+                <label>Phone</label>
+                <input
+                  type="text"
+                  name="phone"
+                  value={formData.phone}
+                  onChange={handleInputChange}
+                />
+              </div>
+              
+              {/* Verification password field */}
+              <div className={styles.formGroup}>
+                <label>Enter Password to Save Changes</label>
+                <input
+                  type="password"
+                  name="current_password"
+                  value={formData.current_password}
+                  onChange={handleInputChange}
+                  required
+                  placeholder="Enter your current password to verify"
+                />
+                {formError && (
+                  <p className={styles.formError}>{formError}</p>
+                )}
+              </div>
+              
+              <div className={styles.formActions}>
+                <button type="submit" className={styles.saveButton}>
+                  <FaSave /> Save Changes
+                </button>
+              </div>
+            </form>
+            
+            {/* Password Management Section */}
+            <div className={styles.passwordSection}>
+              <div className={styles.sectionHeader}>
+                <h3>Change Password</h3>
+                <button
+                  type="button"
+                  onClick={() => setShowPasswordForm(!showPasswordForm)}
+                  className={styles.toggleButton}
+                >
+                  <FaKey /> {showPasswordForm ? "Cancel" : "Change Password"}
+                </button>
+              </div>
+              
+              {showPasswordForm && (
+                <form onSubmit={handlePasswordUpdate}>
                   <div className={styles.formGroup}>
-                    <label>New Password</label>
+                    <label>Current Password</label>
                     <input
                       type="password"
-                      name="new_password"
-                      value={passwordForm.new_password}
+                      name="current_password"
+                      value={passwordForm.current_password}
                       onChange={handlePasswordChange}
                       required
-                      minLength="8"
                     />
+                    {passwordErrors.current_password && (
+                      <p className={styles.formError}>{passwordErrors.current_password}</p>
+                    )}
                   </div>
-                  <div className={styles.formGroup}>
-                    <label>Confirm New Password</label>
-                    <input
-                      type="password"
-                      name="confirm_password"
-                      value={passwordForm.confirm_password}
-                      onChange={handlePasswordChange}
-                      required
-                      minLength="8"
-                    />
+                  <div className={styles.formRow}>
+                    <div className={styles.formGroup}>
+                      <label>New Password</label>
+                      <input
+                        type="password"
+                        name="new_password"
+                        value={passwordForm.new_password}
+                        onChange={handlePasswordChange}
+                        required
+                        minLength="8"
+                      />
+                      {passwordErrors.new_password && (
+                        <p className={styles.formError}>{passwordErrors.new_password}</p>
+                      )}
+                      <div className={styles.passwordRequirements}>
+                        <p><FaInfoCircle /> Password must:</p>
+                        <ul>
+                          <li>Be at least 8 characters long</li>
+                          <li>Include an uppercase letter</li>
+                          <li>Include a lowercase letter</li>
+                          <li>Include a number</li>
+                          <li>Include a special character (!@#$%^&*)</li>
+                        </ul>
+                      </div>
+                    </div>
+                    <div className={styles.formGroup}>
+                      <label>Confirm New Password</label>
+                      <input
+                        type="password"
+                        name="confirm_password"
+                        value={passwordForm.confirm_password}
+                        onChange={handlePasswordChange}
+                        required
+                        minLength="8"
+                      />
+                      {passwordErrors.confirm_password && (
+                        <p className={styles.formError}>{passwordErrors.confirm_password}</p>
+                      )}
+                    </div>
                   </div>
-                </div>
-                <div className={styles.formActions}>
-                  <button type="submit" className={styles.saveButton}>
-                    <FaKey /> Update Password
-                  </button>
-                </div>
-              </form>
-            )}
+                  <div className={styles.formActions}>
+                    <button type="submit" className={styles.saveButton}>
+                      <FaKey /> Update Password
+                    </button>
+                  </div>
+                </form>
+              )}
+            </div>
           </div>
         </div>
-      </div>
+      )}
     </div>
   );
 };

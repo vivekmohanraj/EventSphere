@@ -135,4 +135,86 @@ export const checkEmailAvailability = async (email) => {
   }
 };
 
+// Add this helper function for trying multiple endpoints
+export const tryMultipleEndpoints = async (endpoints, method = 'get', data = null) => {
+  for (const endpoint of endpoints) {
+    try {
+      console.log(`Trying ${method.toUpperCase()} request to ${endpoint}`);
+      let response;
+      
+      switch (method.toLowerCase()) {
+        case 'get':
+          response = await api.get(endpoint);
+          break;
+        case 'post':
+          response = await api.post(endpoint, data);
+          break;
+        case 'put':
+          response = await api.put(endpoint, data);
+          break;
+        case 'patch':
+          response = await api.patch(endpoint, data);
+          break;
+        case 'delete':
+          response = await api.delete(endpoint);
+          break;
+        default:
+          throw new Error(`Unsupported method: ${method}`);
+      }
+      
+      console.log(`Success with ${endpoint}`);
+      return response.data;
+    } catch (error) {
+      console.warn(`Failed with ${endpoint}:`, error.response?.status || error.message);
+    }
+  }
+  
+  throw new Error(`All endpoints failed for ${method} request`);
+};
+
+// Add this function for better direct fetch handling with CORS
+export const directFetch = async (endpoint, method = 'GET', body = null) => {
+  const token = localStorage.getItem(ACCESS_TOKEN);
+  const baseUrl = getBaseUrl();
+  const url = `${baseUrl}${endpoint.startsWith('/') ? endpoint.substring(1) : endpoint}`;
+  
+  const headers = {
+    'Accept': 'application/json',
+    'Content-Type': 'application/json'
+  };
+  
+  if (token) {
+    // Try both common auth header formats
+    if (token.split('.').length === 3) {
+      headers['Authorization'] = `Bearer ${token}`;
+    } else {
+      headers['Authorization'] = `Token ${token}`;
+    }
+  }
+  
+  const options = {
+    method,
+    headers,
+    credentials: 'include', // Include cookies for cross-origin requests if needed
+  };
+  
+  if (body && (method === 'POST' || method === 'PUT' || method === 'PATCH')) {
+    options.body = JSON.stringify(body);
+  }
+  
+  const response = await fetch(url, options);
+  
+  if (!response.ok) {
+    throw new Error(`API error: ${response.status} ${response.statusText}`);
+  }
+  
+  // Check if response is JSON
+  const contentType = response.headers.get('content-type');
+  if (contentType && contentType.includes('application/json')) {
+    return await response.json();
+  }
+  
+  return await response.text();
+};
+
 export default api;

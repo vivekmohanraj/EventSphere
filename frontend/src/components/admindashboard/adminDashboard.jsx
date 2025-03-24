@@ -24,16 +24,17 @@ import {
   FaUserCog
 } from "react-icons/fa";
 import { ToastContainer, toast } from "react-toastify";
-import api, { getMediaUrl } from "../../utils/api";
+import api, { getMediaUrl, tryMultipleEndpoints } from "../../utils/api";
 import styles from "../../assets/css/adminDashboard.module.css";
 import UsersManagement from "./userManagement";
 import EventsManagement from "./eventsManagement";
 import PaymentsManagement from "./paymentsManagement";
 import CoordinatorRequests from "./coordinatorRequest";
-import Settings from "./settings";
 import ProfileUpdate from "./profileUpdate";
+import CalendarView from "./CalendarView";
 import { ACCESS_TOKEN, REFRESH_TOKEN } from "../../utils/constants";
 import { Chart, registerables } from 'chart.js';
+import DashboardOverview from './dashboardOverview';
 Chart.register(...registerables);
 
 const Dashboard = () => {
@@ -158,7 +159,7 @@ const Dashboard = () => {
       }
       
       // If we got here, token is valid or was refreshed successfully
-      await fetchDashboardData();
+      await fetchDashboardStats();
     } catch (error) {
       console.error("Token verification failed:", error);
       // Token might be invalid or expired
@@ -169,198 +170,325 @@ const Dashboard = () => {
     }
   };
 
-  const fetchDashboardData = async () => {
+  const fetchDashboardStats = async () => {
     try {
       setLoading(true);
       
-      // Try multiple endpoints for dashboard stats
-      const statsEndpoints = [
-        "dashboard-stats/",
-        "admin/dashboard-stats/",
-        "api/dashboard-stats/",
-        "dashboard/stats/"
+      // Try multiple possible endpoints for dashboard stats
+      const statEndpoints = [
+        "dashboard/stats/",
+        "admin/stats/",
+        "users/stats/",
+        "api/stats/",
+        "stats/"
       ];
       
       let statsData = null;
-      let pendingRequests = 0;
+      let responseData = null;
       
-      // Try each endpoint until one works
-      for (const endpoint of statsEndpoints) {
+      // Try each endpoint until we get successful data
+      for (const endpoint of statEndpoints) {
         try {
           console.log(`Trying to fetch stats from ${endpoint}`);
-          const statsResponse = await api.get(endpoint);
-          if (statsResponse.data) {
-            statsData = statsResponse.data;
-            console.log("Stats data fetched successfully:", statsData);
+          const response = await api.get(endpoint);
+          
+          if (response.data) {
+            console.log(`Successfully fetched stats from ${endpoint}:`, response.data);
+            responseData = response.data;
+            
+            // Check if we got a valid stats object with at least one stat
+            if (responseData && typeof responseData === 'object') {
+              const hasUserCount = 'total_users' in responseData || 'totalUsers' in responseData || 'users_count' in responseData;
+              const hasEventCount = 'total_events' in responseData || 'totalEvents' in responseData || 'events_count' in responseData;
+              
+              if (hasUserCount || hasEventCount) {
+                statsData = responseData;
             break;
+              }
+            }
           }
         } catch (error) {
-          console.warn(`Could not fetch stats from ${endpoint}:`, error);
+          console.warn(`Could not fetch stats from ${endpoint}`, error);
         }
       }
       
-      // If we couldn't get stats from any endpoint, try to build them from separate calls
+      // If we still don't have stats, try to count users/events directly from their endpoints
       if (!statsData) {
-        console.log("Attempting to build stats from separate API calls...");
+        console.log("No stats endpoint found, trying to fetch counts directly");
+        await fetchCountsDirectly();
+      } else {
+        // Extract stats from the response and normalize field names
+        const normalizedStats = {
+          totalUsers: statsData.total_users || statsData.totalUsers || statsData.users_count || 0,
+          totalEvents: statsData.total_events || statsData.totalEvents || statsData.events_count || 0,
+          totalRevenue: statsData.total_revenue || statsData.totalRevenue || statsData.revenue || 0,
+          activeEvents: statsData.active_events || statsData.activeEvents || 0,
+          pendingRequests: statsData.pending_requests || statsData.pendingRequests || 0,
+        };
         
-        // Get users count
-        try {
-          const usersResponse = await api.get("users/");
-          if (Array.isArray(usersResponse.data)) {
-            statsData = { ...statsData, totalUsers: usersResponse.data.length };
-          }
-        } catch (error) {
-          console.warn("Could not fetch users count:", error);
-        }
+        console.log("Setting stats:", normalizedStats);
+        setStats(normalizedStats);
         
-        // Get events count
-        try {
-          const eventsResponse = await api.get("events/");
-          if (Array.isArray(eventsResponse.data)) {
-            statsData = { 
-              ...statsData, 
-              totalEvents: eventsResponse.data.length,
-              activeEvents: eventsResponse.data.filter(e => e.status === 'upcoming').length
-            };
-          }
-        } catch (error) {
-          console.warn("Could not fetch events count:", error);
+        // Set upcoming events if available
+        if (statsData.upcoming_events || statsData.upcomingEvents) {
+          setUpcomingEvents(statsData.upcoming_events || statsData.upcomingEvents);
+        } else {
+          // Otherwise fetch them separately
+          fetchUpcomingEvents();
         }
         
-        // Get payment/revenue data
-        try {
-          const paymentsResponse = await api.get("payments/");
-          if (Array.isArray(paymentsResponse.data)) {
-            const totalRevenue = paymentsResponse.data
-              .filter(p => p.payment_status === 'completed')
-              .reduce((sum, payment) => sum + parseFloat(payment.amount), 0);
-            statsData = { ...statsData, totalRevenue };
-          }
-        } catch (error) {
-          console.warn("Could not fetch payments data:", error);
-        }
-        
-        // Get coordinator requests
-        try {
-          const requestsResponse = await api.get("coordinator-requests/");
-          if (Array.isArray(requestsResponse.data)) {
-            pendingRequests = requestsResponse.data.filter(r => r.status === 'pending').length;
-            statsData = { ...statsData, pendingRequests };
-          }
-        } catch (error) {
-          console.warn("Could not fetch coordinator requests:", error);
-        }
-      }
-      
-      // Set stats with defaults for missing values
-      setStats({
-        totalUsers: statsData?.totalUsers || 0,
-        totalEvents: statsData?.totalEvents || 0,
-        totalRevenue: statsData?.totalRevenue || 0,
-        activeEvents: statsData?.activeEvents || 0,
-        pendingRequests: statsData?.pendingRequests || pendingRequests || 0,
-      });
-      
-      // Try to fetch upcoming events from multiple possible endpoints
-      const eventsEndpoints = [
-        "events/upcoming/", 
-        "events/?status=upcoming", 
-        "api/events/upcoming/",
-        "events/"
-      ];
-      
-      for (const endpoint of eventsEndpoints) {
-        try {
-          console.log(`Trying to fetch upcoming events from ${endpoint}`);
-          const eventsResponse = await api.get(endpoint);
-          if (eventsResponse.data) {
-            let eventsData = eventsResponse.data;
-            // If we got all events, filter the upcoming ones
-            if (endpoint === "events/") {
-              eventsData = eventsData.filter(event => 
-                event.status === 'upcoming' || 
-                new Date(event.event_time) > new Date()
-              );
-            }
-            setUpcomingEvents(Array.isArray(eventsData) ? eventsData.slice(0, 5) : []);
-            break;
-          }
-        } catch (error) {
-          console.warn(`Could not fetch upcoming events from ${endpoint}:`, error);
-        }
-      }
-      
-      // Try to fetch recent activity from multiple possible endpoints
-      const activityEndpoints = [
-        "activity-logs/", 
-        "admin/activity-logs/", 
-        "dashboard/activity/",
-        "api/activity/"
-      ];
-      
-      for (const endpoint of activityEndpoints) {
-        try {
-          console.log(`Trying to fetch activity logs from ${endpoint}`);
-          const activityResponse = await api.get(endpoint);
-          if (activityResponse.data) {
-            setRecentActivity(Array.isArray(activityResponse.data) ? 
-              activityResponse.data.slice(0, 10) : []);
-            break;
-          }
-        } catch (error) {
-          console.warn(`Could not fetch activity logs from ${endpoint}:`, error);
-          // If we can't get activity logs, create some from recent events and users
-          try {
-            const mockActivity = [];
-            // Try to get recent users
-            const usersResponse = await api.get("users/");
-            if (Array.isArray(usersResponse.data)) {
-              const recentUsers = usersResponse.data
-                .sort((a, b) => new Date(b.created_at) - new Date(a.created_at))
-                .slice(0, 5);
-                
-              recentUsers.forEach(user => {
-                mockActivity.push({
-                  id: `user-${user.id}`,
-                  activity_type: 'user_registered',
-                  description: `New user ${user.username} registered`,
-                  created_at: user.created_at
-                });
-              });
-            }
-            
-            // Try to get recent events
-            const eventsResponse = await api.get("events/");
-            if (Array.isArray(eventsResponse.data)) {
-              const recentEvents = eventsResponse.data
-                .sort((a, b) => new Date(b.created_at) - new Date(a.created_at))
-                .slice(0, 5);
-                
-              recentEvents.forEach(event => {
-                mockActivity.push({
-                  id: `event-${event.id}`,
-                  activity_type: 'event_created',
-                  description: `New event "${event.event_name}" created`,
-                  created_at: event.created_at
-                });
-              });
-            }
-            
-            // Sort combined activity by date
-            mockActivity.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
-            setRecentActivity(mockActivity.slice(0, 10));
-          } catch (mockError) {
-            console.warn("Could not create mock activity data:", mockError);
-            setRecentActivity([]);
-          }
+        // Set recent activity if available
+        if (statsData.recent_activity || statsData.recentActivity) {
+          setRecentActivity(statsData.recent_activity || statsData.recentActivity);
+        } else {
+          // Otherwise fetch it separately
+          fetchRecentActivity();
         }
       }
     } catch (error) {
-      toast.error("Failed to fetch dashboard data");
-      console.error("Error fetching dashboard data:", error);
+      console.error("Error fetching dashboard stats:", error);
+      toast.error("Failed to load dashboard statistics");
     } finally {
       setLoading(false);
     }
+  };
+
+  const fetchCountsDirectly = async () => {
+    try {
+      // Try to count users
+      const userEndpoints = ["users/", "api/users/", "users/users/"];
+      let userCount = 0;
+      
+      for (const endpoint of userEndpoints) {
+        try {
+          const response = await api.get(endpoint);
+          if (response.data) {
+            if (Array.isArray(response.data)) {
+              userCount = response.data.length;
+              break;
+            } else if (response.data.results && Array.isArray(response.data.results)) {
+              userCount = response.data.results.length;
+              break;
+            } else if (response.data.count) {
+              userCount = response.data.count;
+              break;
+            }
+          }
+        } catch (error) {
+          console.warn(`Could not fetch user count from ${endpoint}`, error);
+        }
+      }
+      
+      // Try to count events
+      const eventEndpoints = ["events/", "api/events/", "events/events/"];
+      let eventCount = 0;
+      let activeCount = 0;
+      
+      for (const endpoint of eventEndpoints) {
+        try {
+          const response = await api.get(endpoint);
+          if (response.data) {
+            let events = [];
+            if (Array.isArray(response.data)) {
+              events = response.data;
+            } else if (response.data.results && Array.isArray(response.data.results)) {
+              events = response.data.results;
+            }
+            
+            if (events.length > 0) {
+              eventCount = events.length;
+              
+              // Count active events (events that haven't ended yet)
+              const now = new Date();
+              activeCount = events.filter(event => {
+                const endDate = new Date(event.end_date || event.end_time || event.event_date);
+                return endDate >= now;
+              }).length;
+              
+              break;
+            } else if (response.data.count) {
+              eventCount = response.data.count;
+              break;
+            }
+          }
+        } catch (error) {
+          console.warn(`Could not fetch event count from ${endpoint}`, error);
+        }
+      }
+      
+      // Try to count coordinator requests
+      const requestEndpoints = ["coordinator/requests/", "api/coordinator/requests/", "requests/"];
+      let requestCount = 0;
+      
+      for (const endpoint of requestEndpoints) {
+        try {
+          const response = await api.get(endpoint);
+          if (response.data) {
+            if (Array.isArray(response.data)) {
+              requestCount = response.data.filter(req => req.status === 'pending').length;
+              break;
+            } else if (response.data.results && Array.isArray(response.data.results)) {
+              requestCount = response.data.results.filter(req => req.status === 'pending').length;
+              break;
+            } else if (response.data.pending_count) {
+              requestCount = response.data.pending_count;
+              break;
+            }
+          }
+        } catch (error) {
+          console.warn(`Could not fetch request count from ${endpoint}`, error);
+        }
+      }
+      
+      // Update the stats
+      setStats({
+        totalUsers: userCount,
+        totalEvents: eventCount,
+        totalRevenue: 0, // We can't easily get this from separate endpoints
+        activeEvents: activeCount,
+        pendingRequests: requestCount
+      });
+      
+      // Try to fetch upcoming events
+      fetchUpcomingEvents();
+      
+      // Try to fetch recent activity
+      fetchRecentActivity();
+      
+    } catch (error) {
+      console.error("Error fetching counts directly:", error);
+    }
+  };
+
+  const fetchUpcomingEvents = async () => {
+    try {
+      const endpoints = [
+        "events/?upcoming=true",
+        "api/events/?upcoming=true",
+        "events/upcoming/",
+        "events/"
+      ];
+      
+      let events = [];
+      
+      for (const endpoint of endpoints) {
+        try {
+          const response = await api.get(endpoint);
+          if (response.data) {
+            if (Array.isArray(response.data)) {
+              events = response.data;
+              break;
+            } else if (response.data.results && Array.isArray(response.data.results)) {
+              events = response.data.results;
+              break;
+            }
+          }
+        } catch (error) {
+          console.warn(`Could not fetch upcoming events from ${endpoint}`, error);
+        }
+      }
+      
+      // If we got events from a generic endpoint, filter for upcoming ones
+      if (events.length > 0 && endpoints.includes("events/")) {
+        const now = new Date();
+        events = events.filter(event => {
+          const eventDate = new Date(event.event_date || event.start_date || event.date);
+          return eventDate >= now;
+        });
+      }
+      
+      // Sort by date and take the first 5
+      events.sort((a, b) => {
+        const dateA = new Date(a.event_date || a.start_date || a.date);
+        const dateB = new Date(b.event_date || b.start_date || b.date);
+        return dateA - dateB;
+      });
+      
+      setUpcomingEvents(events.slice(0, 5));
+      
+    } catch (error) {
+      console.error("Error fetching upcoming events:", error);
+    }
+  };
+
+  const fetchRecentActivity = async () => {
+    try {
+      const endpoints = [
+        "activity/",
+        "api/activity/",
+        "dashboard/activity/"
+      ];
+      
+      let activities = [];
+      
+      for (const endpoint of endpoints) {
+        try {
+          const response = await api.get(endpoint);
+          if (response.data) {
+            if (Array.isArray(response.data)) {
+              activities = response.data;
+              break;
+            } else if (response.data.results && Array.isArray(response.data.results)) {
+              activities = response.data.results;
+              break;
+            }
+          }
+        } catch (error) {
+          console.warn(`Could not fetch activity from ${endpoint}`, error);
+        }
+      }
+      
+      // If no activity data, create some generic ones based on users and events
+      if (activities.length === 0) {
+        console.log("No activity data found, generating placeholder activities");
+        const placeholderActivities = generatePlaceholderActivities();
+        setRecentActivity(placeholderActivities);
+      } else {
+        setRecentActivity(activities);
+      }
+      
+    } catch (error) {
+      console.error("Error fetching recent activity:", error);
+    }
+  };
+
+  const generatePlaceholderActivities = () => {
+    const activities = [];
+    
+    // Add placeholder activities based on users and events
+    if (stats.totalUsers > 0) {
+      activities.push({
+        type: 'user',
+        message: `${stats.totalUsers} total users on the platform`,
+        time: new Date().toLocaleString()
+      });
+    }
+    
+    if (stats.totalEvents > 0) {
+      activities.push({
+        type: 'event',
+        message: `${stats.totalEvents} events have been created`,
+        time: new Date().toLocaleString()
+      });
+    }
+    
+    if (stats.activeEvents > 0) {
+      activities.push({
+        type: 'event',
+        message: `${stats.activeEvents} events are currently active`,
+        time: new Date().toLocaleString()
+      });
+    }
+    
+    if (stats.pendingRequests > 0) {
+      activities.push({
+        type: 'user',
+        message: `${stats.pendingRequests} coordinator requests pending approval`,
+        time: new Date().toLocaleString()
+      });
+    }
+    
+    return activities;
   };
 
   const fetchUserProfile = async () => {
@@ -607,138 +735,11 @@ const Dashboard = () => {
 
   const renderOverview = () => {
     return (
-      <>
-        <div className={styles.statsGrid}>
-          <div className={styles.statCard}>
-            <FaUsers className={styles.statIcon} />
-            <div>
-              <h3>Total Users</h3>
-              <p>{stats.totalUsers}</p>
-            </div>
-          </div>
-          <div className={styles.statCard}>
-            <FaCalendarAlt className={styles.statIcon} />
-            <div>
-              <h3>Total Events</h3>
-              <p>{stats.totalEvents}</p>
-            </div>
-          </div>
-          <div className={styles.statCard}>
-            <FaMoneyBillWave className={styles.statIcon} />
-            <div>
-              <h3>Revenue</h3>
-              <p>₹{stats.totalRevenue}</p>
-            </div>
-          </div>
-          <div className={styles.statCard}>
-            <FaChartLine className={styles.statIcon} />
-            <div>
-              <h3>Active Events</h3>
-              <p>{stats.activeEvents}</p>
-            </div>
-          </div>
-        </div>
-        
-        {/* Quick Action Buttons */}
-        <div className={styles.quickActions}>
-          <button
-            className={styles.quickActionButton}
-            onClick={() => handleQuickAction('users')}
-          >
-            <FaUserShield className={styles.quickActionIcon} />
-            <h3 className={styles.quickActionTitle}>Manage Users</h3>
-          </button>
-          <button
-            className={styles.quickActionButton}
-            onClick={() => handleQuickAction('events')}
-          >
-            <FaCalendarPlus className={styles.quickActionIcon} />
-            <h3 className={styles.quickActionTitle}>Manage Events</h3>
-          </button>
-          <button
-            className={styles.quickActionButton}
-            onClick={() => handleQuickAction('payments')}
-          >
-            <FaMoneyBillWave className={styles.quickActionIcon} />
-            <h3 className={styles.quickActionTitle}>View Payments</h3>
-          </button>
-          <button
-            className={styles.quickActionButton}
-            onClick={() => handleQuickAction('requests')}
-          >
-            <FaBell className={styles.quickActionIcon} />
-            <h3 className={styles.quickActionTitle}>Coordinator Requests</h3>
-          </button>
-          <button
-            className={styles.quickActionButton}
-            onClick={() => handleQuickAction('report')}
-          >
-            <FaFileInvoice className={styles.quickActionIcon} />
-            <h3 className={styles.quickActionTitle}>Monthly Report</h3>
-          </button>
-          <button
-            className={styles.quickActionButton}
-            onClick={() => handleQuickAction('announcement')}
-          >
-            <FaBullhorn className={styles.quickActionIcon} />
-            <h3 className={styles.quickActionTitle}>Make Announcement</h3>
-          </button>
-        </div>
-
-        {/* Dashboard Sections */}
-        <div className={styles.dashboardSections}>
-          {/* Upcoming Events */}
-          <div className={styles.card}>
-            <h3>Upcoming Events</h3>
-            <div className={styles.eventList}>
-              {upcomingEvents.map(event => (
-                <div key={event.id} className={styles.eventItem}>
-                  <div className={styles.eventInfo}>
-                    <h4>{event.event_name}</h4>
-                    <p>{event.description}</p>
-                    <div className={styles.eventMeta}>
-                      <span>{new Date(event.event_time || event.start_date || event.created_at).toLocaleDateString()}</span>
-                      <span>{event.event_type}</span>
-                      <span className={styles[event.status.toLowerCase()]}>{event.status}</span>
-                    </div>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-          
-          {/* Recent Activity */}
-          <div className={styles.card}>
-            <h3>Recent Activity</h3>
-            <div className={styles.activityList}>
-              {recentActivity.map(activity => (
-                <div key={activity.id} className={styles.activityItem}>
-                  <div className={styles.activityIcon}>
-                    {activity.type === 'event' && <FaCalendarAlt />}
-                  </div>
-                  <div className={styles.activityInfo}>
-                    <h4>{activity.title}</h4>
-                    <p>{activity.description}</p>
-                    <span className={styles.activityTime}>
-                      {new Date(activity.timestamp).toLocaleString()}
-                    </span>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-        </div>
-        
-        {/* Analytics Section */}
-        <div className={styles.analyticsSection}>
-          <div className={styles.sectionHeader}>
-            <h3 className={styles.sectionTitle}>Revenue & Events Analytics</h3>
-          </div>
-          <div className={styles.chartContainer}>
-            <canvas ref={chartRef}></canvas>
-          </div>
-        </div>
-      </>
+      <DashboardOverview 
+        stats={stats} 
+        upcomingEvents={upcomingEvents} 
+        recentActivity={recentActivity}
+      />
     );
   };
 
@@ -754,8 +755,8 @@ const Dashboard = () => {
         return <PaymentsManagement />;
       case "requests":
         return <CoordinatorRequests />;
-      case "settings":
-        return <Settings />;
+      case "calendar":
+        return <CalendarView />;
       case "profile":
         return <ProfileUpdate />;
       default:
@@ -796,8 +797,8 @@ const Dashboard = () => {
               label: "Requests",
               badge: stats.pendingRequests,
             },
+            { id: "calendar", icon: <FaCalendarAlt />, label: "Calendar" },
             { id: "profile", icon: <FaUserCog />, label: "My Profile" },
-            { id: "settings", icon: <FaCog />, label: "Settings" },
           ].map((item) => (
             <button
               key={item.id}

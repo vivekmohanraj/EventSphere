@@ -3,20 +3,22 @@ import { toast } from "react-toastify";
 import {
   FaEdit,
   FaTrash,
-  FaCheck,
-  FaTimes,
   FaSearch,
   FaPlus,
   FaEye,
   FaMapMarkerAlt,
   FaCalendarAlt,
+  FaCalendarCheck
 } from "react-icons/fa";
 import api from "../../utils/api";
+import { ACCESS_TOKEN } from "../../utils/constants";
 import styles from "../../assets/css/adminDashboard.module.css";
+import { normalizeEventData, formatDate } from "../../utils/dataFormatters";
 
 const EventsManagement = () => {
   const [events, setEvents] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedEvent, setSelectedEvent] = useState(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -38,32 +40,112 @@ const EventsManagement = () => {
   const fetchEvents = async () => {
     try {
       setLoading(true);
+      setError(null);
+      
+      // Simplified fetch for events data
       const response = await api.get("events/");
-      setEvents(response.data);
-      setLoading(false);
+      
+      // Log the raw response to see what format we're getting
+      console.log("Backend response:", response);
+      console.log("Response data type:", typeof response.data);
+      console.log("Response data preview:", 
+        typeof response.data === 'object' 
+          ? JSON.stringify(response.data).substring(0, 200) 
+          : response.data
+      );
+      
+      // Handle different possible response formats
+      if (response.data) {
+        let eventsData = [];
+        
+        if (Array.isArray(response.data)) {
+          // Direct array of events
+          console.log("Direct array format detected");
+          eventsData = response.data;
+        } else if (response.data.results && Array.isArray(response.data.results)) {
+          // Paginated response (Django REST Framework default)
+          console.log("Paginated format detected");
+          eventsData = response.data.results;
+        } else if (typeof response.data === 'object' && !Array.isArray(response.data)) {
+          // It might be a single event object or custom format
+          console.log("Object format detected, checking for events property");
+          if (response.data.events && Array.isArray(response.data.events)) {
+            // Custom format with events property
+            eventsData = response.data.events;
+          } else if (response.data.data && Array.isArray(response.data.data)) {
+            // Custom format with data property
+            eventsData = response.data.data;
+          } else if (Object.keys(response.data).length > 0 && response.data.id) {
+            // It's a single event
+            eventsData = [response.data];
+          } else {
+            // Try to find an array in the response
+            console.log("Searching for event array in response");
+            for (const key in response.data) {
+              if (Array.isArray(response.data[key])) {
+                console.log(`Found array in property: ${key}`);
+                eventsData = response.data[key];
+                break;
+              }
+            }
+          }
+        }
+        
+        if (eventsData.length > 0) {
+          console.log(`Found ${eventsData.length} events, normalizing`);
+          const normalizedEvents = eventsData.map(normalizeEventData);
+          setEvents(normalizedEvents);
+          setError(null);
+        } else {
+          console.log("No events found in the response");
+          setEvents([]);
+          setError("No events found in the response");
+        }
+      } else {
+        setEvents([]);
+        setError("Empty response from backend");
+      }
     } catch (error) {
       console.error("Error fetching events:", error);
-      toast.error("Failed to load events");
+      setError(`Failed to load events: ${error.message}`);
+    } finally {
       setLoading(false);
     }
   };
 
-  const handleSearch = (e) => {
-    setSearchTerm(e.target.value);
+  const handleAddEvent = () => {
+    setSelectedEvent(null);
+    setFormData({
+      event_name: "",
+      description: "",
+      event_date: "",
+      location: "",
+      event_type: "conference",
+      capacity: "",
+      price: "",
+      status: "upcoming"
+    });
+    setIsModalOpen(true);
   };
-
-  const filteredEvents = events.filter((event) =>
-    event.event_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    event.location?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    event.event_type?.toLowerCase().includes(searchTerm.toLowerCase())
-  );
 
   const handleEdit = (event) => {
     setSelectedEvent(event);
+    
+    // Format date for datetime-local input
+    let formattedDate = event.event_date;
+    if (formattedDate) {
+      try {
+        const date = new Date(formattedDate);
+        formattedDate = date.toISOString().slice(0, 16);
+      } catch (e) {
+        console.warn("Date formatting error:", e);
+      }
+    }
+    
     setFormData({
       event_name: event.event_name || "",
       description: event.description || "",
-      event_date: event.event_date || event.start_date || "",
+      event_date: formattedDate || "",
       location: event.location || "",
       event_type: event.event_type || "conference",
       capacity: event.capacity || "",
@@ -71,6 +153,45 @@ const EventsManagement = () => {
       status: event.status || "upcoming"
     });
     setIsModalOpen(true);
+  };
+
+  const handleInputChange = (e) => {
+    const { name, value } = e.target;
+    setFormData({
+      ...formData,
+      [name]: value
+    });
+  };
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    try {
+      const eventData = {
+        event_name: formData.event_name,
+        description: formData.description,
+        event_time: formData.event_date, // Match Django model field
+        location: formData.location,
+        event_type: formData.event_type,
+        status: formData.status,
+        is_paid: parseFloat(formData.price) > 0,
+        price: parseFloat(formData.price) || 0,
+        capacity: parseInt(formData.capacity) || 0
+      };
+
+      if (selectedEvent) {
+        await api.patch(`events/${selectedEvent.id}/`, eventData);
+        toast.success("Event updated successfully");
+      } else {
+        await api.post("events/", eventData);
+        toast.success("Event created successfully");
+      }
+
+      setIsModalOpen(false);
+      fetchEvents();
+    } catch (error) {
+      console.error("Error saving event:", error);
+      toast.error("Failed to save event");
+    }
   };
 
   const handleDelete = async (eventId) => {
@@ -86,150 +207,132 @@ const EventsManagement = () => {
     }
   };
 
-  const handleInputChange = (e) => {
-    const { name, value } = e.target;
-    setFormData({
-      ...formData,
-      [name]: value
-    });
-  };
-
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    try {
-      if (selectedEvent) {
-        await api.put(`events/${selectedEvent.id}/`, formData);
-        toast.success("Event updated successfully");
-      } else {
-        await api.post("events/", formData);
-        toast.success("Event created successfully");
-      }
-      setIsModalOpen(false);
-      fetchEvents();
-    } catch (error) {
-      console.error("Error saving event:", error);
-      toast.error("Failed to save event");
-    }
-  };
-
-  const openAddEventModal = () => {
-    setSelectedEvent(null);
-    setFormData({
-      event_name: "",
-      description: "",
-      event_date: "",
-      location: "",
-      event_type: "conference",
-      capacity: "",
-      price: "",
-      status: "upcoming"
-    });
-    setIsModalOpen(true);
-  };
+  const filteredEvents = events.filter(event => {
+    return (
+      event.event_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      event.location.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      event.event_type.toLowerCase().includes(searchTerm.toLowerCase())
+    );
+  });
 
   return (
-    <div className={styles.contentContainer}>
-      <div className={styles.sectionHeader}>
-        <h2 className={styles.sectionTitle}>Event Management</h2>
-        <button 
+    <div className={styles.contentSection}>
+      <h2>Event Management</h2>
+      
+      {/* Search and Add section */}
+      <div className={styles.actionHeader}>
+        <div className={styles.searchBar}>
+          <FaSearch />
+          <input
+            type="text"
+            placeholder="Search events..."
+            value={searchTerm}
+            onChange={e => setSearchTerm(e.target.value)}
+          />
+        </div>
+        <button
           className={`${styles.button} ${styles.primaryButton}`}
-          onClick={openAddEventModal}
+          onClick={handleAddEvent}
         >
-          <FaPlus /> Add New Event
+          <FaPlus /> Add Event
         </button>
       </div>
-
-      <div className={styles.searchBar}>
-        <FaSearch className={styles.searchIcon} />
-        <input
-          type="text"
-          placeholder="Search events..."
-          className={styles.searchInput}
-          value={searchTerm}
-          onChange={handleSearch}
-        />
-      </div>
-
+      
+      {/* Error message if any */}
+      {error && (
+        <div className={styles.errorMessage}>
+          {error}
+        </div>
+      )}
+      
+      {/* Loading state */}
       {loading ? (
-        <div className={styles.loader}>Loading events...</div>
+        <div className={styles.loading}>Loading events...</div>
       ) : (
-        <div className={styles.tableWrapper}>
-          <table className={styles.table}>
-            <thead>
-              <tr>
-                <th>Event Name</th>
-                <th>Date</th>
-                <th>Location</th>
-                <th>Type</th>
-                <th>Status</th>
-                <th>Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              {filteredEvents.length > 0 ? (
-                filteredEvents.map((event) => (
-                  <tr key={event.id}>
-                    <td>{event.event_name}</td>
-                    <td>
-                      <div className={styles.flexCenter}>
-                        <FaCalendarAlt className={styles.iconSmall} />
-                        {new Date(event.event_date || event.start_date || event.created_at).toLocaleDateString()}
-                      </div>
-                    </td>
-                    <td>
-                      <div className={styles.flexCenter}>
-                        <FaMapMarkerAlt className={styles.iconSmall} />
-                        {event.location || 'N/A'}
-                      </div>
-                    </td>
-                    <td>{event.event_type || 'Other'}</td>
-                    <td>
-                      <span className={styles.statusIndicator + ' ' + 
-                        (event.status === 'upcoming' 
-                          ? styles.statusActive 
-                          : event.status === 'completed' 
-                            ? styles.statusComplete 
-                            : event.status === 'cancelled' 
-                              ? styles.statusRejected 
-                              : '')
-                      }>
-                        {event.status || 'N/A'}
-                      </span>
-                    </td>
-                    <td>
-                      <div className={styles.actionButtons}>
-                        <button 
-                          className={styles.actionButton}
+        <>
+          {/* Events table */}
+          {filteredEvents.length > 0 ? (
+            <div className={styles.tableContainer}>
+              <table className={styles.table}>
+                <thead>
+                  <tr>
+                    <th>ID</th>
+                    <th>Event Name</th>
+                    <th>Date</th>
+                    <th>Location</th>
+                    <th>Type</th>
+                    <th>Status</th>
+                    <th>Price</th>
+                    <th>Actions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {filteredEvents.map(event => (
+                    <tr key={event.id}>
+                      <td>{event.id}</td>
+                      <td>{event.event_name}</td>
+                      <td>
+                        <span className={styles.tableIcon}>
+                          <FaCalendarAlt />
+                        </span>
+                        {formatDate(event.event_date)}
+                      </td>
+                      <td>
+                        <span className={styles.tableIcon}>
+                          <FaMapMarkerAlt />
+                        </span>
+                        {event.location}
+                      </td>
+                      <td>{event.event_type}</td>
+                      <td>
+                        <span className={`${styles.statusBadge} ${styles[event.status]}`}>
+                          {event.status}
+                        </span>
+                      </td>
+                      <td>
+                        {event.price > 0 ? `₹${event.price}` : "Free"}
+                      </td>
+                      <td className={styles.actionButtons}>
+                        <button
+                          className={styles.iconButton}
                           onClick={() => handleEdit(event)}
+                          title="Edit Event"
                         >
                           <FaEdit />
                         </button>
-                        <button 
-                          className={`${styles.actionButton} ${styles.deleteButton}`}
+                        <button
+                          className={`${styles.iconButton} ${styles.deleteButton}`}
                           onClick={() => handleDelete(event.id)}
+                          title="Delete Event"
                         >
                           <FaTrash />
                         </button>
-                      </div>
-                    </td>
-                  </tr>
-                ))
-              ) : (
-                <tr>
-                  <td colSpan="6" className={styles.noData}>
-                    No events found
-                  </td>
-                </tr>
-              )}
-            </tbody>
-          </table>
-        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          ) : (
+            <div className={styles.noData}>
+              <FaCalendarCheck size={48} />
+              <p>No events found</p>
+              <button
+                className={`${styles.button} ${styles.primaryButton}`}
+                onClick={handleAddEvent}
+              >
+                Add Your First Event
+              </button>
+            </div>
+          )}
+        </>
       )}
 
+      {/* Event Form Modal */}
       {isModalOpen && (
         <div className={styles.modalBackdrop}>
           <div className={styles.modal}>
-            <h3>{selectedEvent ? "Edit Event" : "Add New Event"}</h3>
+            <h2>{selectedEvent ? "Edit Event" : "Add New Event"}</h2>
             <form onSubmit={handleSubmit}>
               <div className={styles.formGroup}>
                 <label className={styles.formLabel}>Event Name</label>
@@ -333,8 +436,8 @@ const EventsManagement = () => {
                 </div>
               </div>
               <div className={styles.modalFooter}>
-                <button 
-                  type="button" 
+                <button
+                  type="button"
                   className={`${styles.button} ${styles.secondaryButton}`}
                   onClick={() => setIsModalOpen(false)}
                 >

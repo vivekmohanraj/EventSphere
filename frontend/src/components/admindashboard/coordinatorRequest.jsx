@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from "react";
 import { FaCheck, FaTimes, FaEye, FaUser } from "react-icons/fa";
 import { toast } from "react-toastify";
-import api from "../../utils/api";
+import api, { tryMultipleEndpoints, directFetch } from "../../utils/api";
+import { ACCESS_TOKEN } from "../../utils/constants";
 import styles from "../../assets/css/adminDashboard.module.css";
 
 const CoordinatorRequests = () => {
@@ -17,11 +18,13 @@ const CoordinatorRequests = () => {
   const fetchRequests = async () => {
     try {
       setLoading(true);
-      // Try multiple possible endpoints
+      // Add more possible endpoints for coordinator requests
       const endpoints = [
         "coordinator-requests/",
         "users/coordinator-requests/",
-        "api/coordinator-requests/"
+        "api/coordinator-requests/",
+        "admin/coordinator-requests/",
+        "requests/coordinator/"
       ];
       
       let requestsData = [];
@@ -48,7 +51,10 @@ const CoordinatorRequests = () => {
         }
       }
       
-      setRequests(requestsData);
+      // Add function to handle different data structures
+      const normalizedRequests = requestsData.map(normalizeRequestData);
+      
+      setRequests(normalizedRequests);
       setLoading(false);
     } catch (error) {
       console.error("Error fetching coordinator requests:", error);
@@ -59,47 +65,22 @@ const CoordinatorRequests = () => {
 
   const handleApprove = async (requestId, userId) => {
     try {
-      // Try multiple possible endpoints and payloads
-      const methods = [
-        {
-          endpoint: `coordinator-requests/${requestId}/approve/`,
-          method: 'post',
-          payload: {}
-        },
-        {
-          endpoint: `users/${userId}/`,
-          method: 'patch',
-          payload: { user_role: "coordinator", coordinator_request: false }
-        }
-      ];
-      
-      let success = false;
-      
-      for (const { endpoint, method, payload } of methods) {
-        try {
-          if (method === 'post') {
-            await api.post(endpoint, payload);
-          } else if (method === 'patch') {
-            await api.patch(endpoint, payload);
-          } else if (method === 'put') {
-            await api.put(endpoint, payload);
-          }
-          success = true;
-          break;
-        } catch (error) {
-          console.warn(`Failed to use ${method} on ${endpoint}`);
-        }
-      }
-      
-      if (!success) {
-        throw new Error("All approval attempts failed");
+      // First try to use coordinator-requests endpoint
+      try {
+        await api.post(`coordinator-requests/${requestId}/approve/`);
+      } catch (error) {
+        // If that fails, try updating the user directly
+        await api.patch(`users/${userId}/`, {
+          user_role: "coordinator",
+          coordinator_request: false
+        });
       }
       
       toast.success("Request approved successfully");
       fetchRequests();
     } catch (error) {
       console.error("Error approving request:", error);
-      toast.error("Failed to approve request");
+      toast.error("Failed to approve request: " + (error.response?.data?.detail || error.message));
     }
   };
 
@@ -152,6 +133,39 @@ const CoordinatorRequests = () => {
   const openRequestDetails = (request) => {
     setSelectedRequest(request);
     setIsModalOpen(true);
+  };
+
+  // Add function to handle different data structures
+  const normalizeRequestData = (request) => {
+    // If this is a user object with coordinator_request flag
+    if (request.coordinator_request === true) {
+      return {
+        id: request.id,
+        user_id: request.id,
+        first_name: request.first_name || '',
+        last_name: request.last_name || '',
+        email: request.email || '',
+        phone: request.phone || request.phone_number || '',
+        username: request.username || '',
+        created_at: request.created_at || request.date_joined || new Date().toISOString(),
+        status: 'pending',
+        request_reason: request.request_reason || request.coordinator_request_reason || ''
+      };
+    }
+    
+    // If this is a CoordinatorRequest model object
+    return {
+      id: request.id,
+      user_id: request.user?.id || request.user_id,
+      first_name: request.user?.first_name || request.first_name || '',
+      last_name: request.user?.last_name || request.last_name || '',
+      email: request.user?.email || request.email || '',
+      phone: request.user?.phone || request.phone || '',
+      username: request.user?.username || request.username || '',
+      created_at: request.requested_at || request.created_at || new Date().toISOString(),
+      status: request.status || 'pending',
+      request_reason: request.reason || request.request_reason || ''
+    };
   };
 
   return (

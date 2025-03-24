@@ -1,8 +1,10 @@
 import React, { useState, useEffect } from "react";
 import { toast } from "react-toastify";
 import { FaDownload, FaEye, FaSearch, FaFilter, FaCheckCircle, FaTimesCircle } from "react-icons/fa";
-import api from "../../utils/api";
+import api, { tryMultipleEndpoints, directFetch } from "../../utils/api";
+import { ACCESS_TOKEN } from "../../utils/constants";
 import styles from "../../assets/css/adminDashboard.module.css";
+import { normalizePaymentData, formatDate, formatCurrency } from "../../utils/dataFormatters";
 
 const PaymentsManagement = () => {
   const [payments, setPayments] = useState([]);
@@ -25,19 +27,90 @@ const PaymentsManagement = () => {
   const fetchPayments = async () => {
     try {
       setLoading(true);
-      // Try multiple endpoints that could exist
-      try {
-        const response = await api.get("payments/all/");
-        setPayments(response.data);
-      } catch (firstError) {
-        console.warn("Could not fetch from payments/all/, trying payments/");
-        const fallbackResponse = await api.get("payments/");
-        setPayments(Array.isArray(fallbackResponse.data) ? fallbackResponse.data : []);
+      
+      // Log current configuration
+      console.log("Fetching payments from base URL:", api.defaults.baseURL);
+      
+      // Fetch payments data from backend
+      const response = await api.get("payments/");
+      
+      // Log detailed response info for debugging
+      console.log("Payments response:", response);
+      console.log("Response data type:", typeof response.data);
+      console.log("Response data preview:", 
+        typeof response.data === 'object' 
+          ? JSON.stringify(response.data).substring(0, 200) 
+          : response.data
+      );
+      
+      // Handle different possible response formats
+      if (response.data) {
+        let paymentsData = [];
+        
+        if (Array.isArray(response.data)) {
+          // Direct array of payments
+          console.log("Direct array format detected");
+          paymentsData = response.data;
+        } else if (response.data.results && Array.isArray(response.data.results)) {
+          // Paginated response (Django REST Framework default)
+          console.log("Paginated format detected");
+          paymentsData = response.data.results;
+        } else if (typeof response.data === 'object' && !Array.isArray(response.data)) {
+          // Check for different property names
+          console.log("Object format detected, checking for payments property");
+          if (response.data.payments && Array.isArray(response.data.payments)) {
+            paymentsData = response.data.payments;
+          } else if (response.data.data && Array.isArray(response.data.data)) {
+            paymentsData = response.data.data;
+          } else if (Object.keys(response.data).length > 0 && response.data.id) {
+            // Single payment object
+            paymentsData = [response.data];
+          } else {
+            // Try to find an array in the response
+            for (const key in response.data) {
+              if (Array.isArray(response.data[key])) {
+                console.log(`Found payments array in property: ${key}`);
+                paymentsData = response.data[key];
+                break;
+              }
+            }
+          }
+        }
+        
+        if (paymentsData.length > 0) {
+          console.log(`Found ${paymentsData.length} payments, normalizing`);
+          const normalizedPayments = paymentsData.map(normalizePaymentData);
+          setPayments(normalizedPayments);
+          calculateStats(normalizedPayments);
+        } else {
+          console.log("No payments found in the response");
+          setPayments([]);
+          toast.info("No payment records found");
+        }
+      } else {
+        console.log("Empty response from backend");
+        setPayments([]);
+        toast.warning("Received empty response from payment service");
       }
-      calculateStats(payments);
     } catch (error) {
-      toast.error("Failed to fetch payments");
       console.error("Error fetching payments:", error);
+      if (error.response) {
+        console.log("Error status:", error.response.status);
+        console.log("Error data:", error.response.data);
+        
+        if (error.response.status === 403) {
+          toast.error("You don't have permission to access payment records");
+        } else if (error.response.status === 401) {
+          toast.error("Authentication required to view payments");
+        } else {
+          toast.error(`Error loading payments: ${error.response.status}`);
+        }
+      } else if (error.request) {
+        toast.error("No response from payment service. Check your connection.");
+      } else {
+        toast.error(`Payment fetch error: ${error.message}`);
+      }
+      
       setPayments([]);
     } finally {
       setLoading(false);
@@ -112,22 +185,56 @@ const PaymentsManagement = () => {
 
   const handleUpdateStatus = async (paymentId, newStatus) => {
     try {
-      // Try multiple endpoints that could exist
-      try {
-        await api.patch(`payments/${paymentId}/status/`, { status: newStatus });
-      } catch (firstError) {
-        if (firstError.response && firstError.response.status === 404) {
-          console.warn(`Could not patch payments/${paymentId}/status/, trying payments/${paymentId}/`);
-          await api.patch(`payments/${paymentId}/`, { status: newStatus });
-        } else {
-          throw firstError;
-        }
+      // Map frontend status to backend field name (payment_status in model)
+      const statusData = {
+        payment_status: newStatus // Match Django model field
+      };
+      
+      // Log the update request
+      console.log(`Updating payment ${paymentId} status to ${newStatus}`);
+      console.log("Update data:", statusData);
+      
+      // Send update to backend
+      const response = await api.patch(`payments/${paymentId}/`, statusData);
+      console.log("Update response:", response);
+      
+      // Success! Update local state
+      toast.success(`Payment marked as ${newStatus}`);
+      
+      setPayments(
+        payments.map((payment) =>
+          payment.id === paymentId ? { ...payment, status: newStatus } : payment
+        )
+      );
+      
+      // Update view details if open
+      if (viewDetails && viewDetails.id === paymentId) {
+        setViewDetails({...viewDetails, status: newStatus});
       }
-      toast.success(`Payment status updated to ${newStatus}`);
-      fetchPayments();
+      
+      // Recalculate stats
+      calculateStats(payments.map(p => p.id === paymentId ? {...p, status: newStatus} : p));
     } catch (error) {
-      toast.error("Failed to update payment status");
       console.error("Error updating payment status:", error);
+      
+      if (error.response) {
+        console.log("Error status:", error.response.status);
+        console.log("Error data:", error.response.data);
+        
+        if (error.response.status === 400) {
+          // Validation error
+          const errorMsg = typeof error.response.data === 'object' 
+            ? Object.values(error.response.data).flat().join(', ')
+            : error.response.data;
+          toast.error(`Validation error: ${errorMsg}`);
+        } else if (error.response.status === 403) {
+          toast.error("You don't have permission to update this payment");
+        } else {
+          toast.error(`Update failed: ${error.response.status}`);
+        }
+      } else {
+        toast.error("Failed to update payment status - connection error");
+      }
     }
   };
 
@@ -150,15 +257,6 @@ const PaymentsManagement = () => {
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
-  };
-
-  const formatDate = (dateString) => {
-    const options = { year: "numeric", month: "short", day: "numeric" };
-    return new Date(dateString).toLocaleDateString(undefined, options);
-  };
-
-  const formatCurrency = (amount) => {
-    return `₹${amount.toFixed(2)}`;
   };
 
   return (

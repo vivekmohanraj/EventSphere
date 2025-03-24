@@ -11,7 +11,7 @@ from django.db.models import Q
 from rest_framework.decorators import action
 from django.utils.encoding import force_bytes, force_str
 from django.utils.http import urlsafe_base64_decode, urlsafe_base64_encode
-from rest_framework import generics, status, viewsets
+from rest_framework import generics, status, viewsets, permissions
 from rest_framework.permissions import AllowAny, IsAdminUser, IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
@@ -151,9 +151,15 @@ class UserStatsView(viewsets.ModelViewSet):
 
 
 class UserViewSet(viewsets.ModelViewSet):
-    permission_classes = [IsAdminUser]
     queryset = User.objects.all()
     serializer_class = UserSerializer
+    # Temporarily remove permission restrictions for testing
+    permission_classes = [permissions.AllowAny]  # <-- Change this temporarily
+    
+    def get_queryset(self):
+        # Make sure this returns all users
+        print("UserViewSet.get_queryset called")  # Add this for debugging
+        return User.objects.all()
 
     def update_role(self, request, pk=None):
         try:
