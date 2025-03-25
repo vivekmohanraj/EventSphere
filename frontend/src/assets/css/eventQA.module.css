@@ -1,0 +1,220 @@
+.qaSection {
+  margin-top: 2rem;
+  background-color: var(--bg-white);
+  border-radius: var(--border-radius);
+  padding: 1.5rem;
+  box-shadow: var(--shadow-sm);
+}
+
+.qaSection h2 {
+  font-size: 1.25rem;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin-bottom: 1.5rem;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.qaSection h2 svg {
+  color: var(--accent-color);
+}
+
+.questionForm {
+  margin-bottom: 2rem;
+}
+
+.questionForm textarea {
+  width: 100%;
+  padding: 1rem;
+  border: 1px solid var(--border-color);
+  border-radius: var(--border-radius-sm);
+  resize: vertical;
+  margin-bottom: 1rem;
+  font-family: inherit;
+}
+
+.questionForm button {
+  padding: 0.75rem 1.5rem;
+  background-color: var(--accent-color);
+  color: white;
+  border: none;
+  border-radius: var(--border-radius-sm);
+  cursor: pointer;
+  font-weight: 500;
+  transition: all var(--transition-fast) ease;
+}
+
+.questionForm button:hover {
+  background-color: var(--accent-dark);
+}
+
+.questionForm button:disabled {
+  background-color: var(--text-secondary);
+  cursor: not-allowed;
+}
+
+.questionCard {
+  background-color: var(--bg-light);
+  border-radius: var(--border-radius-sm);
+  padding: 1.5rem;
+  margin-bottom: 1rem;
+}
+
+.questionHeader {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  margin-bottom: 1rem;
+  flex-wrap: wrap;
+}
+
+.userInfo {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  color: var(--text-primary);
+  font-weight: 500;
+}
+
+.timestamp {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  color: var(--text-secondary);
+  font-size: 0.9rem;
+}
+
+.status {
+  margin-left: auto;
+}
+
+.answered {
+  color: var(--success);
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+}
+
+.unanswered {
+  color: var(--warning);
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+}
+
+.questionContent {
+  color: var(--text-primary);
+  line-height: 1.6;
+}
+
+.answer {
+  margin-top: 1rem;
+  padding: 1rem;
+  background-color: var(--bg-white);
+  border-radius: var(--border-radius-sm);
+  margin-left: 2rem;
+}
+
+.answerHeader {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  margin-bottom: 0.5rem;
+}
+
+.answerContent {
+  color: var(--text-primary);
+  line-height: 1.6;
+}
+
+.replySection {
+  margin-top: 1rem;
+}
+
+.replyButton {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem 1rem;
+  background-color: transparent;
+  border: 1px solid var(--accent-color);
+  color: var(--accent-color);
+  border-radius: var(--border-radius-sm);
+  cursor: pointer;
+  transition: all var(--transition-fast) ease;
+}
+
+.replyButton:hover {
+  background-color: var(--accent-color);
+  color: white;
+}
+
+.replyForm {
+  margin-top: 1rem;
+}
+
+.replyForm textarea {
+  width: 100%;
+  padding: 1rem;
+  border: 1px solid var(--border-color);
+  border-radius: var(--border-radius-sm);
+  resize: vertical;
+  margin-bottom: 1rem;
+  font-family: inherit;
+}
+
+.replyActions {
+  display: flex;
+  gap: 1rem;
+}
+
+.replyActions button {
+  padding: 0.5rem 1rem;
+  border-radius: var(--border-radius-sm);
+  cursor: pointer;
+  font-weight: 500;
+  transition: all var(--transition-fast) ease;
+}
+
+.replyActions button:first-child {
+  background-color: var(--accent-color);
+  color: white;
+  border: none;
+}
+
+.replyActions button:first-child:hover {
+  background-color: var(--accent-dark);
+}
+
+.cancelButton {
+  background-color: transparent;
+  border: 1px solid var(--border-color);
+  color: var(--text-secondary);
+}
+
+.cancelButton:hover {
+  background-color: var(--bg-light);
+}
+
+.noQuestions {
+  text-align: center;
+  padding: 2rem;
+  color: var(--text-secondary);
+}
+
+@media (max-width: 768px) {
+  .questionHeader {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.5rem;
+  }
+  
+  .status {
+    margin-left: 0;
+  }
+  
+  .answer {
+    margin-left: 1rem;
+  }
+} 

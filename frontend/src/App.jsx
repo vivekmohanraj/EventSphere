@@ -16,11 +16,12 @@ import LoginRegistration from "./components/login_reg.jsx";
 import SendResetLink from "./components/sendResetLink.jsx";
 import ResetPassword from "./components/forgotResetPassword.jsx";
 import EventList from "./components/events.jsx";
-import EventCreation from "./components/eventCreatoin.jsx";
+import EventCreation from "./components/eventCreation.jsx";
 import EventDetails from "./components/eventDetails";
 import AdminDashboard from "./components/admindashboard/adminDashboard.jsx";
 import CoordinatorDashboard from "./components/coordinatordashboard/coordinatorDashboard.jsx";
 import UserDashboard from "./components/userdashboard/userDashboard.jsx";
+import BookmarkedEvents from "./components/BookmarkedEvents.jsx";
 // Import global CSS for font consistency
 import "./assets/css/fonts.css";
 
@@ -131,6 +132,7 @@ function App() {
                     </ProtectedRoute>
                   }
                 />
+                <Route path="/bookmarks" element={<BookmarkedEvents />} />
               </Routes>
               
               {/* Include Footer for all routes except dashboard */}

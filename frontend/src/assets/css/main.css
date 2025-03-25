@@ -777,20 +777,20 @@
   margin-top: 6px;
   font-size: 13px;
 }
-/* 
+
 /*--------------------------------------------------------------
 # Preloader
 --------------------------------------------------------------*/
-/* #preloader {
+#preloader {
   position: fixed;
   inset: 0;
   z-index: 999999;
   overflow: hidden;
   background: var(--background-color);
   transition: all 0.6s ease-out;
-} */
+}
 
-/* #preloader:before {
+#preloader:before {
   content: "";
   position: fixed;
   top: calc(50% - 30px);
@@ -811,7 +811,7 @@
   100% {
     transform: rotate(360deg);
   }
-} */ */
+} 
 
 /*--------------------------------------------------------------
 # Scroll Top Button
@@ -820,30 +820,48 @@
   position: fixed;
   visibility: hidden;
   opacity: 0;
-  right: 15px;
-  bottom: 15px;
+  right: 25px;
+  bottom: 25px;
   z-index: 99999;
-  background-color: var(--accent-color);
-  width: 40px;
-  height: 40px;
-  border-radius: 4px;
+  background-color: var(--accent-color, #ff4a17);
+  width: 44px;
+  height: 44px;
+  border-radius: 8px;
+  box-shadow: 0 5px 15px rgba(0, 0, 0, 0.15);
   transition: all 0.4s;
+}
+
+.scroll-top:hover {
+  background-color: var(--accent-hover, #e53e00);
+  transform: translateY(-5px);
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.2);
 }
 
 .scroll-top i {
   font-size: 24px;
-  color: var(--contrast-color);
+  color: white;
   line-height: 0;
-}
-
-.scroll-top:hover {
-  background-color: color-mix(in srgb, var(--accent-color), transparent 20%);
-  color: var(--contrast-color);
 }
 
 .scroll-top.active {
   visibility: visible;
   opacity: 1;
+}
+
+/* For smooth animation when the button appears */
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translate3d(0, 30px, 0);
+  }
+  to {
+    opacity: 1;
+    transform: translate3d(0, 0, 0);
+  }
+}
+
+.scroll-top.active {
+  animation: fadeInUp 0.5s;
 }
 
 /*--------------------------------------------------------------

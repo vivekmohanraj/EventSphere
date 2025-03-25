@@ -42,64 +42,22 @@ const EventsManagement = () => {
       setLoading(true);
       setError(null);
       
-      // Simplified fetch for events data
-      const response = await api.get("events/");
+      // Use the correct endpoint matching your backend URL structure
+      const response = await api.get("/events/events/");
       
-      // Log the raw response to see what format we're getting
-      console.log("Backend response:", response);
-      console.log("Response data type:", typeof response.data);
-      console.log("Response data preview:", 
-        typeof response.data === 'object' 
-          ? JSON.stringify(response.data).substring(0, 200) 
-          : response.data
-      );
-      
-      // Handle different possible response formats
       if (response.data) {
-        let eventsData = [];
-        
-        if (Array.isArray(response.data)) {
-          // Direct array of events
-          console.log("Direct array format detected");
-          eventsData = response.data;
-        } else if (response.data.results && Array.isArray(response.data.results)) {
-          // Paginated response (Django REST Framework default)
-          console.log("Paginated format detected");
-          eventsData = response.data.results;
-        } else if (typeof response.data === 'object' && !Array.isArray(response.data)) {
-          // It might be a single event object or custom format
-          console.log("Object format detected, checking for events property");
-          if (response.data.events && Array.isArray(response.data.events)) {
-            // Custom format with events property
-            eventsData = response.data.events;
-          } else if (response.data.data && Array.isArray(response.data.data)) {
-            // Custom format with data property
-            eventsData = response.data.data;
-          } else if (Object.keys(response.data).length > 0 && response.data.id) {
-            // It's a single event
-            eventsData = [response.data];
-          } else {
-            // Try to find an array in the response
-            console.log("Searching for event array in response");
-            for (const key in response.data) {
-              if (Array.isArray(response.data[key])) {
-                console.log(`Found array in property: ${key}`);
-                eventsData = response.data[key];
-                break;
-              }
-            }
-          }
-        }
+        // Assume response is either array of events or has a results property
+        const eventsData = Array.isArray(response.data) 
+          ? response.data 
+          : (response.data.results || []);
         
         if (eventsData.length > 0) {
-          console.log(`Found ${eventsData.length} events, normalizing`);
           const normalizedEvents = eventsData.map(normalizeEventData);
           setEvents(normalizedEvents);
           setError(null);
         } else {
-          console.log("No events found in the response");
           setEvents([]);
-          setError("No events found in the response");
+          setError("No events found");
         }
       } else {
         setEvents([]);
@@ -107,7 +65,8 @@ const EventsManagement = () => {
       }
     } catch (error) {
       console.error("Error fetching events:", error);
-      setError(`Failed to load events: ${error.message}`);
+      setError(`Failed to load events: ${error.message || 'Unknown error'}`);
+      setEvents([]);
     } finally {
       setLoading(false);
     }
@@ -179,10 +138,10 @@ const EventsManagement = () => {
       };
 
       if (selectedEvent) {
-        await api.patch(`events/${selectedEvent.id}/`, eventData);
+        await api.patch(`/events/events/${selectedEvent.id}/`, eventData);
         toast.success("Event updated successfully");
       } else {
-        await api.post("events/", eventData);
+        await api.post("/events/events/", eventData);
         toast.success("Event created successfully");
       }
 
@@ -197,7 +156,7 @@ const EventsManagement = () => {
   const handleDelete = async (eventId) => {
     if (window.confirm("Are you sure you want to delete this event?")) {
       try {
-        await api.delete(`events/${eventId}/`);
+        await api.delete(`/events/events/${eventId}/`);
         toast.success("Event deleted successfully");
         fetchEvents();
       } catch (error) {

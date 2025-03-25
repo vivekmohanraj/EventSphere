@@ -33,7 +33,7 @@ const DashboardOverview = ({ stats = {}, upcomingEvents = [], recentActivity = [
     pendingRequests: stats.pendingRequests || 0
   };
   
-  // Generate some realistic sample data based on actual totals
+  // Define generateMonthlyData function BEFORE using it
   const generateMonthlyData = (total, variationPercentage = 15) => {
     const monthlyData = [];
     let runningTotal = 0;
@@ -59,18 +59,29 @@ const DashboardOverview = ({ stats = {}, upcomingEvents = [], recentActivity = [
   };
   
   // Calculate data based on real stats
-  const monthlyRevenue = generateMonthlyData(safeStats.totalRevenue || 500000);
-  const userGrowth = generateMonthlyData(safeStats.totalUsers || 500);
+  const monthlyRevenue = generateMonthlyData(safeStats.totalRevenue || 25000);
+  const userGrowth = generateMonthlyData(safeStats.totalUsers || 5);
+  
+  // Format numbers in Indian style (lakhs, crores)
+  const formatIndianNumber = (num) => {
+    if (num >= 10000000) { // 1 crore+
+      return `${(num / 10000000).toFixed(2)} Cr`;
+    } else if (num >= 100000) { // 1 lakh+
+      return `${(num / 100000).toFixed(2)} L`;
+    } else {
+      return num.toLocaleString('en-IN');
+    }
+  };
   
   // Event types likely to be found in Indian events
   const eventCategoriesData = {
     labels: ['Cultural', 'Corporate', 'Educational', 'Weddings', 'Festival'],
     counts: [
-      Math.round((safeStats.totalEvents || 100) * 0.35), // 35%
-      Math.round((safeStats.totalEvents || 100) * 0.25), // 25%
-      Math.round((safeStats.totalEvents || 100) * 0.20), // 20%
-      Math.round((safeStats.totalEvents || 100) * 0.12), // 12%
-      Math.round((safeStats.totalEvents || 100) * 0.08)  // 8%
+      Math.round((safeStats.totalEvents || 1) * 0.35), // 35%
+      Math.round((safeStats.totalEvents || 1) * 0.25), // 25%
+      Math.round((safeStats.totalEvents || 1) * 0.20), // 20%
+      Math.round((safeStats.totalEvents || 1) * 0.12), // 12%
+      Math.round((safeStats.totalEvents || 1) * 0.08)  // 8%
     ]
   };
   
@@ -247,17 +258,6 @@ const DashboardOverview = ({ stats = {}, upcomingEvents = [], recentActivity = [
     users: Math.round(3 + Math.random() * 12),   // 3-15% increase
     events: Math.round(2 + Math.random() * 10),  // 2-12% increase
     tickets: Math.round(10 + Math.random() * 15) // 10-25% increase
-  };
-  
-  // Format large numbers with Indian number format (lakhs, crores)
-  const formatIndianNumber = (num) => {
-    if (!num) return '0';
-    
-    const val = Math.abs(num);
-    if (val >= 10000000) return `${(num / 10000000).toFixed(1)} Cr`;
-    if (val >= 100000) return `${(num / 100000).toFixed(1)} L`;
-    if (val >= 1000) return `${(num / 1000).toFixed(1)}K`;
-    return num.toString();
   };
   
   return (

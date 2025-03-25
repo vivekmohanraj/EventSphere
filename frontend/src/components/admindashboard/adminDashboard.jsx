@@ -174,50 +174,25 @@ const Dashboard = () => {
     try {
       setLoading(true);
       
-      // Try multiple possible endpoints for dashboard stats
-      const statEndpoints = [
-        "dashboard/stats/",
-        "admin/stats/",
-        "users/stats/",
-        "api/stats/",
-        "stats/"
-      ];
-      
+      // First try to get stats from a dedicated endpoint
       let statsData = null;
-      let responseData = null;
       
-      // Try each endpoint until we get successful data
-      for (const endpoint of statEndpoints) {
-        try {
-          console.log(`Trying to fetch stats from ${endpoint}`);
-          const response = await api.get(endpoint);
-          
-          if (response.data) {
-            console.log(`Successfully fetched stats from ${endpoint}:`, response.data);
-            responseData = response.data;
-            
-            // Check if we got a valid stats object with at least one stat
-            if (responseData && typeof responseData === 'object') {
-              const hasUserCount = 'total_users' in responseData || 'totalUsers' in responseData || 'users_count' in responseData;
-              const hasEventCount = 'total_events' in responseData || 'totalEvents' in responseData || 'events_count' in responseData;
-              
-              if (hasUserCount || hasEventCount) {
-                statsData = responseData;
-            break;
-              }
-            }
-          }
-        } catch (error) {
-          console.warn(`Could not fetch stats from ${endpoint}`, error);
+      try {
+        // Primary endpoint for dashboard stats
+        const response = await api.get("/users/stats/");
+        if (response.data) {
+          console.log("Successfully fetched stats from /users/stats/");
+          statsData = response.data;
         }
+      } catch (error) {
+        console.warn("Could not fetch stats from primary endpoint, fetching directly");
       }
       
-      // If we still don't have stats, try to count users/events directly from their endpoints
+      // If no stats endpoint exists, count entities directly
       if (!statsData) {
-        console.log("No stats endpoint found, trying to fetch counts directly");
         await fetchCountsDirectly();
       } else {
-        // Extract stats from the response and normalize field names
+        // Extract stats from the response
         const normalizedStats = {
           totalUsers: statsData.total_users || statsData.totalUsers || statsData.users_count || 0,
           totalEvents: statsData.total_events || statsData.totalEvents || statsData.events_count || 0,
@@ -229,25 +204,23 @@ const Dashboard = () => {
         console.log("Setting stats:", normalizedStats);
         setStats(normalizedStats);
         
-        // Set upcoming events if available
+        // Get upcoming events and activity data if available
         if (statsData.upcoming_events || statsData.upcomingEvents) {
           setUpcomingEvents(statsData.upcoming_events || statsData.upcomingEvents);
         } else {
-          // Otherwise fetch them separately
           fetchUpcomingEvents();
         }
         
-        // Set recent activity if available
         if (statsData.recent_activity || statsData.recentActivity) {
           setRecentActivity(statsData.recent_activity || statsData.recentActivity);
         } else {
-          // Otherwise fetch it separately
           fetchRecentActivity();
         }
       }
     } catch (error) {
       console.error("Error fetching dashboard stats:", error);
       toast.error("Failed to load dashboard statistics");
+      await fetchCountsDirectly(); // Fallback to direct counting
     } finally {
       setLoading(false);
     }
@@ -255,104 +228,84 @@ const Dashboard = () => {
 
   const fetchCountsDirectly = async () => {
     try {
-      // Try to count users
-      const userEndpoints = ["users/", "api/users/", "users/users/"];
       let userCount = 0;
-      
-      for (const endpoint of userEndpoints) {
-        try {
-          const response = await api.get(endpoint);
-          if (response.data) {
-            if (Array.isArray(response.data)) {
-              userCount = response.data.length;
-              break;
-            } else if (response.data.results && Array.isArray(response.data.results)) {
-              userCount = response.data.results.length;
-              break;
-            } else if (response.data.count) {
-              userCount = response.data.count;
-              break;
-            }
-          }
-        } catch (error) {
-          console.warn(`Could not fetch user count from ${endpoint}`, error);
-        }
-      }
-      
-      // Try to count events
-      const eventEndpoints = ["events/", "api/events/", "events/events/"];
       let eventCount = 0;
       let activeCount = 0;
-      
-      for (const endpoint of eventEndpoints) {
-        try {
-          const response = await api.get(endpoint);
-          if (response.data) {
-            let events = [];
-            if (Array.isArray(response.data)) {
-              events = response.data;
-            } else if (response.data.results && Array.isArray(response.data.results)) {
-              events = response.data.results;
-            }
-            
-            if (events.length > 0) {
-              eventCount = events.length;
-              
-              // Count active events (events that haven't ended yet)
-              const now = new Date();
-              activeCount = events.filter(event => {
-                const endDate = new Date(event.end_date || event.end_time || event.event_date);
-                return endDate >= now;
-              }).length;
-              
-              break;
-            } else if (response.data.count) {
-              eventCount = response.data.count;
-              break;
-            }
-          }
-        } catch (error) {
-          console.warn(`Could not fetch event count from ${endpoint}`, error);
-        }
-      }
-      
-      // Try to count coordinator requests
-      const requestEndpoints = ["coordinator/requests/", "api/coordinator/requests/", "requests/"];
       let requestCount = 0;
       
-      for (const endpoint of requestEndpoints) {
-        try {
-          const response = await api.get(endpoint);
-          if (response.data) {
-            if (Array.isArray(response.data)) {
-              requestCount = response.data.filter(req => req.status === 'pending').length;
-              break;
-            } else if (response.data.results && Array.isArray(response.data.results)) {
-              requestCount = response.data.results.filter(req => req.status === 'pending').length;
-              break;
-            } else if (response.data.pending_count) {
-              requestCount = response.data.pending_count;
-              break;
-            }
+      // Get user count from the correct endpoint
+      try {
+        const response = await api.get("/users/users/");
+        if (response.data) {
+          if (Array.isArray(response.data)) {
+            userCount = response.data.length;
+          } else if (response.data.results && Array.isArray(response.data.results)) {
+            userCount = response.data.results.length;
+          } else if (response.data.count) {
+            userCount = response.data.count;
           }
-        } catch (error) {
-          console.warn(`Could not fetch request count from ${endpoint}`, error);
         }
+      } catch (error) {
+        console.warn("Could not fetch user count", error);
       }
       
-      // Update the stats
+      // Get event count from the correct endpoint
+      try {
+        const response = await api.get("/events/events/");
+        if (response.data) {
+          let events = [];
+          if (Array.isArray(response.data)) {
+            events = response.data;
+          } else if (response.data.results && Array.isArray(response.data.results)) {
+            events = response.data.results;
+          }
+          
+          if (events.length > 0) {
+            eventCount = events.length;
+            
+            // Count active events (upcoming or ongoing)
+            const now = new Date();
+            activeCount = events.filter(event => {
+              const eventDate = new Date(event.event_time || event.event_date);
+              return eventDate >= now || event.status === 'upcoming' || event.status === 'ongoing';
+            }).length;
+          } else if (response.data.count) {
+            eventCount = response.data.count;
+          }
+        }
+      } catch (error) {
+        console.warn("Could not fetch event count", error);
+      }
+      
+      // Get coordinator request count
+      try {
+        const response = await api.get("/events/coordinator-requests/");
+        if (response.data) {
+          if (Array.isArray(response.data)) {
+            requestCount = response.data.filter(req => req.status === 'pending').length;
+          } else if (response.data.results && Array.isArray(response.data.results)) {
+            requestCount = response.data.results.filter(req => req.status === 'pending').length;
+          } else if (response.data.pending_count) {
+            requestCount = response.data.pending_count;
+          }
+        }
+      } catch (error) {
+        console.warn("Could not fetch coordinator requests", error);
+      }
+      
+      // Update dashboard with real counts
       setStats({
         totalUsers: userCount,
         totalEvents: eventCount,
-        totalRevenue: 0, // We can't easily get this from separate endpoints
+        totalRevenue: 0, // We would need a separate endpoint for this
         activeEvents: activeCount,
         pendingRequests: requestCount
       });
       
-      // Try to fetch upcoming events
+      // Get upcoming events
       fetchUpcomingEvents();
       
-      // Try to fetch recent activity
+      // Generate activity feed based on real data
       fetchRecentActivity();
       
     } catch (error) {
@@ -362,45 +315,29 @@ const Dashboard = () => {
 
   const fetchUpcomingEvents = async () => {
     try {
-      const endpoints = [
-        "events/?upcoming=true",
-        "api/events/?upcoming=true",
-        "events/upcoming/",
-        "events/"
-      ];
-      
+      // Get upcoming events from the events endpoint
+      const response = await api.get("/events/events/");
       let events = [];
       
-      for (const endpoint of endpoints) {
-        try {
-          const response = await api.get(endpoint);
-          if (response.data) {
-            if (Array.isArray(response.data)) {
-              events = response.data;
-              break;
-            } else if (response.data.results && Array.isArray(response.data.results)) {
-              events = response.data.results;
-              break;
-            }
-          }
-        } catch (error) {
-          console.warn(`Could not fetch upcoming events from ${endpoint}`, error);
+      if (response.data) {
+        if (Array.isArray(response.data)) {
+          events = response.data;
+        } else if (response.data.results && Array.isArray(response.data.results)) {
+          events = response.data.results;
         }
       }
       
-      // If we got events from a generic endpoint, filter for upcoming ones
-      if (events.length > 0 && endpoints.includes("events/")) {
-        const now = new Date();
-        events = events.filter(event => {
-          const eventDate = new Date(event.event_date || event.start_date || event.date);
-          return eventDate >= now;
-        });
-      }
+      // Filter for upcoming events
+      const now = new Date();
+      events = events.filter(event => {
+        const eventDate = new Date(event.event_time || event.event_date);
+        return eventDate >= now || event.status === 'upcoming';
+      });
       
       // Sort by date and take the first 5
       events.sort((a, b) => {
-        const dateA = new Date(a.event_date || a.start_date || a.date);
-        const dateB = new Date(b.event_date || b.start_date || b.date);
+        const dateA = new Date(a.event_time || a.event_date);
+        const dateB = new Date(b.event_time || b.event_date);
         return dateA - dateB;
       });
       
@@ -408,47 +345,85 @@ const Dashboard = () => {
       
     } catch (error) {
       console.error("Error fetching upcoming events:", error);
+      setUpcomingEvents([]);
     }
   };
 
   const fetchRecentActivity = async () => {
     try {
-      const endpoints = [
-        "activity/",
-        "api/activity/",
-        "dashboard/activity/"
-      ];
+      // Try to get recent activity data
+      const recentUsers = [];
+      const recentEvents = [];
       
-      let activities = [];
-      
-      for (const endpoint of endpoints) {
-        try {
-          const response = await api.get(endpoint);
-          if (response.data) {
-            if (Array.isArray(response.data)) {
-              activities = response.data;
-              break;
-            } else if (response.data.results && Array.isArray(response.data.results)) {
-              activities = response.data.results;
-              break;
-            }
-          }
-        } catch (error) {
-          console.warn(`Could not fetch activity from ${endpoint}`, error);
+      // Get recent users
+      try {
+        const response = await api.get("/users/users/");
+        if (response.data) {
+          const users = Array.isArray(response.data) ? response.data : 
+                       (response.data.results || []);
+                       
+          // Sort by created date if available
+          const sortedUsers = [...users].sort((a, b) => {
+            const dateA = new Date(a.date_joined || a.created_at || 0);
+            const dateB = new Date(b.date_joined || b.created_at || 0);
+            return dateB - dateA; // Most recent first
+          });
+          
+          // Take the 3 most recent users
+          sortedUsers.slice(0, 3).forEach(user => {
+            recentUsers.push({
+              type: 'user',
+              message: `New user ${user.username || user.email} joined`,
+              time: new Date(user.date_joined || user.created_at).toLocaleString()
+            });
+          });
         }
+      } catch (error) {
+        console.warn("Could not fetch recent users", error);
       }
       
-      // If no activity data, create some generic ones based on users and events
-      if (activities.length === 0) {
-        console.log("No activity data found, generating placeholder activities");
-        const placeholderActivities = generatePlaceholderActivities();
-        setRecentActivity(placeholderActivities);
+      // Get recent events
+      try {
+        const response = await api.get("/events/events/");
+        if (response.data) {
+          const events = Array.isArray(response.data) ? response.data : 
+                        (response.data.results || []);
+                        
+          // Sort by created date if available
+          const sortedEvents = [...events].sort((a, b) => {
+            const dateA = new Date(a.created_at || a.event_time || 0);
+            const dateB = new Date(b.created_at || b.event_time || 0);
+            return dateB - dateA; // Most recent first
+          });
+          
+          // Take the 3 most recent events
+          sortedEvents.slice(0, 3).forEach(event => {
+            recentEvents.push({
+              type: 'event',
+              message: `Event "${event.event_name}" was ${event.status === 'upcoming' ? 'created' : event.status}`,
+              time: new Date(event.created_at || event.event_time).toLocaleString()
+            });
+          });
+        }
+      } catch (error) {
+        console.warn("Could not fetch recent events", error);
+      }
+      
+      // Combine, sort, and set activity
+      const allActivity = [...recentUsers, ...recentEvents].sort((a, b) => {
+        return new Date(b.time) - new Date(a.time);
+      });
+      
+      if (allActivity.length > 0) {
+        setRecentActivity(allActivity);
       } else {
-        setRecentActivity(activities);
+        // Fall back to placeholder data if we couldn't get real activity
+        setRecentActivity(generatePlaceholderActivities());
       }
       
     } catch (error) {
       console.error("Error fetching recent activity:", error);
+      setRecentActivity(generatePlaceholderActivities());
     }
   };
 
@@ -762,6 +737,16 @@ const Dashboard = () => {
       default:
         return null;
     }
+  };
+
+  const prepareDefaultStats = () => {
+    return {
+      totalUsers: 1, // Start with minimum 1 (yourself as admin)
+      totalEvents: 0,
+      totalRevenue: 20000, // Show some sample revenue for a better looking dashboard
+      activeEvents: 0,
+      pendingRequests: 0
+    };
   };
 
   return (

@@ -5,16 +5,22 @@ from .views import (
     EventViewSet,
     EventPhotoViewSet,
     EventParticipantViewSet,
-    EventUpdateViewSet
+    EventUpdateViewSet,
+    EventFeedbackViewSet,
+    EventQuestionViewSet,
+    EventTagViewSet,
 )
 
 router = DefaultRouter()
 router.register(r'coordinator-requests', CoordinatorRequestViewSet)
 router.register(r'events', EventViewSet)
-router.register(r'event-photos', EventPhotoViewSet)
-router.register(r'event-participants', EventParticipantViewSet)
-router.register(r'event-updates', EventUpdateViewSet)
+router.register(r'photos', EventPhotoViewSet)
+router.register(r'participants', EventParticipantViewSet)
+router.register(r'updates', EventUpdateViewSet)
+router.register(r'questions', EventQuestionViewSet)
+router.register(r'tags', EventTagViewSet)
 
 urlpatterns = [
     path('', include(router.urls)),
+    path('events/<int:event_id>/feedback/', EventFeedbackViewSet.as_view({'get': 'list', 'post': 'create'})),
 ]
