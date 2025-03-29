@@ -37,8 +37,11 @@ export const normalizeEventData = (eventData) => {
   
   // Determine event date from various possible fields
   let eventDate = new Date().toISOString();
+  let originalEventTime = null;
+  
   if (eventData.event_time) {
     eventDate = eventData.event_time;
+    originalEventTime = eventData.event_time;
   } else if (eventData.event_date) {
     eventDate = eventData.event_date;
   } else if (eventData.start_date) {
@@ -57,17 +60,24 @@ export const normalizeEventData = (eventData) => {
     console.warn("Date conversion error:", e);
   }
   
+  // Normalize status - handle both "cancelled" (UK spelling) and "canceled" (US spelling)
+  let status = eventData.status || 'upcoming';
+  if (status === 'cancelled') {
+    status = 'canceled'; // Convert to backend expected value
+  }
+  
   return {
     id: eventData.id,
     event_name: eventData.event_name || eventData.name || eventData.title || '',
     description: eventData.description || eventData.content || '',
     event_date: eventDate,
+    event_time: originalEventTime || eventDate, // Keep original event_time for API consistency
     location: location,
     event_type: eventData.event_type || eventData.type || 'conference',
     capacity: parseInt(eventData.capacity) || 0,
     price: parseFloat(eventData.price) || 0,
     is_paid: eventData.is_paid || parseFloat(eventData.price) > 0,
-    status: eventData.status || 'upcoming',
+    status: status,
     created_by: eventData.created_by || null,
     created_at: eventData.created_at || new Date().toISOString()
   };

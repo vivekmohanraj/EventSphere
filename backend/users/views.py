@@ -7,7 +7,8 @@ from django.conf import settings
 from django.contrib.auth.hashers import check_password, make_password
 from django.contrib.auth.tokens import default_token_generator
 from django.core.mail import send_mail
-from django.db.models import Q
+from django.db.models import Q, Count, Sum
+from django.db.models.functions import TruncMonth
 from rest_framework.decorators import action
 from django.utils.encoding import force_bytes, force_str
 from django.utils.http import urlsafe_base64_decode, urlsafe_base64_encode
@@ -20,6 +21,9 @@ from rest_framework_simplejwt.tokens import RefreshToken
 
 from .models import User
 from .serializers import LoginSerializer, UserSerializer, UserProfileSerializer
+from events.models import Event
+from payments.models import Payment
+from datetime import datetime, timedelta
 
 # Get an instance of a logger
 logger = logging.getLogger(__name__)
@@ -133,22 +137,136 @@ class ChangePasswordView(APIView):
         """Support for PUT method for password changes"""
         return self.post(request)
 
-class UserStatsView(viewsets.ModelViewSet):
-    queryset = User.objects.all()
-    serializer_class = UserSerializer
+class UserStatsView(APIView):
     permission_classes = [IsAuthenticated]
     authentication_classes = [JWTAuthentication]
+    
+    def get(self, request):
+        # Get basic counts
+        total_users = User.objects.count()
+        total_events = Event.objects.count()
+        active_events = Event.objects.filter(status='upcoming').count()
+        pending_requests = User.objects.filter(coordinator_request=True).count()
+        
+        # Get total revenue
+        total_revenue = Payment.objects.filter(payment_status='completed').aggregate(Sum('amount'))
+        total_revenue = total_revenue['amount__sum'] or 0
+        
+        # Get monthly revenue data
+        current_year = datetime.now().year
+        monthly_revenue = Payment.objects.filter(
+            payment_status='completed',
+            created_at__year=current_year
+        ).annotate(
+            month=TruncMonth('created_at')
+        ).values('month').annotate(
+            revenue=Sum('amount')
+        ).order_by('month')
+        
+        # Process monthly data into format dashboard expects
+        months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
+        revenue_data = [0] * 12
+        
+        for item in monthly_revenue:
+            if item['month']:
+                month_index = item['month'].month - 1  # 0-based index
+                revenue_data[month_index] = int(item['revenue'] or 0)
+        
+        # Get monthly events data
+        monthly_events = Event.objects.filter(
+            created_at__year=current_year
+        ).annotate(
+            month=TruncMonth('created_at')
+        ).values('month').annotate(
+            count=Count('id')
+        ).order_by('month')
+        
+        events_data = [0] * 12
+        for item in monthly_events:
+            if item['month']:
+                month_index = item['month'].month - 1  # 0-based index
+                events_data[month_index] = item['count']
+        
+        # Get monthly user signups
+        monthly_users = User.objects.filter(
+            created_at__year=current_year
+        ).annotate(
+            month=TruncMonth('created_at')
+        ).values('month').annotate(
+            count=Count('id')
+        ).order_by('month')
+        
+        users_data = [0] * 12
+        for item in monthly_users:
+            if item['month']:
+                month_index = item['month'].month - 1  # 0-based index
+                users_data[month_index] = item['count']
+        
+        # Calculate growth rates
+        # Current month vs. previous month
+        now = datetime.now()
+        current_month_start = datetime(now.year, now.month, 1)
+        prev_month_start = (current_month_start - timedelta(days=1)).replace(day=1)
+        
+        current_month_users = User.objects.filter(created_at__gte=current_month_start).count()
+        prev_month_users = User.objects.filter(
+            created_at__gte=prev_month_start,
+            created_at__lt=current_month_start
+        ).count()
+        
+        current_month_events = Event.objects.filter(created_at__gte=current_month_start).count()
+        prev_month_events = Event.objects.filter(
+            created_at__gte=prev_month_start,
+            created_at__lt=current_month_start
+        ).count()
+        
+        current_month_revenue = Payment.objects.filter(
+            created_at__gte=current_month_start,
+            payment_status='completed'
+        ).aggregate(Sum('amount'))['amount__sum'] or 0
+        
+        prev_month_revenue = Payment.objects.filter(
+            created_at__gte=prev_month_start,
+            created_at__lt=current_month_start,
+            payment_status='completed'
+        ).aggregate(Sum('amount'))['amount__sum'] or 0
+        
+        # Calculate growth percentages with safe division
+        user_growth = calculate_growth(prev_month_users, current_month_users)
+        event_growth = calculate_growth(prev_month_events, current_month_events)
+        revenue_growth = calculate_growth(prev_month_revenue, current_month_revenue)
+        
+        # Get event types distribution
+        event_types = Event.objects.values('event_type').annotate(
+            count=Count('id')
+        ).order_by('-count')[:5]  # Top 5 event types
+        
+        return Response({
+            'total_users': total_users,
+            'total_events': total_events,
+            'total_revenue': total_revenue,
+            'active_events': active_events,
+            'pending_requests': pending_requests,
+            'monthly_revenue': revenue_data,
+            'monthly_events': events_data,
+            'monthly_users': users_data,
+            'growth_rates': {
+                'users': user_growth,
+                'events': event_growth,
+                'revenue': revenue_growth,
+                'active': 0  # Need a way to calculate this
+            },
+            'event_types': [
+                {'type': item['event_type'] or 'Undefined', 'count': item['count']}
+                for item in event_types
+            ]
+        })
 
-    def get_queryset(self):
-        """Filter users based on user role"""
-        queryset = User.objects.all()  # Add ordering
-        return queryset
-
-    def list(self, request, *args, **kwargs):
-        queryset = self.get_queryset()
-        serializer = self.get_serializer(queryset, many=True)
-        return Response(serializer.data)
-
+def calculate_growth(previous, current):
+    """Calculate growth percentage safely"""
+    if previous == 0:
+        return 100 if current > 0 else 0
+    return round(((current - previous) / previous) * 100)
 
 class UserViewSet(viewsets.ModelViewSet):
     queryset = User.objects.all()
@@ -403,3 +521,53 @@ class CheckEmailView(APIView):
         if User.objects.filter(email__iexact=email).exists():
             return Response({"available": False}, status=status.HTTP_200_OK)
         return Response({"available": True}, status=status.HTTP_200_OK)
+
+
+class CoordinatorRequestView(APIView):
+    permission_classes = [IsAuthenticated]
+    
+    def post(self, request):
+        user = request.user
+        user.coordinator_request = True
+        user.save()
+        return Response({"message": "Coordinator request submitted successfully"}, status=status.HTTP_200_OK)
+
+
+class CoordinatorRequestsListView(APIView):
+    permission_classes = [IsAuthenticated]
+    
+    def get(self, request):
+        # Only allow admins to view the requests
+        if request.user.user_role != 'admin':
+            return Response({"error": "Permission denied"}, status=status.HTTP_403_FORBIDDEN)
+        
+        # Get all users with pending coordinator requests
+        pending_requests = User.objects.filter(coordinator_request=True)
+        serializer = UserSerializer(pending_requests, many=True)
+        return Response(serializer.data)
+    
+    def post(self, request, user_id):
+        """Approve or reject a coordinator request"""
+        try:
+            user = User.objects.get(id=user_id)
+            
+            # Only allow admins to update requests
+            if request.user.user_role != 'admin':
+                return Response({"error": "Permission denied"}, status=status.HTTP_403_FORBIDDEN)
+            
+            action = request.data.get('action')
+            
+            if action == 'approve':
+                user.user_role = 'coordinator'
+                user.coordinator_request = False
+                user.save()
+                return Response({"message": f"User {user.username} is now a coordinator"})
+            elif action == 'reject':
+                user.coordinator_request = False
+                user.save()
+                return Response({"message": f"Coordinator request for {user.username} was rejected"})
+            else:
+                return Response({"error": "Invalid action"}, status=status.HTTP_400_BAD_REQUEST)
+                
+        except User.DoesNotExist:
+            return Response({"error": "User not found"}, status=status.HTTP_404_NOT_FOUND)

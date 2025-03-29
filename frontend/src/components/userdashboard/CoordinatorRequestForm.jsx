@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { FaPaperPlane, FaTimes } from 'react-icons/fa';
 import { toast } from 'react-toastify';
 import api from '../../utils/api';
-import styles from '../../assets/css/Dashboard.module.css';
+import styles from '../../assets/css/user/coordinatorRequestForm.module.css';
 
 const CoordinatorRequestForm = ({ onClose, onSuccess }) => {
   const [reason, setReason] = useState('');
@@ -66,8 +66,8 @@ const CoordinatorRequestForm = ({ onClose, onSuccess }) => {
   };
 
   return (
-    <div className={styles.modalBackdrop}>
-      <div className={styles.modal}>
+    <div className={styles.modalOverlay}>
+      <div className={styles.modalContent}>
         <div className={styles.modalHeader}>
           <h3>Request Coordinator Role</h3>
           <button className={styles.closeButton} onClick={onClose}>

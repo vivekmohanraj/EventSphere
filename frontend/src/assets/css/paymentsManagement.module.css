@@ -185,3 +185,77 @@
     flex-direction: column;
   }
 }
+
+/* Styles specific to Payments Management */
+.paymentsContainer {
+  width: 100%;
+  padding: 20px;
+}
+
+.paymentTable {
+  width: 100%;
+  border-collapse: collapse;
+  margin-top: 20px;
+  background-color: #fff;
+  border-radius: 8px;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+}
+
+.paymentTable th, .paymentTable td {
+  padding: 12px 15px;
+  text-align: left;
+  border-bottom: 1px solid #eaeaea;
+}
+
+.paymentTable th {
+  background-color: #f8f8f8;
+  font-weight: 600;
+}
+
+.paymentStatus {
+  padding: 5px 10px;
+  border-radius: 15px;
+  font-size: 12px;
+  font-weight: 500;
+}
+
+.statusComplete {
+  background-color: #d4edda;
+  color: #155724;
+}
+
+.statusPending {
+  background-color: #fff3cd;
+  color: #856404;
+}
+
+.statusFailed {
+  background-color: #f8d7da;
+  color: #721c24;
+}
+
+.paymentAmount {
+  font-weight: 600;
+}
+
+.dateCell {
+  color: #666;
+}
+
+.filterControls {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 20px;
+}
+
+.dateRange {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+}
+
+.dateInput {
+  padding: 8px;
+  border-radius: 4px;
+  border: 1px solid #ddd;
+}

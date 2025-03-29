@@ -12,6 +12,7 @@
   "dependencies": {
     "@hookform/resolvers": "^4.0.0",
     "@react-oauth/google": "^0.12.1",
+    "@renderize/lib": "^1.0.4",
     "@srexi/purecounterjs": "^1.5.0",
     "aos": "^2.3.4",
     "axios": "^1.8.3",

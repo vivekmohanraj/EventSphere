@@ -1,10 +1,13 @@
 import React, { useState, useEffect } from "react";
 import { toast } from "react-toastify";
-import { FaSearch, FaPlus, FaEdit, FaTrash, FaEye, FaUser, FaEnvelope, FaPhone, FaToggleOn, FaToggleOff } from "react-icons/fa";
+import { FaSearch, FaPlus, FaEdit, FaTrash, FaEye, FaUser, FaEnvelope, FaPhone, FaToggleOn, FaToggleOff, FaUserPlus, FaUsers } from "react-icons/fa";
 import api, { tryMultipleEndpoints, directFetch } from "../../utils/api";
 import { ACCESS_TOKEN } from "../../utils/constants";
 import styles from "../../assets/css/adminDashboard.module.css";
 import { normalizeUserData } from "../../utils/dataFormatters";
+
+// Add this line after imports to debug
+console.log("CSS Module loaded:", Object.keys(styles));
 
 const UsersManagement = () => {
   const [users, setUsers] = useState([]);
@@ -332,39 +335,43 @@ const UsersManagement = () => {
     }
   };
 
+  if (loading) {
+    return <div className={styles.loader}>Loading users...</div>;
+  }
+
   return (
-    <div className={styles.usersManagement}>
-      <div className={styles.usersHeader}>
-        <h2 className={styles.usersTitle}>Users Management</h2>
-        <div className={styles.usersActions}>
-          <div className={styles.searchWrapper}>
-          <FaSearch className={styles.searchIcon} />
+    <div className={styles.userManagementContainer}>
+      <div className={styles.userSectionHeader}>
+        <h2 className={styles.userSectionTitle}>User Management</h2>
+        <div className={styles.userSearchBox}>
+          <FaSearch className={styles.userSearchIcon} />
           <input
             type="text"
+            className={styles.userSearchInput}
             placeholder="Search users..."
             value={searchTerm}
             onChange={handleSearch}
-              className={styles.searchInput}
           />
-          </div>
-          <button className={styles.addUserBtn} onClick={handleAddNew}>
-            <FaPlus /> Add User
-          </button>
         </div>
+        <button className={styles.userAddButton} onClick={handleAddNew}>
+          <FaUserPlus /> Add User
+        </button>
       </div>
 
-      {loading ? (
-        <div className={styles.loaderContainer}>
-          <div className={styles.loader}></div>
+      {filteredUsers.length === 0 ? (
+        <div className={styles.userEmptyState}>
+          <FaUsers className={styles.userEmptyStateIcon} />
+          <h3>No Users Found</h3>
+          <p>There are no users matching your search criteria.</p>
         </div>
       ) : (
-        <div className={styles.tableWrapper}>
-          <table className={styles.usersTable}>
+        <div className={styles.userTableContainer}>
+          <table className={styles.userDataTable}>
             <thead>
               <tr>
-                <th>Name</th>
-                <th>Email</th>
+                <th>User</th>
                 <th>Username</th>
+                <th>Email</th>
                 <th>Role</th>
                 <th>Status</th>
                 <th>Actions</th>
@@ -372,75 +379,74 @@ const UsersManagement = () => {
             </thead>
             <tbody>
               {filteredUsers.map((user) => (
-                  <tr key={user.id}>
+                <tr key={user.id}>
                   <td>
-                    <div className={styles.userInfo}>
-                      <div className={styles.avatar}>
+                    <div className={styles.userCell}>
+                      <div className={styles.userAvatarInTable}>
                         {user.profile_photo ? (
-                          <img src={user.profile_photo} alt={user.username} />
+                          <img
+                            src={api.defaults.baseURL + user.profile_photo}
+                            alt={`${user.username}'s avatar`}
+                          />
                         ) : (
                           <>
-                            {user.first_name ? user.first_name.charAt(0).toUpperCase() : ''}
-                            {user.last_name ? user.last_name.charAt(0).toUpperCase() : ''}
+                            {user.first_name?.[0] || ""}
+                            {user.last_name?.[0] || ""}
                           </>
                         )}
                       </div>
-                      <span className={styles.userName}>
-                      {user.first_name} {user.last_name}
-                      </span>
+                      <div>
+                        <div className={styles.userNameInTable}>
+                          {user.first_name} {user.last_name}
+                        </div>
+                        <div className={styles.userEmailInTable}>
+                          Joined: {new Date(user.created_at || user.date_joined).toLocaleDateString()}
+                        </div>
+                      </div>
                     </div>
-                    </td>
-                  <td>{user.email}</td>
+                  </td>
                   <td>{user.username}</td>
+                  <td>{user.email}</td>
                   <td>
                     <span
-                      className={`${styles.userRole} ${
-                        user.user_type === "admin"
-                          ? styles.admin
-                          : user.user_type === "coordinator"
-                          ? styles.coordinator
-                          : styles.user
+                      className={`${styles.userBadge} ${
+                        user.user_role === "admin"
+                          ? styles.userAdminBadge
+                          : user.user_role === "coordinator"
+                          ? styles.userCoordinatorBadge
+                          : styles.userNormalBadge
                       }`}
                     >
-                      {user.user_type === "normal"
-                        ? "User"
-                        : user.user_type === "coordinator"
+                      {user.user_role === "admin"
+                        ? "Admin"
+                        : user.user_role === "coordinator"
                         ? "Coordinator"
-                        : "Admin"}
+                        : "User"}
                     </span>
                   </td>
                   <td>
                     <span
-                      className={`${styles.userStatus} ${
-                        user.is_active ? styles.active : styles.inactive
+                      className={`${styles.userBadge} ${
+                        user.is_active ? styles.userActiveBadge : styles.userInactiveBadge
                       }`}
                     >
                       {user.is_active ? "Active" : "Inactive"}
                     </span>
-                    </td>
-                    <td>
-                    <div className={styles.actionBtns}>
-                        <button
-                        className={`${styles.actionBtn} ${styles.viewBtn}`}
-                          onClick={() => handleView(user)}
-                        >
-                          <FaEye />
-                        </button>
-                        <button
-                        className={`${styles.actionBtn} ${styles.editBtn}`}
-                          onClick={() => handleEdit(user)}
-                        >
-                          <FaEdit />
-                        </button>
-                        <button
-                        className={`${styles.actionBtn} ${styles.deleteBtn}`}
-                          onClick={() => handleDelete(user.id)}
-                        >
-                          <FaTrash />
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
+                  </td>
+                  <td>
+                    <div className={styles.userActionButtons}>
+                      <button className={`${styles.userActionBtn} ${styles.userViewBtn}`} onClick={() => handleView(user)}>
+                        <FaEye />
+                      </button>
+                      <button className={`${styles.userActionBtn} ${styles.userEditBtn}`} onClick={() => handleEdit(user)}>
+                        <FaEdit />
+                      </button>
+                      <button className={`${styles.userActionBtn} ${styles.userDeleteBtn}`} onClick={() => handleDelete(user.id)}>
+                        <FaTrash />
+                      </button>
+                    </div>
+                  </td>
+                </tr>
               ))}
             </tbody>
           </table>
@@ -448,8 +454,8 @@ const UsersManagement = () => {
       )}
 
       {showModal && (
-        <div className={styles.modalBackdrop}>
-          <div className={styles.modal}>
+        <div className={styles.userModalBackdrop}>
+          <div className={styles.userModal}>
             <div className={styles.modalHeader}>
               <h3>
                 {selectedUser ? <FaEdit /> : <FaPlus />}
@@ -465,28 +471,28 @@ const UsersManagement = () => {
             
             <form onSubmit={handleSubmit} className={styles.modalForm}>
               <div className={styles.formRow}>
-              <div className={styles.formGroup}>
+                <div className={styles.formGroup}>
                   <label className={styles.formLabel}>Username</label>
-                <input
-                  type="text"
-                  name="username"
+                  <input
+                    type="text"
+                    name="username"
                     className={styles.formControl}
-                  value={formData.username}
-                  onChange={handleInputChange}
-                  required
-                />
-              </div>
-              <div className={styles.formGroup}>
+                    value={formData.username}
+                    onChange={handleInputChange}
+                    required
+                  />
+                </div>
+                <div className={styles.formGroup}>
                   <label className={styles.formLabel}>Email</label>
-                <input
-                  type="email"
-                  name="email"
+                  <input
+                    type="email"
+                    name="email"
                     className={styles.formControl}
-                  value={formData.email}
-                  onChange={handleInputChange}
-                  required
-                />
-              </div>
+                    value={formData.email}
+                    onChange={handleInputChange}
+                    required
+                  />
+                </div>
               </div>
               
               <div className={styles.formRow}>
@@ -515,29 +521,29 @@ const UsersManagement = () => {
               </div>
               
               <div className={styles.formRow}>
-              <div className={styles.formGroup}>
+                <div className={styles.formGroup}>
                   <label className={styles.formLabel}>Phone</label>
-                <input
-                  type="text"
-                  name="phone"
+                  <input
+                    type="text"
+                    name="phone"
                     className={styles.formControl}
-                  value={formData.phone}
-                  onChange={handleInputChange}
-                />
-              </div>
-              <div className={styles.formGroup}>
+                    value={formData.phone}
+                    onChange={handleInputChange}
+                  />
+                </div>
+                <div className={styles.formGroup}>
                   <label className={styles.formLabel}>User Role</label>
-                <select
-                  name="user_type"
+                  <select
+                    name="user_type"
                     className={styles.formControl}
-                  value={formData.user_type}
-                  onChange={handleInputChange}
-                >
-                  <option value="normal">User</option>
-                  <option value="coordinator">Coordinator</option>
-                  <option value="admin">Admin</option>
-                </select>
-              </div>
+                    value={formData.user_type}
+                    onChange={handleInputChange}
+                  >
+                    <option value="normal">User</option>
+                    <option value="coordinator">Coordinator</option>
+                    <option value="admin">Admin</option>
+                  </select>
+                </div>
               </div>
               
               {!selectedUser && (
@@ -591,8 +597,8 @@ const UsersManagement = () => {
       )}
 
       {showViewModal && viewUser && (
-        <div className={styles.modalBackdrop}>
-          <div className={styles.modal}>
+        <div className={styles.userModalBackdrop}>
+          <div className={styles.userModal}>
             <div className={styles.modalHeader}>
               <h3>
                 <FaUser />
@@ -608,7 +614,7 @@ const UsersManagement = () => {
             
             <div className={styles.userDetailHeader}>
               <div className={styles.userDetailAvatar}>
-              {viewUser.profile_photo ? (
+                {viewUser.profile_photo ? (
                   <img src={viewUser.profile_photo} alt={viewUser.username} />
                 ) : (
                   <span>
@@ -616,7 +622,7 @@ const UsersManagement = () => {
                     {viewUser.last_name ? viewUser.last_name.charAt(0).toUpperCase() : ''}
                   </span>
                 )}
-                </div>
+              </div>
               
               <div className={styles.userDetailInfo}>
                 <h2>{viewUser.first_name} {viewUser.last_name}</h2>
@@ -670,13 +676,13 @@ const UsersManagement = () => {
                   <div className={styles.detailItem}>
                     <span className={styles.detailLabel}>Created</span>
                     <span className={styles.detailValue}>
-                      {new Date(viewUser.created_at).toLocaleString()}
+                      {new Date(viewUser.created_at || viewUser.date_joined).toLocaleString()}
                     </span>
                   </div>
                   <div className={styles.detailItem}>
                     <span className={styles.detailLabel}>Last Updated</span>
                     <span className={styles.detailValue}>
-                      {new Date(viewUser.updated_at).toLocaleString()}
+                      {new Date(viewUser.updated_at || new Date()).toLocaleString()}
                     </span>
                   </div>
                   
@@ -694,9 +700,9 @@ const UsersManagement = () => {
                       <span className={styles.detailLabel}>Coordinator Request</span>
                       <span className={`${styles.tagBadge} ${styles.pendingBadge}`}>
                         Pending
-                    </span>
-                  </div>
-                )}
+                      </span>
+                    </div>
+                  )}
                 </div>
               </div>
             </div>

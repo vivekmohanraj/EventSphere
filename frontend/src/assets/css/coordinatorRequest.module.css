@@ -216,3 +216,84 @@
     flex-direction: column;
   }
 }
+
+/* Styles specific to Coordinator Requests */
+.requestsContainer {
+  width: 100%;
+  padding: 20px;
+}
+
+.requestCard {
+  background-color: #fff;
+  border-radius: 8px;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+  margin-bottom: 20px;
+  padding: 15px;
+}
+
+.requestHeader {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 15px;
+}
+
+.requestTitle {
+  font-weight: 600;
+  font-size: 18px;
+}
+
+.requestDate {
+  color: #666;
+  font-size: 14px;
+}
+
+.requestBody {
+  margin-bottom: 15px;
+  color: #333;
+}
+
+.requestActions {
+  display: flex;
+  gap: 10px;
+}
+
+.approveButton {
+  background-color: #28a745;
+  color: white;
+  border: none;
+  padding: 8px 15px;
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+.rejectButton {
+  background-color: #dc3545;
+  color: white;
+  border: none;
+  padding: 8px 15px;
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+.requestStatus {
+  padding: 5px 10px;
+  border-radius: 15px;
+  font-size: 12px;
+  font-weight: 500;
+  display: inline-block;
+}
+
+.statusPending {
+  background-color: #fff3cd;
+  color: #856404;
+}
+
+.statusApproved {
+  background-color: #d4edda;
+  color: #155724;
+}
+
+.statusRejected {
+  background-color: #f8d7da;
+  color: #721c24;
+}

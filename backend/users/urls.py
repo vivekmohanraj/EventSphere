@@ -3,12 +3,14 @@ from rest_framework.routers import DefaultRouter
 from .views import (
     RegisterView, LoginView, GoogleAuthView, CheckEmailView, 
     ResetPasswordView, ForgotPasswordView, CheckUsernameView, 
-    UserStatsView, UserViewSet, ProfileView, ChangePasswordView
+    UserStatsView, UserViewSet, ProfileView, ChangePasswordView,
+    CoordinatorRequestView, CoordinatorRequestsListView
 )
 
 
 router = DefaultRouter()
-router.register(r'user-stats',UserStatsView)
+# Remove the user-stats registration since it's now an APIView
+# router.register(r'user-stats',UserStatsView)  # This line causes the error
 
 
 urlpatterns = [
@@ -39,6 +41,14 @@ urlpatterns = [
     path('auth/password/change/', ChangePasswordView.as_view(), name='auth-password-change'),
     path('users/password/', ChangePasswordView.as_view(), name='users-password'),
     path('users/password-change/', ChangePasswordView.as_view(), name='users-password-change'),
+    
+    path('coordinator-request/', CoordinatorRequestView.as_view(), name='coordinator-request'),
+    
+    path('coordinator-requests/', CoordinatorRequestsListView.as_view(), name='list-coordinator-requests'),
+    path('coordinator-requests/<int:user_id>/', CoordinatorRequestsListView.as_view(), name='process-coordinator-request'),
+    
+    # Keep this regular path for the UserStatsView 
+    path('stats/', UserStatsView.as_view(), name='user-stats'),
     
     path('', include(router.urls)),
 ]

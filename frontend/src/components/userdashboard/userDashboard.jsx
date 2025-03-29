@@ -25,12 +25,49 @@ import {
 } from "react-icons/fa";
 import { ToastContainer, toast } from "react-toastify";
 import api, { getMediaUrl } from "../../utils/api";
-import styles from "../../assets/css/Dashboard.module.css";
+import styles from "../../assets/css/user/userDashboard.module.css";
 import { ACCESS_TOKEN, REFRESH_TOKEN } from "../../utils/constants";
 import CoordinatorRequestForm from "./CoordinatorRequestForm";
 import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
+import profileStyles from "../../assets/css/user/profile.module.css";
+
+const UpdatedStyles = () => (
+  <style jsx>{`
+    :root {
+      --accent-color: #ff4a17 !important;
+      --accent-hover: #e63c0c !important;
+      --accent-light: rgba(255, 74, 23, 0.1) !important;
+    }
+    
+    /* Fallback for elements that might not use CSS variables */
+    .primaryButton, .registerButton, .navButton.active, 
+    .editProfileButton, .saveButton, .coordinatorRequestButton {
+      background-color: #ff4a17 !important;
+    }
+    
+    .statIcon, .quickActionIcon, .starFilled {
+      color: #ff4a17 !important;
+    }
+
+    /* Avatar styling in sidebar */
+    .userAvatar {
+      border: 3px solid #ff4a17 !important;
+      box-shadow: 0 0 10px rgba(255, 74, 23, 0.3) !important;
+    }
+    
+    .userAvatarPlaceholder {
+      background-color: #ff4a17 !important;
+      color: white !important;
+      border: 2px solid rgba(255, 255, 255, 0.8) !important;
+    }
+
+    .sidebarHeader h2 {
+      color: #ff4a17 !important;
+    }
+  `}</style>
+);
 
 const UserDashboard = () => {
   const [stats, setStats] = useState({
@@ -718,14 +755,24 @@ const UserDashboard = () => {
     return errors;
   };
 
-  const handleCoordinatorRequest = () => {
-    setShowCoordinatorRequestModal(true);
-  };
-
-  const handleCoordinatorRequestSuccess = () => {
-    setHasCoordinatorRequest(true);
-    setCoordinatorRequestStatus("pending");
-    toast.success("Your request to become a coordinator has been submitted successfully!");
+  const handleCoordinatorRequest = async () => {
+    try {
+      // Show loading state
+      toast.info("Submitting your request...");
+      
+      // Send request to backend
+      const response = await api.post("users/coordinator-request/", {});
+      
+      // Handle success
+      if (response.status === 200 || response.status === 201) {
+        setHasCoordinatorRequest(true);
+        setCoordinatorRequestStatus("pending");
+        toast.success("Your request to become a coordinator has been submitted successfully!");
+      }
+    } catch (error) {
+      console.error("Error submitting coordinator request:", error);
+      toast.error("Failed to submit your request. Please try again later.");
+    }
   };
 
   // Generate a mock activity feed for the user
@@ -1322,20 +1369,20 @@ const UserDashboard = () => {
 
   const renderProfile = () => {
     return (
-      <div className={styles.profileContainer}>
-        <div className={styles.profileCard}>
-          <div className={styles.profileHeader}>
-            <div className={styles.profilePhoto}>
+      <div className={profileStyles.profileContainer}>
+        <div className={profileStyles.profileCard}>
+          <div className={profileStyles.profileHeader}>
+            <div className={profileStyles.profilePhoto}>
               {editingProfile ? (
-                <div className={styles.profilePhotoUpload}>
+                <div className={profileStyles.profilePhotoUpload}>
                   {profilePhotoPreview ? (
                     <img 
                       src={profilePhotoPreview} 
                       alt="Profile Preview" 
-                      className={styles.profileImage}
+                      className={profileStyles.profileImage}
                     />
                   ) : (
-                    <div className={styles.profilePhotoPlaceholder}>
+                    <div className={profileStyles.profilePhotoPlaceholder}>
                       <span>
                         {userProfile.first_name ? userProfile.first_name.charAt(0).toUpperCase() : ''}
                         {userProfile.last_name ? userProfile.last_name.charAt(0).toUpperCase() : ''}
@@ -1344,7 +1391,7 @@ const UserDashboard = () => {
                   )}
                   <button 
                     type="button" 
-                    className={styles.changePhotoButton}
+                    className={profileStyles.changePhotoButton}
                     onClick={() => fileInputRef.current.click()}
                   >
                     Change Photo
@@ -1363,30 +1410,33 @@ const UserDashboard = () => {
                     <img 
                       src={profilePhotoPreview} 
                       alt="Profile" 
-                      className={styles.profileImage}
+                      className={profileStyles.profileImage}
                     />
                   ) : (
-                    <div className={styles.profilePhotoPlaceholder}>
+                    <div className={profileStyles.profilePhotoPlaceholder}>
                       <span>
-                        {userProfile.first_name ? userProfile.first_name.charAt(0).toUpperCase() : ''}
-                        {userProfile.last_name ? userProfile.last_name.charAt(0).toUpperCase() : ''}
+                        {userProfile.first_name && userProfile.last_name 
+                          ? `${userProfile.first_name.charAt(0)}${userProfile.last_name.charAt(0)}`
+                          : userProfile.username 
+                            ? userProfile.username.charAt(0).toUpperCase()
+                            : "U"}
                       </span>
                     </div>
                   )}
                 </>
               )}
             </div>
-            <div className={styles.profileInfo}>
+            <div className={profileStyles.profileInfo}>
               <h3>
                 {userProfile.first_name} {userProfile.last_name}
               </h3>
-              <p className={styles.username}>@{userProfile.username}</p>
-              <p className={styles.email}>{userProfile.email}</p>
-              <p className={styles.role}>Role: {userProfile.user_role || userProfile.role || "User"}</p>
+              <p className={profileStyles.username}>@{userProfile.username}</p>
+              <p className={profileStyles.email}>{userProfile.email}</p>
+              <p className={profileStyles.role}>Role: {userProfile.user_role || userProfile.role || "User"}</p>
             </div>
             {!editingProfile && (
               <button 
-                className={styles.editProfileButton}
+                className={profileStyles.editProfileButton}
                 onClick={() => setEditingProfile(true)}
               >
                 Edit Profile
@@ -1395,9 +1445,9 @@ const UserDashboard = () => {
           </div>
           
           {editingProfile ? (
-            <div className={styles.profileForm}>
-              <div className={styles.formRow}>
-                <div className={styles.formGroup}>
+            <div className={profileStyles.profileForm}>
+              <div className={profileStyles.formRow}>
+                <div className={profileStyles.formGroup}>
                   <label>First Name</label>
                   <input
                     type="text"
@@ -1405,10 +1455,10 @@ const UserDashboard = () => {
                     value={userProfile.first_name || ""}
                     onChange={handleProfileChange}
                     placeholder="First Name"
-                    className={styles.formControl}
+                    className={profileStyles.formControl}
                   />
                 </div>
-                <div className={styles.formGroup}>
+                <div className={profileStyles.formGroup}>
                   <label>Last Name</label>
                   <input
                     type="text"
@@ -1416,13 +1466,13 @@ const UserDashboard = () => {
                     value={userProfile.last_name || ""}
                     onChange={handleProfileChange}
                     placeholder="Last Name"
-                    className={styles.formControl}
+                    className={profileStyles.formControl}
                   />
                 </div>
               </div>
               
-              <div className={styles.formRow}>
-                <div className={styles.formGroup}>
+              <div className={profileStyles.formRow}>
+                <div className={profileStyles.formGroup}>
                   <label>Username</label>
                   <input
                     type="text"
@@ -1430,22 +1480,22 @@ const UserDashboard = () => {
                     value={userProfile.username || ""}
                     onChange={handleProfileChange}
                     placeholder="Username"
-                    className={styles.formControl}
+                    className={profileStyles.formControl}
                   />
                 </div>
-                <div className={styles.formGroup}>
+                <div className={profileStyles.formGroup}>
                   <label>Email (Cannot be changed)</label>
                   <input
                     type="email"
                     name="email"
                     value={userProfile.email || ""}
-                    className={`${styles.formControl} ${styles.disabledInput}`}
+                    className={`${profileStyles.formControl} ${profileStyles.disabledInput}`}
                     disabled
                   />
                 </div>
               </div>
               
-              <div className={styles.formGroup}>
+              <div className={profileStyles.formGroup}>
                 <label>Phone Number</label>
                 <input
                   type="text"
@@ -1453,14 +1503,14 @@ const UserDashboard = () => {
                   value={userProfile.phone || ""}
                   onChange={handleProfileChange}
                   placeholder="Phone Number"
-                  className={styles.formControl}
+                  className={profileStyles.formControl}
                 />
               </div>
               
-              <div className={styles.formActions}>
+              <div className={profileStyles.formActions}>
                 <button 
                   type="button" 
-                  className={styles.cancelButton}
+                  className={profileStyles.cancelButton}
                   onClick={() => {
                     setEditingProfile(false);
                     fetchUserProfile(); // Reset to original values
@@ -1470,7 +1520,7 @@ const UserDashboard = () => {
                 </button>
                 <button 
                   type="button" 
-                  className={styles.saveButton}
+                  className={profileStyles.saveButton}
                   onClick={handleUpdateProfile}
                   disabled={updatingProfile}
                 >
@@ -1479,95 +1529,95 @@ const UserDashboard = () => {
               </div>
             </div>
           ) : (
-            <div className={styles.profileDetails}>
-              <div className={styles.detailSection}>
+            <div className={profileStyles.profileDetails}>
+              <div className={profileStyles.detailSection}>
                 <h4>Personal Information</h4>
-                <div className={styles.detailRow}>
-                  <span className={styles.detailLabel}>Full Name:</span>
-                  <span className={styles.detailValue}>
+                <div className={profileStyles.detailRow}>
+                  <span className={profileStyles.detailLabel}>Full Name:</span>
+                  <span className={profileStyles.detailValue}>
                     {userProfile.first_name} {userProfile.last_name}
                   </span>
                 </div>
-                <div className={styles.detailRow}>
-                  <span className={styles.detailLabel}>Username:</span>
-                  <span className={styles.detailValue}>{userProfile.username}</span>
+                <div className={profileStyles.detailRow}>
+                  <span className={profileStyles.detailLabel}>Username:</span>
+                  <span className={profileStyles.detailValue}>{userProfile.username}</span>
                 </div>
-                <div className={styles.detailRow}>
-                  <span className={styles.detailLabel}>Email:</span>
-                  <span className={styles.detailValue}>{userProfile.email}</span>
+                <div className={profileStyles.detailRow}>
+                  <span className={profileStyles.detailLabel}>Email:</span>
+                  <span className={profileStyles.detailValue}>{userProfile.email}</span>
                 </div>
                 {userProfile.phone && (
-                  <div className={styles.detailRow}>
-                    <span className={styles.detailLabel}>Phone:</span>
-                    <span className={styles.detailValue}>{userProfile.phone}</span>
+                  <div className={profileStyles.detailRow}>
+                    <span className={profileStyles.detailLabel}>Phone:</span>
+                    <span className={profileStyles.detailValue}>{userProfile.phone}</span>
                   </div>
                 )}
               </div>
             </div>
           )}
           
-          <div className={styles.coordinatorRequestSection}>
+          <div className={profileStyles.coordinatorRequestSection}>
             <h4>Become an Event Coordinator</h4>
             <p>As a coordinator, you can create and manage your own events.</p>
             
             {hasCoordinatorRequest ? (
-              <div className={styles.requestStatus}>
-                <div className={`${styles.statusBadge} ${styles[coordinatorRequestStatus]}`}>
+              <div className={profileStyles.requestStatus}>
+                <div className={`${profileStyles.statusBadge} ${profileStyles[coordinatorRequestStatus]}`}>
                   {coordinatorRequestStatus === 'pending' ? 'Request pending approval' : 
                    coordinatorRequestStatus === 'approved' ? 'Request approved' : 'Request rejected'}
                 </div>
               </div>
             ) : (
               <button
-                className={styles.coordinatorRequestButton}
+                className={profileStyles.coordinatorRequestButton}
                 onClick={handleCoordinatorRequest}
               >
-                <FaUserPlus className={styles.buttonIcon} />
+                <FaUserPlus className={profileStyles.buttonIcon} />
                 Request Coordinator Status
               </button>
             )}
           </div>
         </div>
         
-        <div className={styles.activitySummary}>
+        <div className={profileStyles.activitySummary}>
           <h3>Activity Summary</h3>
           
-          <div className={styles.activityStats}>
-            <div className={styles.activityStat}>
-              <div className={styles.statNumber}>{stats.registeredEvents}</div>
-              <div className={styles.statLabel}>Events Registered</div>
+          <div className={profileStyles.activityStats}>
+            <div className={profileStyles.activityStat}>
+              <div className={profileStyles.statNumber}>{stats.registeredEvents}</div>
+              <div className={profileStyles.statLabel}>Events Registered</div>
             </div>
-            <div className={styles.activityStat}>
-              <div className={styles.statNumber}>{stats.completedEvents}</div>
-              <div className={styles.statLabel}>Events Attended</div>
+            <div className={profileStyles.activityStat}>
+              <div className={profileStyles.statNumber}>{stats.completedEvents}</div>
+              <div className={profileStyles.statLabel}>Events Attended</div>
             </div>
-            <div className={styles.activityStat}>
-              <div className={styles.statNumber}>{pastEvents.filter(e => e.feedback).length}</div>
-              <div className={styles.statLabel}>Reviews Given</div>
+            <div className={profileStyles.activityStat}>
+              <div className={profileStyles.statNumber}>{pastEvents.filter(e => e.feedback).length}</div>
+              <div className={profileStyles.statLabel}>Reviews Given</div>
             </div>
           </div>
           
           {pastEvents.length > 0 && (
-            <div className={styles.recentActivity}>
+            <div className={profileStyles.recentActivity}>
               <h4>Recent Events</h4>
-              <div className={styles.recentEventsList}>
+              <div className={profileStyles.recentEventsList}>
                 {pastEvents.slice(0, 3).map((event, index) => (
-                  <div key={index} className={styles.recentEventItem}>
-                    <div className={styles.eventBasicInfo}>
+                  <div key={index} className={profileStyles.recentEventItem}>
+                    <div className={profileStyles.eventBasicInfo}>
                       <h5>{event.event_name}</h5>
                       <p>{new Date(event.event_time).toLocaleDateString()}</p>
                     </div>
                     {event.feedback ? (
-                      <div className={styles.eventRating}>
+                      <div className={profileStyles.eventRating}>
                         {[...Array(5)].map((_, i) => (
-                          <span key={i} className={i < event.feedback.rating ? styles.starFilled : styles.starEmpty}>
+                          <span key={i} className={i < event.feedback.rating ? profileStyles.starFilled : profileStyles.starEmpty}>
                             ★
                           </span>
                         ))}
                       </div>
                     ) : (
                       <button 
-                        className={styles.leaveFeedbackButton}
+                        className={profileStyles.leaveFeedbackButton}
                         onClick={() => {
                           const rating = prompt("Rate this event from 1-5");
                           const comment = prompt("Any comments about this event?");
@@ -1592,6 +1642,7 @@ const UserDashboard = () => {
   return (
     <div className={styles.dashboardContainer}>
       <ToastContainer />
+      <UpdatedStyles />
       <div className={styles.sidebar}>
         <div className={styles.sidebarHeader}>
           {profilePhotoPreview ? (
@@ -1673,7 +1724,7 @@ const UserDashboard = () => {
       {showCoordinatorRequestModal && (
         <CoordinatorRequestForm 
           onClose={() => setShowCoordinatorRequestModal(false)}
-          onSuccess={handleCoordinatorRequestSuccess}
+          onSuccess={handleCoordinatorRequest}
         />
       )}
     </div>

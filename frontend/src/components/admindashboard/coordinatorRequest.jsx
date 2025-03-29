@@ -1,8 +1,7 @@
 import React, { useState, useEffect } from "react";
-import { FaCheck, FaTimes, FaEye, FaUser } from "react-icons/fa";
+import { FaCheck, FaTimes, FaEye, FaUserCog, FaUser, FaEnvelope, FaPhone, FaIdCard, FaCalendarAlt } from "react-icons/fa";
 import { toast } from "react-toastify";
-import api, { tryMultipleEndpoints, directFetch } from "../../utils/api";
-import { ACCESS_TOKEN } from "../../utils/constants";
+import api, { getMediaUrl } from "../../utils/api";
 import styles from "../../assets/css/adminDashboard.module.css";
 
 const CoordinatorRequests = () => {
@@ -18,115 +17,31 @@ const CoordinatorRequests = () => {
   const fetchRequests = async () => {
     try {
       setLoading(true);
-      // Add more possible endpoints for coordinator requests
-      const endpoints = [
-        "coordinator-requests/",
-        "users/coordinator-requests/",
-        "api/coordinator-requests/",
-        "admin/coordinator-requests/",
-        "requests/coordinator/"
-      ];
-      
-      let requestsData = [];
-      let successfulFetch = false;
-      
-      for (const endpoint of endpoints) {
-        try {
-          const response = await api.get(endpoint);
-          if (response.data && Array.isArray(response.data)) {
-            requestsData = response.data;
-            successfulFetch = true;
-            break;
-          }
-        } catch (error) {
-          console.warn(`Failed to fetch from ${endpoint}`);
-        }
-      }
-      
-      // If we couldn't get data from specific endpoints, try to filter users
-      if (!successfulFetch) {
-        const usersResponse = await api.get("users/");
-        if (usersResponse.data && Array.isArray(usersResponse.data)) {
-          requestsData = usersResponse.data.filter(user => user.coordinator_request === true);
-        }
-      }
-      
-      // Add function to handle different data structures
-      const normalizedRequests = requestsData.map(normalizeRequestData);
-      
-      setRequests(normalizedRequests);
-      setLoading(false);
+      const response = await api.get('/users/coordinator-requests/');
+      setRequests(response.data);
     } catch (error) {
-      console.error("Error fetching coordinator requests:", error);
-      toast.error("Failed to load coordinator requests");
+      console.error('Error fetching coordinator requests:', error);
+      toast.error('Failed to load coordinator requests');
+    } finally {
       setLoading(false);
     }
   };
 
-  const handleApprove = async (requestId, userId) => {
+  const handleRequest = async (userId, action) => {
     try {
-      // First try to use coordinator-requests endpoint
-      try {
-        await api.post(`coordinator-requests/${requestId}/approve/`);
-      } catch (error) {
-        // If that fails, try updating the user directly
-        await api.patch(`users/${userId}/`, {
-          user_role: "coordinator",
-          coordinator_request: false
-        });
-      }
+      const response = await api.post(`/users/coordinator-requests/${userId}/`, { action });
       
-      toast.success("Request approved successfully");
-      fetchRequests();
+      toast.success(response.data.message);
+      
+      // Update the local state to remove the processed request
+      setRequests(requests.filter(req => req.id !== userId));
+      
+      if (isModalOpen) {
+        setIsModalOpen(false);
+      }
     } catch (error) {
-      console.error("Error approving request:", error);
-      toast.error("Failed to approve request: " + (error.response?.data?.detail || error.message));
-    }
-  };
-
-  const handleReject = async (requestId, userId) => {
-    try {
-      // Try multiple possible endpoints and payloads
-      const methods = [
-        {
-          endpoint: `coordinator-requests/${requestId}/reject/`,
-          method: 'post',
-          payload: {}
-        },
-        {
-          endpoint: `users/${userId}/`,
-          method: 'patch',
-          payload: { coordinator_request: false }
-        }
-      ];
-      
-      let success = false;
-      
-      for (const { endpoint, method, payload } of methods) {
-        try {
-          if (method === 'post') {
-            await api.post(endpoint, payload);
-          } else if (method === 'patch') {
-            await api.patch(endpoint, payload);
-          } else if (method === 'put') {
-            await api.put(endpoint, payload);
-          }
-          success = true;
-          break;
-        } catch (error) {
-          console.warn(`Failed to use ${method} on ${endpoint}`);
-        }
-      }
-      
-      if (!success) {
-        throw new Error("All rejection attempts failed");
-      }
-      
-      toast.success("Request rejected");
-      fetchRequests();
-    } catch (error) {
-      console.error("Error rejecting request:", error);
-      toast.error("Failed to reject request");
+      console.error(`Error ${action} request:`, error);
+      toast.error(`Failed to ${action} request`);
     }
   };
 
@@ -135,133 +50,100 @@ const CoordinatorRequests = () => {
     setIsModalOpen(true);
   };
 
-  // Add function to handle different data structures
-  const normalizeRequestData = (request) => {
-    // If this is a user object with coordinator_request flag
-    if (request.coordinator_request === true) {
-      return {
-        id: request.id,
-        user_id: request.id,
-        first_name: request.first_name || '',
-        last_name: request.last_name || '',
-        email: request.email || '',
-        phone: request.phone || request.phone_number || '',
-        username: request.username || '',
-        created_at: request.created_at || request.date_joined || new Date().toISOString(),
-        status: 'pending',
-        request_reason: request.request_reason || request.coordinator_request_reason || ''
-      };
-    }
-    
-    // If this is a CoordinatorRequest model object
-    return {
-      id: request.id,
-      user_id: request.user?.id || request.user_id,
-      first_name: request.user?.first_name || request.first_name || '',
-      last_name: request.user?.last_name || request.last_name || '',
-      email: request.user?.email || request.email || '',
-      phone: request.user?.phone || request.phone || '',
-      username: request.user?.username || request.username || '',
-      created_at: request.requested_at || request.created_at || new Date().toISOString(),
-      status: request.status || 'pending',
-      request_reason: request.reason || request.request_reason || ''
-    };
-  };
+  if (loading) {
+    return <div className={styles.loader}>Loading coordinator requests...</div>;
+  }
 
   return (
-    <div className={styles.contentContainer}>
-      <div className={styles.sectionHeader}>
-        <h2 className={styles.sectionTitle}>Coordinator Requests</h2>
-      </div>
-
-      {loading ? (
-        <div className={styles.loader}>Loading requests...</div>
-      ) : requests.length === 0 ? (
-        <div className={styles.emptyState}>
-          <FaUser size={48} className={styles.emptyStateIcon} />
-          <h3>No pending requests</h3>
-          <p>There are currently no pending coordinator requests to review.</p>
+    <div className={styles.coordinatorRequestsContainer}>
+      <h2>Coordinator Requests</h2>
+      
+      {requests.length === 0 ? (
+        <div className={styles.noRequests}>
+          <FaUserCog size={50} />
+          <p>No pending coordinator requests</p>
         </div>
       ) : (
-        <div className={styles.tableWrapper}>
-          <table className={styles.table}>
-            <thead>
-              <tr>
-                <th>Name</th>
-                <th>Email</th>
-                <th>Phone</th>
-                <th>Requested On</th>
-                <th>Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              {requests.map((request) => (
-                <tr key={request.id}>
-                  <td>{`${request.first_name} ${request.last_name}`}</td>
-                  <td>{request.email}</td>
-                  <td>{request.phone || 'N/A'}</td>
-                  <td>{new Date(request.created_at).toLocaleDateString()}</td>
-                  <td>
-                    <div className={styles.actionButtons}>
-                      <button 
-                        className={`${styles.actionButton} ${styles.viewButton}`}
-                        onClick={() => openRequestDetails(request)}
-                      >
-                        <FaEye />
-                      </button>
-                      <button 
-                        className={`${styles.actionButton} ${styles.approveButton}`}
-                        onClick={() => handleApprove(request.id, request.id)}
-                      >
-                        <FaCheck />
-                      </button>
-                      <button 
-                        className={`${styles.actionButton} ${styles.rejectButton}`}
-                        onClick={() => handleReject(request.id, request.id)}
-                      >
-                        <FaTimes />
-                      </button>
-                    </div>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+        <div className={styles.requestsList}>
+          {requests.map(user => (
+            <div key={user.id} className={styles.requestCard}>
+              <div className={styles.userInfo}>
+                {user.profile_photo ? (
+                  <img 
+                    src={getMediaUrl(user.profile_photo)} 
+                    alt={`${user.username}'s avatar`} 
+                    className={styles.userAvatar}
+                  />
+                ) : (
+                  <div className={styles.userInitials}>
+                    {user.first_name?.charAt(0) || ''}
+                    {user.last_name?.charAt(0) || ''}
+                  </div>
+                )}
+                <div>
+                  <h3>{user.first_name} {user.last_name}</h3>
+                  <p><FaEnvelope /> {user.email}</p>
+                  <p><FaIdCard /> {user.username}</p>
+                </div>
+              </div>
+              
+              <div className={styles.actions}>
+                <button 
+                  className={`${styles.actionButton} ${styles.viewButton}`}
+                  onClick={() => openRequestDetails(user)}
+                >
+                  <FaEye /> View Details
+                </button>
+                <button 
+                  className={`${styles.actionButton} ${styles.approveButton}`}
+                  onClick={() => handleRequest(user.id, 'approve')}
+                >
+                  <FaCheck /> Approve
+                </button>
+                <button 
+                  className={`${styles.actionButton} ${styles.rejectButton}`}
+                  onClick={() => handleRequest(user.id, 'reject')}
+                >
+                  <FaTimes /> Reject
+                </button>
+              </div>
+            </div>
+          ))}
         </div>
       )}
 
       {isModalOpen && selectedRequest && (
-        <div className={styles.modalBackdrop}>
-          <div className={styles.modal}>
+        <div className={styles.modalBackdrop} onClick={() => setIsModalOpen(false)}>
+          <div className={styles.modal} onClick={e => e.stopPropagation()}>
             <h3>Coordinator Request Details</h3>
             <div className={styles.requestDetails}>
               <div className={styles.detailItem}>
-                <span className={styles.detailLabel}>Name:</span>
+                <span className={styles.detailLabel}><FaUser /> Full Name</span>
                 <span className={styles.detailValue}>
                   {`${selectedRequest.first_name} ${selectedRequest.last_name}`}
                 </span>
               </div>
               <div className={styles.detailItem}>
-                <span className={styles.detailLabel}>Email:</span>
+                <span className={styles.detailLabel}><FaEnvelope /> Email Address</span>
                 <span className={styles.detailValue}>{selectedRequest.email}</span>
               </div>
               <div className={styles.detailItem}>
-                <span className={styles.detailLabel}>Phone:</span>
-                <span className={styles.detailValue}>{selectedRequest.phone || 'N/A'}</span>
+                <span className={styles.detailLabel}><FaPhone /> Phone Number</span>
+                <span className={styles.detailValue}>{selectedRequest.phone || 'Not provided'}</span>
               </div>
               <div className={styles.detailItem}>
-                <span className={styles.detailLabel}>Username:</span>
+                <span className={styles.detailLabel}><FaIdCard /> Username</span>
                 <span className={styles.detailValue}>{selectedRequest.username}</span>
               </div>
               <div className={styles.detailItem}>
-                <span className={styles.detailLabel}>Request Date:</span>
+                <span className={styles.detailLabel}><FaCalendarAlt /> Request Date</span>
                 <span className={styles.detailValue}>
-                  {new Date(selectedRequest.created_at).toLocaleString()}
+                  {new Date(selectedRequest.created_at || selectedRequest.date_joined).toLocaleString()}
                 </span>
               </div>
               {selectedRequest.request_reason && (
                 <div className={styles.detailItem}>
-                  <span className={styles.detailLabel}>Request Reason:</span>
+                  <span className={styles.detailLabel}>Request Reason</span>
                   <p className={styles.detailValue}>{selectedRequest.request_reason}</p>
                 </div>
               )}
@@ -276,19 +158,13 @@ const CoordinatorRequests = () => {
               <div className={styles.actionButtonsGroup}>
                 <button 
                   className={`${styles.button} ${styles.dangerButton}`}
-                  onClick={() => {
-                    handleReject(selectedRequest.id, selectedRequest.id);
-                    setIsModalOpen(false);
-                  }}
+                  onClick={() => handleRequest(selectedRequest.id, 'reject')}
                 >
                   <FaTimes /> Reject
                 </button>
                 <button 
                   className={`${styles.button} ${styles.successButton}`}
-                  onClick={() => {
-                    handleApprove(selectedRequest.id, selectedRequest.id);
-                    setIsModalOpen(false);
-                  }}
+                  onClick={() => handleRequest(selectedRequest.id, 'approve')}
                 >
                   <FaCheck /> Approve
                 </button>

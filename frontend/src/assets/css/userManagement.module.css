@@ -1,0 +1,198 @@
+/* Main container */
+.usersManagement {
+  width: 100%;
+  padding: 20px !important;
+  background-color: #f9fafb !important;
+  border-radius: 8px !important;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1) !important;
+}
+
+/* Header section */
+.usersHeader {
+  display: flex !important;
+  justify-content: space-between !important;
+  align-items: center !important;
+  margin-bottom: 24px !important;
+  flex-wrap: wrap !important;
+  gap: 16px !important;
+}
+
+.usersTitle {
+  font-size: 24px !important;
+  font-weight: 600 !important;
+  color: #111827 !important;
+  margin: 0 !important;
+}
+
+.usersActions {
+  display: flex !important;
+  align-items: center !important;
+  gap: 16px !important;
+  flex-wrap: wrap !important;
+}
+
+/* Search input */
+.searchWrapper {
+  position: relative !important;
+  width: 300px !important;
+}
+
+.searchIcon {
+  position: absolute !important;
+  left: 12px !important;
+  top: 50% !important;
+  transform: translateY(-50%) !important;
+  color: #6b7280 !important;
+}
+
+.searchInput {
+  width: 100% !important;
+  padding: 10px 10px 10px 38px !important;
+  border: 1px solid #d1d5db !important;
+  border-radius: 6px !important;
+  font-size: 14px !important;
+  transition: border-color 0.2s !important;
+}
+
+.searchInput:focus {
+  outline: none !important;
+  border-color: #ff4a17 !important;
+  box-shadow: 0 0 0 2px rgba(255, 74, 23, 0.2) !important;
+}
+
+/* Add user button */
+.addUserBtn {
+  display: flex !important;
+  align-items: center !important;
+  gap: 8px !important;
+  background-color: #ff4a17 !important;
+  color: white !important;
+  border: none !important;
+  border-radius: 6px !important;
+  padding: 10px 16px !important;
+  font-size: 14px !important;
+  font-weight: 500 !important;
+  cursor: pointer !important;
+  transition: background-color 0.2s !important;
+}
+
+.addUserBtn:hover {
+  background-color: #e53e00 !important;
+}
+
+/* Loading state */
+.loaderContainer {
+  display: flex !important;
+  justify-content: center !important;
+  padding: 40px 0 !important;
+}
+
+.loader {
+  border: 4px solid #f3f3f3 !important;
+  border-top: 4px solid #ff4a17 !important;
+  border-radius: 50% !important;
+  width: 30px !important;
+  height: 30px !important;
+  animation: spin 1s linear infinite !important;
+}
+
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+/* Table styling */
+.tableWrapper {
+  overflow-x: auto !important;
+  background-color: white !important;
+  border-radius: 8px !important;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1) !important;
+}
+
+.usersTable {
+  width: 100% !important;
+  border-collapse: collapse !important;
+  font-size: 14px !important;
+}
+
+.usersTable th {
+  background-color: #f9fafb !important;
+  text-align: left !important;
+  padding: 12px 16px !important;
+  font-weight: 600 !important;
+  color: #374151 !important;
+  border-bottom: 1px solid #e5e7eb !important;
+}
+
+.usersTable td {
+  padding: 12px 16px !important;
+  border-bottom: 1px solid #e5e7eb !important;
+  color: #111827 !important;
+}
+
+.usersTable tr:hover {
+  background-color: #f9fafb !important;
+}
+
+/* Fix for user avatar in detail view */
+.userDetailAvatar {
+  width: 100px !important;
+  height: 100px !important;
+  border-radius: 50% !important;
+  overflow: hidden !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  background-color: #ff4a17 !important;
+  color: white !important;
+  font-weight: 600 !important;
+  font-size: 36px !important;
+  flex-shrink: 0 !important;
+  border: 3px solid #ffffff !important;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1) !important;
+  position: relative !important;
+}
+
+.userDetailAvatar img {
+  width: 100% !important;
+  height: 100% !important;
+  object-fit: cover !important;
+  object-position: center !important;
+  position: absolute !important;
+  top: 0 !important;
+  left: 0 !important;
+  right: 0 !important;
+  bottom: 0 !important;
+  display: block !important;
+}
+
+/* Fix for user avatar in table rows */
+.userAvatar {
+  width: 40px !important;
+  height: 40px !important;
+  border-radius: 50% !important;
+  overflow: hidden !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  background-color: #ff4a17 !important;
+  color: white !important;
+  font-weight: 600 !important;
+  font-size: 14px !important;
+  position: relative !important;
+}
+
+.userAvatar img {
+  width: 100% !important;
+  height: 100% !important;
+  object-fit: cover !important;
+  object-position: center !important;
+  position: absolute !important;
+  top: 0 !important;
+  left: 0 !important;
+  right: 0 !important;
+  bottom: 0 !important;
+  display: block !important;
+}
+
+/* Add other styles as needed */ 

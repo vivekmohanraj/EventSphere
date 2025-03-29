@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { jwtDecode } from "jwt-decode";
+import { createClient } from '@renderize/lib';
 import {
   FaUsers,
   FaCalendarAlt,
@@ -21,7 +22,8 @@ import {
   FaClock,
   FaCheck,
   FaTimes,
-  FaUserCog
+  FaUserCog,
+  FaFilePdf
 } from "react-icons/fa";
 import { ToastContainer, toast } from "react-toastify";
 import api, { getMediaUrl, tryMultipleEndpoints } from "../../utils/api";
@@ -63,6 +65,9 @@ const Dashboard = () => {
   // Chart reference
   const chartRef = React.useRef(null);
   const chart = React.useRef(null);
+
+  // Add new state for PDF loading
+  const [loadingPdf, setLoadingPdf] = useState(false);
 
   useEffect(() => {
     console.log("Dashboard mounting, checking authentication...");
@@ -697,8 +702,10 @@ const Dashboard = () => {
         setActiveTab('requests');
         break;
       case 'report':
-        // Download monthly report
-        toast.info('Downloading monthly report...');
+        generateMonthlyReport();
+        break;
+      case 'analytics':
+        generateAnalyticsPdf();
         break;
       case 'announcement':
         toast.info('Create announcement feature coming soon');
@@ -708,13 +715,316 @@ const Dashboard = () => {
     }
   };
 
+  const handleViewAllActivity = () => {
+    setActiveTab("activity");  // Assuming you have an "activity" tab
+    // Alternatively, you can create a modal or other UI element to show all activities
+  };
+
+  // Function to generate analytics PDF
+  const generateAnalyticsPdf = async () => {
+    try {
+      setLoadingPdf(true);
+      const apiKey = import.meta.env.VITE_RENDERIZE_API_KEY;
+      
+      if (!apiKey) {
+        throw new Error("Renderize API key is missing. Please check your environment variables.");
+      }
+      
+      const client = createClient({ 
+        apiKey,
+        baseApiUrl: '/renderize-api' // Use our proxy
+      });
+      
+      // Create HTML content for the PDF
+      const html = `
+        <!DOCTYPE html>
+        <html>
+          <head>
+            <style>
+              body { font-family: Arial, sans-serif; margin: 40px; }
+              h1 { color: #ff4a17; text-align: center; margin-bottom: 30px; }
+              .stats-container { display: flex; flex-wrap: wrap; justify-content: space-around; margin-bottom: 40px; }
+              .stat-box { 
+                width: 180px; padding: 20px; margin: 10px; 
+                border-radius: 10px; text-align: center;
+                box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+              }
+              .stat-box.users { background-color: #e3f2fd; }
+              .stat-box.events { background-color: #e8f5e9; }
+              .stat-box.revenue { background-color: #fff8e1; }
+              .stat-box.active { background-color: #f3e5f5; }
+              .stat-box h2 { font-size: 36px; margin: 10px 0; }
+              .stat-box p { font-size: 14px; color: #666; }
+              .chart-section { margin-top: 50px; }
+              .chart-section h2 { margin-bottom: 20px; color: #444; }
+              .footer { margin-top: 50px; text-align: center; color: #888; font-size: 12px; }
+            </style>
+          </head>
+          <body>
+            <h1>EventSphere Analytics Report</h1>
+            <p>Generated on ${new Date().toLocaleDateString()}</p>
+            
+            <div class="stats-container">
+              <div class="stat-box users">
+                <h2>${stats.totalUsers}</h2>
+                <p>Total Users</p>
+              </div>
+              <div class="stat-box events">
+                <h2>${stats.totalEvents}</h2>
+                <p>Total Events</p>
+              </div>
+              <div class="stat-box revenue">
+                <h2>₹${stats.totalRevenue.toLocaleString()}</h2>
+                <p>Total Revenue</p>
+              </div>
+              <div class="stat-box active">
+                <h2>${stats.activeEvents}</h2>
+                <p>Active Events</p>
+              </div>
+            </div>
+            
+            <div class="chart-section">
+              <h2>Upcoming Events</h2>
+              <table width="100%" border="1" cellpadding="8" cellspacing="0" style="border-collapse: collapse;">
+                <tr style="background-color: #f5f5f5;">
+                  <th style="text-align: left;">Event Name</th>
+                  <th style="text-align: left;">Date</th>
+                  <th style="text-align: left;">Location</th>
+                </tr>
+                ${upcomingEvents.map(event => `
+                  <tr>
+                    <td>${event.event_name}</td>
+                    <td>${new Date(event.event_time || event.event_date).toLocaleDateString()}</td>
+                    <td>${event.location || 'Not specified'}</td>
+                  </tr>
+                `).join('')}
+              </table>
+            </div>
+            
+            <div class="footer">
+              <p>This report was generated from EventSphere Admin Dashboard</p>
+            </div>
+          </body>
+        </html>
+      `;
+      
+      // Generate PDF
+      try {
+        const pdf = await client.renderPdf({ 
+          html, 
+          format: 'a4',
+          margin: { top: 20, bottom: 20, left: 20, right: 20 }
+        });
+        
+        // Create a blob and download
+        const blob = new Blob([pdf], { type: 'application/pdf' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `EventSphere_Analytics_${new Date().toLocaleDateString().replace(/\//g, '-')}.pdf`;
+        a.click();
+        URL.revokeObjectURL(url);
+        
+        toast.success("Analytics PDF has been generated");
+      } catch (renderError) {
+        console.error("PDF rendering error:", renderError);
+        toast.error(`PDF generation failed: ${renderError.message || "Unknown error"}`);
+      }
+    } catch (error) {
+      console.error("Error generating analytics PDF:", error);
+      toast.error(`Failed to generate analytics PDF: ${error.message || "Unknown error"}`);
+    } finally {
+      setLoadingPdf(false);
+    }
+  };
+  
+  // Function to generate monthly report PDF
+  const generateMonthlyReport = async () => {
+    try {
+      setLoadingPdf(true);
+      const apiKey = import.meta.env.VITE_RENDERIZE_API_KEY;
+      
+      if (!apiKey) {
+        throw new Error("Renderize API key is missing. Please check your environment variables.");
+      }
+      
+      const client = createClient({ 
+        apiKey,
+        baseApiUrl: '/renderize-api' // Use our proxy
+      });
+      
+      // Get current month name
+      const monthNames = ["January", "February", "March", "April", "May", "June",
+        "July", "August", "September", "October", "November", "December"
+      ];
+      const currentMonth = monthNames[new Date().getMonth()];
+      const currentYear = new Date().getFullYear();
+      
+      // Create HTML content for the monthly report
+      const html = `
+        <!DOCTYPE html>
+        <html>
+          <head>
+            <style>
+              body { font-family: Arial, sans-serif; margin: 40px; }
+              h1 { color: #1e3a8a; text-align: center; margin-bottom: 10px; }
+              h2 { color: #2c5282; margin-top: 30px; border-bottom: 1px solid #e2e8f0; padding-bottom: 10px; }
+              .header { text-align: center; margin-bottom: 40px; }
+              .subtitle { color: #4a5568; text-align: center; margin-bottom: 40px; }
+              .section { margin-bottom: 30px; }
+              table { width: 100%; border-collapse: collapse; margin: 20px 0; }
+              th { background-color: #f8fafc; text-align: left; padding: 12px; }
+              td { padding: 10px; border-top: 1px solid #e2e8f0; }
+              .summary-box { 
+                background-color: #f7fafc; 
+                border-left: 4px solid #4299e1; 
+                padding: 15px;
+                margin: 20px 0;
+              }
+              .footer { margin-top: 50px; text-align: center; color: #a0aec0; font-size: 12px; }
+            </style>
+          </head>
+          <body>
+            <div class="header">
+              <h1>EventSphere Monthly Report</h1>
+              <p class="subtitle">${currentMonth} ${currentYear}</p>
+            </div>
+            
+            <div class="section">
+              <h2>Monthly Overview</h2>
+              <div class="summary-box">
+                <p><strong>Total Users:</strong> ${stats.totalUsers}</p>
+                <p><strong>New Events Created:</strong> ${stats.totalEvents}</p>
+                <p><strong>Monthly Revenue:</strong> ₹${stats.totalRevenue.toLocaleString()}</p>
+                <p><strong>Active Events:</strong> ${stats.activeEvents}</p>
+                <p><strong>Pending Coordinator Requests:</strong> ${stats.pendingRequests}</p>
+              </div>
+            </div>
+            
+            <div class="section">
+              <h2>Recent Activity</h2>
+              <table>
+                <tr>
+                  <th>Activity</th>
+                  <th>Time</th>
+                </tr>
+                ${recentActivity.map(activity => `
+                  <tr>
+                    <td>${activity.message}</td>
+                    <td>${activity.time}</td>
+                  </tr>
+                `).join('')}
+              </table>
+            </div>
+            
+            <div class="section">
+              <h2>Upcoming Events</h2>
+              <table>
+                <tr>
+                  <th>Event Name</th>
+                  <th>Date</th>
+                  <th>Location</th>
+                </tr>
+                ${upcomingEvents.map(event => `
+                  <tr>
+                    <td>${event.event_name}</td>
+                    <td>${new Date(event.event_time || event.event_date).toLocaleDateString()}</td>
+                    <td>${event.location || 'Not specified'}</td>
+                  </tr>
+                `).join('')}
+              </table>
+            </div>
+            
+            <div class="footer">
+              <p>This report was automatically generated by EventSphere Admin Dashboard</p>
+              <p>Generated on: ${new Date().toLocaleString()}</p>
+            </div>
+          </body>
+        </html>
+      `;
+      
+      // Generate PDF
+      try {
+        const pdf = await client.renderPdf({ 
+          html, 
+          format: 'a4',
+          margin: { top: 20, bottom: 20, left: 20, right: 20 }
+        });
+        
+        // Create a blob and download
+        const blob = new Blob([pdf], { type: 'application/pdf' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `EventSphere_Monthly_Report_${currentMonth}_${currentYear}.pdf`;
+        a.click();
+        URL.revokeObjectURL(url);
+        
+        toast.success("Monthly report has been generated");
+      } catch (renderError) {
+        console.error("PDF rendering error:", renderError);
+        toast.error(`PDF generation failed: ${renderError.message || "Unknown error"}`);
+      }
+    } catch (error) {
+      console.error("Error generating monthly report:", error);
+      toast.error(`Failed to generate monthly report: ${error.message || "Unknown error"}`);
+    } finally {
+      setLoadingPdf(false);
+    }
+  };
+
   const renderOverview = () => {
     return (
-      <DashboardOverview 
-        stats={stats} 
-        upcomingEvents={upcomingEvents} 
-        recentActivity={recentActivity}
-      />
+      <>
+        <DashboardOverview 
+          stats={stats} 
+          upcomingEvents={upcomingEvents} 
+          recentActivity={recentActivity}
+          onViewAllActivity={handleViewAllActivity}
+        />
+        
+        <div className={styles.actionButtonsContainer} style={{ display: 'flex', justifyContent: 'center', marginTop: '2rem', gap: '1rem' }}>
+          <button 
+            className={styles.actionButton}
+            onClick={() => handleQuickAction('analytics')}
+            disabled={loadingPdf}
+            style={{
+              padding: '0.75rem 1.5rem',
+              backgroundColor: '#ff4a17',
+              color: 'white',
+              border: 'none',
+              borderRadius: '4px',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '0.5rem',
+              cursor: loadingPdf ? 'not-allowed' : 'pointer',
+              opacity: loadingPdf ? 0.7 : 1
+            }}
+          >
+            <FaFilePdf /> {loadingPdf ? 'Generating...' : 'Export Analytics PDF'}
+          </button>
+          
+          <button 
+            className={styles.actionButton}
+            onClick={() => handleQuickAction('report')}
+            disabled={loadingPdf}
+            style={{
+              padding: '0.75rem 1.5rem',
+              backgroundColor: '#3498db',
+              color: 'white',
+              border: 'none',
+              borderRadius: '4px',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '0.5rem',
+              cursor: loadingPdf ? 'not-allowed' : 'pointer',
+              opacity: loadingPdf ? 0.7 : 1
+            }}
+          >
+            <FaFileInvoice /> {loadingPdf ? 'Generating...' : 'Generate Monthly Report'}
+          </button>
+        </div>
+      </>
     );
   };
 
