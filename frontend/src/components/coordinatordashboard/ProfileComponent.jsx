@@ -8,7 +8,9 @@ import {
   FaCheck,
   FaTimes,
   FaInfoCircle,
-  FaSpinner
+  FaSpinner,
+  FaUserCheck,
+  FaCalendarAlt
 } from 'react-icons/fa';
 import { toast } from 'react-toastify';
 import api from '../../utils/api';
@@ -23,7 +25,9 @@ const ProfileComponent = ({ userProfile, onProfileUpdate }) => {
     first_name: '',
     last_name: '',
     phone: '',
-    profile_photo: null
+    profile_photo: null,
+    user_role: '',
+    created_at: ''
   });
   const [photoPreview, setPhotoPreview] = useState(null);
   const [photoFile, setPhotoFile] = useState(null);
@@ -46,7 +50,9 @@ const ProfileComponent = ({ userProfile, onProfileUpdate }) => {
         first_name: userProfile.first_name || '',
         last_name: userProfile.last_name || '',
         phone: userProfile.phone || '',
-        profile_photo: userProfile.profile_photo || null
+        profile_photo: userProfile.profile_photo || null,
+        user_role: userProfile.user_role || '',
+        created_at: userProfile.created_at || ''
       });
 
       // Handle profile photo preview
@@ -85,7 +91,9 @@ const ProfileComponent = ({ userProfile, onProfileUpdate }) => {
           first_name: profile.first_name || '',
           last_name: profile.last_name || '',
           phone: profile.phone || '',
-          profile_photo: profile.profile_photo || null
+          profile_photo: profile.profile_photo || null,
+          user_role: profile.user_role || '',
+          created_at: profile.created_at || ''
         });
         
         // Handle profile photo preview
@@ -361,6 +369,32 @@ const ProfileComponent = ({ userProfile, onProfileUpdate }) => {
           {profileData.phone || 'Not provided'}
         </div>
       </div>
+
+      <div className={styles.infoRow}>
+        <div className={styles.infoLabel}>
+          <FaUserCheck />
+          <span>Role</span>
+        </div>
+        <div className={styles.infoValue}>
+          {(profileData.user_role || 'Coordinator').charAt(0).toUpperCase() + (profileData.user_role || 'Coordinator').slice(1)}
+        </div>
+      </div>
+      
+      {profileData.created_at && (
+        <div className={styles.infoRow}>
+          <div className={styles.infoLabel}>
+            <FaCalendarAlt />
+            <span>Joined</span>
+          </div>
+          <div className={styles.infoValue}>
+            {new Date(profileData.created_at).toLocaleDateString('en-IN', {
+              year: 'numeric',
+              month: 'long',
+              day: 'numeric'
+            })}
+          </div>
+        </div>
+      )}
       
       <div className={styles.profileActions}>
         <button 

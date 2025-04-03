@@ -1060,3 +1060,205 @@ select.formControl {
     overflow-y: auto;
   }
 }
+
+/* Event Statistics Section */
+.eventStatsSection {
+  margin-top: 20px;
+  border-top: 1px solid #e5e7eb;
+  padding-top: 20px;
+}
+
+.eventStatsSection h4 {
+  font-size: 16px;
+  font-weight: 600;
+  margin-bottom: 16px;
+  color: #1f2937;
+}
+
+.statsGrid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 16px;
+}
+
+.statItem {
+  background-color: #f9fafb;
+  border-radius: 8px;
+  padding: 16px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+  text-align: center;
+}
+
+.statItem h5 {
+  font-size: 14px;
+  font-weight: 500;
+  margin-bottom: 8px;
+  color: #4b5563;
+}
+
+.statItem p {
+  font-size: 18px;
+  font-weight: 600;
+  color: #111827;
+  margin: 0;
+}
+
+/* Participants Section */
+.participantsSection {
+  margin-top: 24px;
+  border-top: 1px solid #e5e7eb;
+  padding-top: 20px;
+}
+
+.participantsSection h4 {
+  font-size: 16px;
+  font-weight: 600;
+  margin-bottom: 16px;
+  color: #1f2937;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.participantsGrid {
+  overflow-x: auto;
+  margin-bottom: 20px;
+}
+
+.participantsTable {
+  width: 100%;
+  border-collapse: collapse;
+  min-width: 600px;
+}
+
+.participantsTable th {
+  text-align: left;
+  padding: 12px 16px;
+  background-color: #f3f4f6;
+  color: #4b5563;
+  font-size: 14px;
+  font-weight: 600;
+  border-bottom: 1px solid #e5e7eb;
+}
+
+.participantsTable td {
+  padding: 12px 16px;
+  border-bottom: 1px solid #e5e7eb;
+  font-size: 14px;
+  color: #1f2937;
+}
+
+.participantsTable tr:last-child td {
+  border-bottom: none;
+}
+
+.participantsTable tr:hover {
+  background-color: #f9fafb;
+}
+
+.attendedBadge, .registeredBadge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 4px 8px;
+  border-radius: 9999px;
+  font-size: 12px;
+  font-weight: 500;
+  white-space: nowrap;
+}
+
+.attendedBadge {
+  background-color: #d1fae5;
+  color: #065f46;
+}
+
+.registeredBadge {
+  background-color: #dbeafe;
+  color: #1e40af;
+}
+
+.noParticipants {
+  padding: 20px;
+  text-align: center;
+  color: #6b7280;
+  background-color: #f9fafb;
+  border-radius: 8px;
+  font-size: 14px;
+}
+
+@media (max-width: 768px) {
+  .statsGrid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (max-width: 480px) {
+  .statsGrid {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* Attendance Checkbox styles */
+.attendanceCheckbox {
+  position: relative;
+  display: inline-block;
+  width: 24px;
+  height: 24px;
+  cursor: pointer;
+}
+
+.attendanceCheckbox input {
+  position: absolute;
+  opacity: 0;
+  cursor: pointer;
+  height: 0;
+  width: 0;
+}
+
+.checkmark {
+  position: absolute;
+  top: 0;
+  left: 0;
+  height: 24px;
+  width: 24px;
+  background-color: #edf2f7;
+  border: 1px solid #cbd5e0;
+  border-radius: 4px;
+  transition: all 0.2s ease;
+}
+
+.attendanceCheckbox:hover .checkmark {
+  background-color: #e2e8f0;
+}
+
+.attendanceCheckbox input:checked ~ .checkmark {
+  background-color: #4299e1;
+  border-color: #3182ce;
+}
+
+.checkmark:after {
+  content: "";
+  position: absolute;
+  display: none;
+}
+
+.attendanceCheckbox input:checked ~ .checkmark:after {
+  display: block;
+}
+
+.attendanceCheckbox .checkmark:after {
+  left: 9px;
+  top: 5px;
+  width: 6px;
+  height: 12px;
+  border: solid white;
+  border-width: 0 2px 2px 0;
+  transform: rotate(45deg);
+}
+
+.attendanceCheckbox input:disabled ~ .checkmark {
+  background-color: #edf2f7;
+  border-color: #e2e8f0;
+  opacity: 0.7;
+  cursor: not-allowed;
+}

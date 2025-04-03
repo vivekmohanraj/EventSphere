@@ -3,7 +3,7 @@ import { ACCESS_TOKEN, REFRESH_TOKEN } from "./constants";
 
 // Create a base API instance
 const api = axios.create({
-  baseURL: import.meta.env.VITE_API_URL || "http://localhost:8000/",
+  baseURL: import.meta.env.VITE_API_URL || "http://localhost:8000",
   headers: {
     "Content-Type": "application/json",
   },
@@ -13,7 +13,8 @@ const api = axios.create({
 api.interceptors.request.use(
   (config) => {
     const token = localStorage.getItem(ACCESS_TOKEN);
-    console.log("API Request:", config.url);
+    console.log("API Request URL:", config.url);
+    console.log("API Full URL:", config.baseURL + (config.url.startsWith('/') ? config.url : '/' + config.url));
 
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;

@@ -443,10 +443,10 @@ const DashboardOverview = ({ stats = {}, upcomingEvents = [], recentActivity = [
         attendanceChart.current.destroy();
       }
       
-      // Check if we have attendance data from backend
-      const attendanceData = stats.attendance_data || stats.attendanceData || [];
+      // Get attendance data from stats
+      const attendanceData = stats.attendance_data || [];
       
-      // Default data if no real data available
+      // Default structure for chart
       let chartData = {
         labels: ['Registered', 'Attended', 'No-Shows', 'Cancelled'],
         values: [0, 0, 0, 0]
@@ -454,6 +454,7 @@ const DashboardOverview = ({ stats = {}, upcomingEvents = [], recentActivity = [
       
       // Use real data if available
       if (attendanceData && Array.isArray(attendanceData) && attendanceData.length > 0) {
+        // If data is in object format with status field
         if (typeof attendanceData[0] === 'object') {
           const statusMap = {
             'registered': 0,
@@ -474,15 +475,6 @@ const DashboardOverview = ({ stats = {}, upcomingEvents = [], recentActivity = [
             }
           });
         }
-      } else if (safeStats.totalEvents > 0) {
-        // Generate placeholder data based on total events
-        const totalParticipants = safeStats.totalEvents * 20; // Assume 20 participants per event
-        chartData.values = [
-          Math.round(totalParticipants * 0.7),  // 70% registered
-          Math.round(totalParticipants * 0.5),  // 50% attended
-          Math.round(totalParticipants * 0.2),  // 20% no-shows
-          Math.round(totalParticipants * 0.1)   // 10% cancelled
-        ];
       }
       
       attendanceChart.current = new Chart(ctx, {
@@ -548,18 +540,18 @@ const DashboardOverview = ({ stats = {}, upcomingEvents = [], recentActivity = [
         participationTrendsChart.current.destroy();
       }
       
-      // Check for participation trends data from backend
-      const trendsData = stats.participation_trends || stats.participationTrends || [];
+      // Get participation trends data from stats
+      const trendsData = stats.participation_trends || [];
       const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
       
-      // Default datasets
+      // Default dataset is empty
       let participationByMonth = new Array(12).fill(0);
       
       // Use real data if available
-      if (trendsData && Array.isArray(trendsData) && trendsData.length > 0) {
+      if (trendsData && Array.isArray(trendsData)) {
         if (trendsData.length === 12) {
           participationByMonth = trendsData;
-        } else if (typeof trendsData[0] === 'object') {
+        } else if (trendsData.length > 0 && typeof trendsData[0] === 'object') {
           trendsData.forEach(item => {
             const monthIndex = months.findIndex(m => 
               m.toLowerCase() === (item.month || '').toLowerCase().substring(0, 3)
@@ -568,15 +560,6 @@ const DashboardOverview = ({ stats = {}, upcomingEvents = [], recentActivity = [
               participationByMonth[monthIndex] = item.count || 0;
             }
           });
-        }
-      } else if (safeStats.totalEvents > 0) {
-        // Generate placeholder data based on event trends
-        // Assume participation follows similar trend to events
-        const eventsByMonth = new Array(12).fill(0);
-        for (let i = 0; i < 12; i++) {
-          eventsByMonth[i] = Math.max(0, Math.round(safeStats.totalEvents * (0.5 + (i / 15)) / 10));
-          // For each event, assume average of 15 participants
-          participationByMonth[i] = eventsByMonth[i] * 15;
         }
       }
       
@@ -642,18 +625,18 @@ const DashboardOverview = ({ stats = {}, upcomingEvents = [], recentActivity = [
         bookingTimeChart.current.destroy();
       }
       
-      // Check for booking time data from backend
-      const bookingData = stats.booking_time_data || stats.bookingTimeData || [];
+      // Get booking time data from stats
+      const bookingData = stats.booking_time_data || [];
       
       // Default timeframes for bookings (days before event)
       const timeframes = ['Same day', '1-3 days', '4-7 days', '1-2 weeks', '2-4 weeks', '1+ month'];
       let bookingCounts = [0, 0, 0, 0, 0, 0];
       
       // Use real data if available
-      if (bookingData && Array.isArray(bookingData) && bookingData.length > 0) {
+      if (bookingData && Array.isArray(bookingData)) {
         if (bookingData.length === timeframes.length) {
           bookingCounts = bookingData;
-        } else if (typeof bookingData[0] === 'object') {
+        } else if (bookingData.length > 0 && typeof bookingData[0] === 'object') {
           bookingData.forEach(item => {
             const timeframeIndex = timeframes.findIndex(t => 
               t.toLowerCase() === (item.timeframe || '').toLowerCase()
@@ -663,18 +646,6 @@ const DashboardOverview = ({ stats = {}, upcomingEvents = [], recentActivity = [
             }
           });
         }
-      } else if (safeStats.totalEvents > 0) {
-        // Generate placeholder data
-        // Most registrations happen 1-2 weeks before an event
-        const totalBookings = safeStats.totalEvents * 15; // Assume 15 bookings per event
-        bookingCounts = [
-          Math.round(totalBookings * 0.05),  // 5% Same day
-          Math.round(totalBookings * 0.15),  // 15% 1-3 days
-          Math.round(totalBookings * 0.25),  // 25% 4-7 days
-          Math.round(totalBookings * 0.30),  // 30% 1-2 weeks
-          Math.round(totalBookings * 0.15),  // 15% 2-4 weeks
-          Math.round(totalBookings * 0.10)   // 10% 1+ month
-        ];
       }
       
       bookingTimeChart.current = new Chart(ctx, {
@@ -746,18 +717,18 @@ const DashboardOverview = ({ stats = {}, upcomingEvents = [], recentActivity = [
         eventRatingsChart.current.destroy();
       }
       
-      // Check for ratings data from backend
-      const ratingsData = stats.event_ratings || stats.eventRatings || [];
+      // Get ratings data from stats
+      const ratingsData = stats.event_ratings || [];
       
       // Default ratings distribution
       const ratings = [1, 2, 3, 4, 5];
       let ratingCounts = [0, 0, 0, 0, 0];
       
       // Use real data if available
-      if (ratingsData && Array.isArray(ratingsData) && ratingsData.length > 0) {
+      if (ratingsData && Array.isArray(ratingsData)) {
         if (ratingsData.length === ratings.length) {
           ratingCounts = ratingsData;
-        } else if (typeof ratingsData[0] === 'object') {
+        } else if (ratingsData.length > 0 && typeof ratingsData[0] === 'object') {
           ratingsData.forEach(item => {
             const rating = item.rating || 0;
             const count = item.count || 0;
@@ -767,16 +738,6 @@ const DashboardOverview = ({ stats = {}, upcomingEvents = [], recentActivity = [
             }
           });
         }
-      } else if (safeStats.totalEvents > 0) {
-        // Generate placeholder data with a positive skew (most ratings are good)
-        const totalRatings = safeStats.totalEvents * 5; // Assume 5 ratings per event
-        ratingCounts = [
-          Math.round(totalRatings * 0.05),  // 5% 1-star
-          Math.round(totalRatings * 0.10),  // 10% 2-star
-          Math.round(totalRatings * 0.15),  // 15% 3-star
-          Math.round(totalRatings * 0.30),  // 30% 4-star
-          Math.round(totalRatings * 0.40)   // 40% 5-star
-        ];
       }
       
       eventRatingsChart.current = new Chart(ctx, {
@@ -843,36 +804,52 @@ const DashboardOverview = ({ stats = {}, upcomingEvents = [], recentActivity = [
         popularVenuesChart.current.destroy();
       }
       
-      // Check for venues data from backend
-      const venuesData = stats.popular_venues || stats.popularVenues || [];
+      // Use hardcoded venues from event creation page
+      const defaultVenues = [
+        { name: 'Corporate Executive Center', count: 30 },
+        { name: 'Workshop Studio', count: 25 },
+        { name: 'Grand Ballroom', count: 20 },
+        { name: 'Rooftop Concert Space', count: 15 },
+        { name: 'Kids Party Palace', count: 10 },
+        { name: 'Garden Terrace', count: 10 }
+      ];
       
-      // Default venue data
+      // Get any real venues data from API stats
+      const venuesData = stats.popular_venues || [];
+      
+      // Setup venues object with default values
       let venues = {
-        labels: ['Conference Center', 'Hotel Ballroom', 'University Hall', 'Community Center', 'Outdoor Venue'],
-        values: [0, 0, 0, 0, 0]
+        labels: defaultVenues.map(v => v.name),
+        values: defaultVenues.map(v => v.count)
       };
       
-      // Use real data if available
-      if (venuesData && Array.isArray(venuesData) && venuesData.length > 0) {
-        if (typeof venuesData[0] === 'object') {
-          // Get top 5 venues
-          const top5 = venuesData
+      // Only use real data if it's properly formatted and has multiple venues
+      if (venuesData && Array.isArray(venuesData) && venuesData.length > 1) {
+        try {
+          // Get top venues sorted by count
+          const topVenues = venuesData
+            .filter(v => v && (v.name || v.venue) && v.count > 0)
             .sort((a, b) => (b.count || 0) - (a.count || 0))
-            .slice(0, 5);
-            
-          venues.labels = top5.map(v => v.name || v.venue || 'Unknown Venue');
-          venues.values = top5.map(v => v.count || 0);
+            .slice(0, 6);
+          
+          // Only use real data if we have at least 2 venues with data
+          if (topVenues.length >= 2) {
+            venues.labels = topVenues.map(v => v.name || v.venue || 'Unknown Venue');
+            venues.values = topVenues.map(v => v.count || 0);
+          }
+        } catch (error) {
+          console.log("Error processing venue data:", error);
+          // Keep using defaults on error
         }
-      } else if (safeStats.totalEvents > 0) {
-        // Generate placeholder data based on total events
+      }
+      
+      // If we have real event data but not venue data, scale the default data
+      if (safeStats.totalEvents > 0 && (!venuesData || venuesData.length <= 1)) {
         const total = safeStats.totalEvents;
-        venues.values = [
-          Math.round(total * 0.30),  // 30% Conference Center
-          Math.round(total * 0.25),  // 25% Hotel Ballroom
-          Math.round(total * 0.20),  // 20% University Hall
-          Math.round(total * 0.15),  // 15% Community Center
-          Math.round(total * 0.10)   // 10% Outdoor Venue
-        ];
+        const scale = total / venues.values.reduce((a, b) => a + b, 0);
+        
+        // Apply scaling to make the numbers match total events
+        venues.values = venues.values.map(v => Math.round(v * scale));
       }
       
       popularVenuesChart.current = new Chart(ctx, {
@@ -886,7 +863,8 @@ const DashboardOverview = ({ stats = {}, upcomingEvents = [], recentActivity = [
               '#7c3aed',  // Purple
               '#3b82f6',  // Blue
               '#06b6d4',  // Cyan
-              '#10b981'   // Green
+              '#10b981',  // Green
+              '#f59e0b'   // Amber
             ],
             borderWidth: 1
           }]

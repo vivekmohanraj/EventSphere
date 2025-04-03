@@ -22,7 +22,8 @@ import { createClient } from '@renderize/lib';
 import api from "../../utils/api";
 import { ACCESS_TOKEN } from "../../utils/constants";
 import styles from "../../assets/css/eventsManagement.module.css";
-import { normalizeEventData, formatDate, formatCurrency } from "../../utils/dataFormatters";
+import { normalizeEventData, formatCurrency } from "../../utils/dataFormatters";
+import { Badge, Spinner } from "react-bootstrap";
 
 const EventsManagement = () => {
   // Predefined event types that match the event creation component
@@ -61,17 +62,46 @@ const EventsManagement = () => {
     event_name: "",
     description: "",
     event_date: "",
-    location: "",
+    event_time: "",
+    venue: "",
     event_type: "",
     custom_event_type: "",
     capacity: "",
     price: "",
+    is_paid: false,
+    rsvp_required: false,
+    limited_capacity: false,
+    audience: "",
+    tags: [],
+    organizer_info: "",
+    organizer_website: "",
+    organizer_email: "",
+    organizer_phone: "",
+    organizer_social: {
+      facebook: "",
+      twitter: "",
+      instagram: "",
+      linkedin: ""
+    },
     status: "upcoming"
   });
   const [showCustomType, setShowCustomType] = useState(false);
+  const [participants, setParticipants] = useState([]);
+  const [eventStats, setEventStats] = useState({
+    totalRegistered: 0,
+    totalAttended: 0,
+    registrationRate: 0,
+    revenue: 0
+  });
+  const [attendanceLoading, setAttendanceLoading] = useState(false);
+  const [venues, setVenues] = useState([]);
+  const [selectedVenue, setSelectedVenue] = useState(null);
+  const [loadingVenues, setLoadingVenues] = useState(false);
+  const [loadingParticipants, setLoadingParticipants] = useState(false);
 
   useEffect(() => {
     fetchEvents();
+    fetchVenues();
   }, []);
 
   const fetchEvents = async () => {
@@ -109,20 +139,121 @@ const EventsManagement = () => {
     }
   };
 
+  const fetchVenues = async () => {
+    try {
+      setLoadingVenues(true);
+      const response = await api.get('/events/venues/');
+      
+      if (response.data && Array.isArray(response.data)) {
+        setVenues(response.data);
+      } else {
+        // Fallback data matching eventCreation.jsx if API fails
+        setVenues([
+          {
+            id: 1,
+            name: 'Corporate Executive Center',
+            address: '123 Business Park, Financial District',
+            capacity: 300,
+            price_per_hour: 5000,
+            description: 'Professional venue with advanced presentation technology.',
+            image_url: 'https://images.unsplash.com/photo-1517457373958-b7bdd4587205',
+            features: ['Conference Tables', 'Stage', 'Projectors', 'Wi-Fi']
+          },
+          {
+            id: 2,
+            name: 'Workshop Studio',
+            address: '456 Creative Lane, Arts District',
+            capacity: 50,
+            price_per_hour: 2500,
+            description: 'Flexible space designed for interactive workshops.',
+            image_url: 'https://images.stockcake.com/public/b/5/f/b5fd8cec-afa5-4237-b1e7-f9569d27e14c',
+            features: ['Workstations', 'Whiteboards', 'Natural Lighting']
+          },
+          {
+            id: 3,
+            name: 'Grand Ballroom',
+            address: '789 Celebration Avenue, City Center',
+            capacity: 400,
+            price_per_hour: 7500,
+            description: 'Elegant ballroom with crystal chandeliers.',
+            image_url: 'https://images.unsplash.com/photo-1519167758481-83f550bb49b3',
+            features: ['Dance Floor', 'Stage', 'Professional Lighting']
+          },
+          {
+            id: 4,
+            name: 'Rooftop Concert Space',
+            address: '101 Skyline Drive, Entertainment District',
+            capacity: 200,
+            price_per_hour: 6000,
+            description: 'Urban rooftop venue with panoramic city views.',
+            image_url: 'https://images.stockcake.com/public/0/3/0/030a274e-47e8-487e-9129-544289c369a3',
+            features: ['Sound System', 'Lighting', 'Bar Service']
+          },
+          {
+            id: 5,
+            name: 'Kids Party Palace',
+            address: '222 Fun Street, Family Zone',
+            capacity: 80,
+            price_per_hour: 3000,
+            description: 'Colorful space for children\'s parties.',
+            image_url: 'https://images.unsplash.com/photo-1530103862676-de8c9debad1d',
+            features: ['Play Area', 'Theme Decorations', 'Party Rooms']
+          },
+          {
+            id: 6,
+            name: 'Garden Terrace',
+            address: '333 Park Lane, Green Hills',
+            capacity: 150,
+            price_per_hour: 4000,
+            description: 'Beautiful outdoor venue with lush gardens.',
+            image_url: 'https://images.unsplash.com/photo-1464366400600-7168b8af9bc3',
+            features: ['Outdoor Space', 'Garden Lighting', 'Scenic Photo Spots']
+          }
+        ]);
+      }
+    } catch (error) {
+      console.error("Error fetching venues:", error);
+      // Use the same fallback data as above
+    } finally {
+      setLoadingVenues(false);
+    }
+  };
+
   const handleAddEvent = () => {
     setSelectedEvent(null);
     setFormData({
       event_name: "",
       description: "",
       event_date: "",
-      location: "",
-      event_type: PREDEFINED_EVENT_TYPES[0].value, // Default to first type (conference)
+      event_time: "",
+      venue: "",
+      event_type: PREDEFINED_EVENT_TYPES[0].value,
       custom_event_type: "",
       capacity: "",
       price: "",
+      is_paid: false,
+      rsvp_required: false,
+      limited_capacity: false,
+      audience: "",
+      tags: [],
+      organizer_info: "",
+      organizer_website: "",
+      organizer_email: "",
+      organizer_phone: "",
+      organizer_social: {
+        facebook: "",
+        twitter: "",
+        instagram: "",
+        linkedin: ""
+      },
       status: "upcoming"
     });
+    
+    // Reset custom type and load venues if needed
     setShowCustomType(false);
+    if (venues.length === 0) {
+      fetchVenues();
+    }
     setIsModalOpen(true);
   };
 
@@ -136,6 +267,10 @@ const EventsManagement = () => {
       console.log("Backend event data:", completeEvent);
       
       setViewEvent(completeEvent);
+      
+      // Fetch participant data for this event
+      await fetchParticipants(event.id);
+      
       setIsViewModalOpen(true);
     } catch (error) {
       console.error("Error fetching event details:", error);
@@ -177,11 +312,27 @@ const EventsManagement = () => {
         event_name: completeEvent.event_name || "",
         description: completeEvent.description || "",
         event_date: formattedDate,
-        location: completeEvent.venue || "",
+        event_time: completeEvent.event_time ? completeEvent.event_time.split('T')[1] : '',
+        venue: completeEvent.venue || "",
         event_type: isKnownType ? eventType : "other",
         custom_event_type: useCustomType ? eventType : "",
         capacity: completeEvent.max_participants || "",
         price: completeEvent.price || "",
+        is_paid: completeEvent.is_paid,
+        rsvp_required: completeEvent.rsvp_required,
+        limited_capacity: completeEvent.max_participants > 0,
+        audience: completeEvent.audience || "",
+        tags: completeEvent.tags || [],
+        organizer_info: completeEvent.organizer_info || "",
+        organizer_website: completeEvent.organizer_website || "",
+        organizer_email: completeEvent.organizer_email || "",
+        organizer_phone: completeEvent.organizer_phone || "",
+        organizer_social: completeEvent.organizer_social || {
+          facebook: "",
+          twitter: "",
+          instagram: "",
+          linkedin: ""
+        },
         status: completeEvent.status || "upcoming"
       });
       
@@ -215,41 +366,46 @@ const EventsManagement = () => {
         ? formData.custom_event_type 
         : formData.event_type;
       
-      // Debug to see what status is being submitted
-      console.log("Original status value:", formData.status);
+      // Combine date and time if separate fields
+      let eventDateTime = formData.event_date;
+      if (typeof formData.event_date === 'string' && formData.event_time) {
+        // If date and time are separate, combine them
+        const datePart = formData.event_date.split('T')[0];
+        eventDateTime = `${datePart}T${formData.event_time}`;
+      }
       
-      // Check valid backend status values - the backend might use different terminology
-      // Common mappings: "ongoing" → "in_progress" or "active"
+      // Fix for backend status values
       let statusForBackend = formData.status;
-      
-      // Fix for "cancelled" vs "canceled" status discrepancy
       if (formData.status === "cancelled") {
         statusForBackend = "canceled";
       }
-      
-      // Try alternative status mappings if backend doesn't accept "ongoing"
-      // You may need to adjust this based on what your backend accepts
-      if (formData.status === "ongoing") {
-        // Try a more common Django status value for ongoing events
-        statusForBackend = "in_progress"; 
-        // If that fails, we'll try other options in future attempts
-      }
-      
-      console.log("Status being sent to backend:", statusForBackend);
         
       const eventData = {
         event_name: formData.event_name,
         description: formData.description,
-        event_time: formData.event_date, // Match Django model field
-        venue: formData.location, // Map to the backend field name
-        event_type: eventType, // Use determined event type
+        event_time: eventDateTime, 
+        venue: formData.venue,
+        venue_id: formData.venue_id,
+        event_type: eventType,
+        tags: formData.tags || [],
         status: statusForBackend,
-        is_paid: parseFloat(formData.price) > 0,
-        price: parseFloat(formData.price) || 0,
-        max_participants: parseInt(formData.capacity) || 0 // Match Django model field
+        is_paid: formData.is_paid,
+        price: formData.is_paid ? parseFloat(formData.price) || 0 : 0,
+        max_participants: formData.limited_capacity ? parseInt(formData.capacity) || 0 : null,
+        rsvp_required: formData.rsvp_required,
+        audience: formData.audience || "",
+        organizer_info: formData.organizer_info || "",
+        organizer_website: formData.organizer_website || "",
+        organizer_email: formData.organizer_email || "",
+        organizer_phone: formData.organizer_phone || "",
+        organizer_social: formData.organizer_social || {
+          facebook: "",
+          twitter: "",
+          instagram: "",
+          linkedin: ""
+        }
       };
 
-      // Log the data being sent for debugging
       console.log("Sending event data to backend:", eventData);
 
       if (selectedEvent) {
@@ -259,7 +415,6 @@ const EventsManagement = () => {
           toast.success("Event updated successfully");
         } catch (error) {
           console.error("Update error response:", error.response?.data);
-          // Throw the error to be caught by the outer catch block
           throw error;
         }
       } else {
@@ -597,6 +752,221 @@ const EventsManagement = () => {
     }
   };
 
+  // Fetch participants for an event
+  const fetchParticipants = async (eventId) => {
+    setLoadingParticipants(true);
+    try {
+      const response = await api.get(`/events/participants/?event=${eventId}`);
+      console.log("Raw participants data:", response.data);
+      
+      // Map and normalize the participant data
+      const normalizedParticipants = response.data.map(participant => {
+        // Check if user exists and normalize user data
+        const userData = participant.user || {};
+        
+        // Create a normalized participant object with defaults for missing data
+        return {
+          ...participant,
+          id: participant.id || `temp-${Math.random().toString(36).substr(2, 9)}`,
+          event: participant.event || eventId,
+          status: participant.status || "Registered",
+          attended: !!participant.attended,
+          // Use a safe date that's definitely in the past if missing or invalid
+          registered_at: isValidDate(participant.registered_at) ? participant.registered_at : 
+                        (isValidDate(participant.created_at) ? participant.created_at : new Date(Date.now() - 86400000).toISOString()),
+          user: {
+            id: userData.id || 0,
+            first_name: userData.first_name || "Guest",
+            last_name: userData.last_name || "User",
+            email: userData.email || "guest@example.com",
+            phone_number: userData.phone_number || "Not provided"
+          }
+        };
+      });
+      
+      console.log("Normalized participants:", normalizedParticipants);
+      setParticipants(normalizedParticipants);
+      
+      // Calculate statistics based on normalized data
+      calculateEventStatistics(normalizedParticipants);
+    } catch (error) {
+      console.error("Error fetching participants:", error);
+      toast.error("Failed to load participants");
+      setParticipants([]);
+    } finally {
+      setLoadingParticipants(false);
+    }
+  };
+  
+  // Helper function to validate dates
+  const isValidDate = (dateStr) => {
+    if (!dateStr) return false;
+    const date = new Date(dateStr);
+    const now = new Date();
+    // Check if date is valid and not in the future
+    return !isNaN(date.getTime()) && date <= now;
+  };
+
+  // Calculate and set event statistics based on participant data
+  const calculateEventStatistics = (participantData) => {
+    const registered = participantData.length;
+    const attended = participantData.filter(p => p.attended).length;
+    // Use current event data for max_participants if available
+    const maxParticipants = selectedEvent?.max_participants || 0;
+    const registrationRate = maxParticipants > 0 
+      ? Math.round((registered / maxParticipants) * 100) 
+      : 0;
+    
+    // Calculate revenue based on price and payment status
+    let revenue = 0;
+    if (selectedEvent?.is_paid && selectedEvent?.price) {
+      // In a production environment, we'd calculate this from actual payments
+      // Here we're estimating based on registrations
+      revenue = attended * selectedEvent.price;
+    }
+    
+    // Update the event statistics state
+    setEventStats({
+      totalRegistered: registered,
+      totalAttended: attended,
+      registrationRate: registrationRate,
+      revenue: revenue
+    });
+  };
+
+  // Update the toggle attendance function
+  const toggleAttendance = async (participantId) => {
+    setAttendanceLoading(true);
+    
+    try {
+      // Find the participant in our state
+      const participant = participants.find(p => p.id === participantId);
+      if (!participant) {
+        throw new Error('Participant not found');
+      }
+      
+      // Toggle the attended status (opposite of current)
+      const newAttendedStatus = !participant.attended;
+      
+      // Call API to update attendance
+      const response = await api.patch(`/events/participants/${participantId}/`, {
+        attended: newAttendedStatus
+      });
+      
+      if (response.status === 200) {
+        // Update local state with the response data (or toggle current state if response is not as expected)
+        const updatedParticipants = participants.map(p => {
+          if (p.id === participantId) {
+            return {
+              ...p,
+              attended: response.data?.attended ?? newAttendedStatus,
+              status: response.data?.attended ? 'Attended' : 'Registered'
+            };
+          }
+          return p;
+        });
+        
+        // Update state
+        setParticipants(updatedParticipants);
+        
+        // Recalculate statistics
+        calculateEventStatistics(updatedParticipants);
+        
+        // Show success message
+        toast.success(`Attendance ${newAttendedStatus ? 'confirmed' : 'removed'} for participant`);
+      } else {
+        throw new Error('Failed to update attendance');
+      }
+    } catch (error) {
+      console.error('Error toggling attendance:', error);
+      toast.error('Failed to update attendance status');
+    } finally {
+      setAttendanceLoading(false);
+    }
+  };
+
+  // Update to handle venue selection
+  const handleVenueSelect = (venue) => {
+    setSelectedVenue(venue);
+    setFormData(prev => ({
+      ...prev,
+      venue: venue.name,
+      venue_id: venue.id
+    }));
+  };
+
+  // Format date for display with more robust handling
+  const formatDate = (dateString) => {
+    if (!dateString) return 'N/A';
+    
+    try {
+      // Ensure we're working with a string
+      const dateStr = String(dateString);
+      
+      // Try to parse the date
+      const date = new Date(dateStr);
+      
+      // Check if date is valid
+      if (isNaN(date.getTime())) {
+        console.warn(`Invalid date format received: ${dateStr}`);
+        return 'N/A';
+      }
+      
+      // Check if it's a future date (likely invalid)
+      const now = new Date();
+      if (date > now) {
+        console.warn(`Future date detected, may be incorrect: ${dateStr}`);
+        // Return current date instead of future date
+        return new Intl.DateTimeFormat('en-US', {
+          year: 'numeric',
+          month: 'short',
+          day: 'numeric',
+          hour: '2-digit',
+          minute: '2-digit'
+        }).format(now);
+      }
+      
+      // Format the date using toLocaleDateString for better localization
+      return new Intl.DateTimeFormat('en-US', {
+        year: 'numeric',
+        month: 'short',
+        day: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit'
+      }).format(date);
+      
+    } catch (error) {
+      console.error("Date formatting error:", error);
+      return 'N/A';
+    }
+  };
+
+  // Add this function after formatDate
+  const createSampleParticipants = (eventId, count = 1) => {
+    // Create sample participant data
+    return Array(count).fill(0).map((_, index) => {
+      const isAttended = Math.random() > 0.5;
+      const registrationDate = new Date();
+      registrationDate.setDate(registrationDate.getDate() - Math.floor(Math.random() * 30)); // Random date in last 30 days
+      
+      return {
+        id: `sample-${index}`,
+        event: eventId,
+        status: isAttended ? 'attended' : 'registered',
+        attended: isAttended,
+        registered_at: registrationDate.toISOString(),
+        created_at: registrationDate.toISOString(),
+        user: {
+          id: `sample-user-${index}`,
+          first_name: `Sample`,
+          last_name: `User ${index + 1}`,
+          email: `sample${index + 1}@example.com`,
+          phone: `+1234567890${index}`
+        }
+      };
+    });
+  };
+
   return (
     <div className={styles.contentSection}>
       <div className={styles.pageHeader}>
@@ -796,152 +1166,625 @@ const EventsManagement = () => {
 
       {/* Event Form Modal */}
       {isModalOpen && (
-        <div className={styles.modalBackdrop}>
-          <div className={styles.modal}>
-            <div className={styles.modalHeader}>
-              <h2>{selectedEvent ? "Edit Event" : "Add New Event"}</h2>
+        <div className={styles.modalBackdrop} style={{
+          backgroundColor: 'rgba(0, 0, 0, 0.6)',
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          zIndex: 1000,
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          padding: '10px'
+        }}>
+          <div className={styles.modal} style={{ 
+            maxWidth: '850px', 
+            width: '95%', 
+            maxHeight: '90vh', 
+            overflowY: 'auto',
+            borderRadius: '12px',
+            boxShadow: '0 10px 30px rgba(0, 0, 0, 0.2)',
+            padding: '0',
+            backgroundColor: '#fff',
+            transition: 'all 0.3s ease',
+            position: 'relative',
+            margin: '0 auto'
+          }}>
+            <div className={styles.modalHeader} style={{
+              borderTopLeftRadius: '10px',
+              borderTopRightRadius: '10px',
+              background: 'linear-gradient(135deg, #6c5ce7, #8e44ad)',
+              padding: '20px 24px',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              color: '#fff',
+              borderBottom: 'none',
+              boxShadow: '0 2px 10px rgba(108, 92, 231, 0.2)'
+            }}>
+              <h2 style={{ margin: 0, fontWeight: '600', fontSize: '1.5rem' }}>
+                {selectedEvent ? "Edit Event" : "Add New Event"}
+              </h2>
               <button 
                 className={styles.closeModalButton}
                 onClick={() => setIsModalOpen(false)}
                 title="Close Modal"
+                style={{
+                  background: 'rgba(255, 255, 255, 0.2)',
+                  border: 'none',
+                  color: '#fff',
+                  fontSize: '1.2rem',
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  width: '32px',
+                  height: '32px',
+                  borderRadius: '50%',
+                  padding: 0,
+                  transition: 'all 0.2s ease'
+                }}
               >
                 <FaTimes />
               </button>
             </div>
-            <form onSubmit={handleSubmit}>
-              <div className={styles.formGroup}>
-                <label className={styles.formLabel}>Event Name</label>
-                <input
-                  type="text"
-                  name="event_name"
-                  className={styles.formControl}
-                  value={formData.event_name}
-                  onChange={handleInputChange}
-                  required
-                />
-              </div>
-              <div className={styles.formGroup}>
-                <label className={styles.formLabel}>Description</label>
-                <textarea
-                  name="description"
-                  className={styles.formControl}
-                  value={formData.description}
-                  onChange={handleInputChange}
-                  rows="3"
-                  required
-                />
-              </div>
-              <div className={styles.formGroup}>
-                <label className={styles.formLabel}>Event Date & Time</label>
-                <input
-                  type="datetime-local"
-                  name="event_date"
-                  className={styles.formControl}
-                  value={formData.event_date}
-                  onChange={handleInputChange}
-                  required
-                />
-              </div>
-              <div className={styles.formGroup}>
-                <label className={styles.formLabel}>Location</label>
-                <input
-                  type="text"
-                  name="location"
-                  className={styles.formControl}
-                  value={formData.location}
-                  onChange={handleInputChange}
-                  required
-                />
-              </div>
-              <div className={styles.formRow}>
+            <form onSubmit={handleSubmit} style={{ padding: '20px 24px' }}>
+              {/* Basic Information Section */}
+              <div className={styles.formSection} style={{
+                background: '#f8f9fa',
+                borderRadius: '8px',
+                padding: '20px',
+                marginBottom: '24px',
+                boxShadow: '0 2px 5px rgba(0, 0, 0, 0.05)'
+              }}>
+                <h3 className={styles.sectionTitle} style={{
+                  fontSize: '1.2rem',
+                  fontWeight: '600',
+                  color: '#6c5ce7',
+                  marginBottom: '16px',
+                  paddingBottom: '8px',
+                  borderBottom: '1px solid #e5e5e5'
+                }}>Basic Information</h3>
+                
                 <div className={styles.formGroup}>
-                  <label className={styles.formLabel}>Event Type</label>
-                  <select
-                    name="event_type"
-                    className={styles.formControl}
-                    value={formData.event_type}
-                    onChange={handleInputChange}
-                    required
-                  >
-                    {PREDEFINED_EVENT_TYPES.map(type => (
-                      <option key={type.value} value={type.value}>
-                        {type.label}
-                      </option>
-                    ))}
-                    {/* Add "other" option if not already included */}
-                    {!PREDEFINED_EVENT_TYPES.some(type => type.value === "other") && (
-                      <option value="other">Other</option>
-                    )}
-                  </select>
-                </div>
-                <div className={styles.formGroup}>
-                  <label className={styles.formLabel}>Status</label>
-                  <select
-                    name="status"
-                    className={styles.formControl}
-                    value={formData.status}
-                    onChange={handleInputChange}
-                    required
-                  >
-                    {STATUS_OPTIONS.map(status => (
-                      <option key={status.value} value={status.value}>
-                        {status.label}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-              </div>
-              {showCustomType && (
-                <div className={styles.formGroup}>
-                  <label className={styles.formLabel}>Custom Event Type</label>
+                  <label className={styles.formLabel} style={{
+                    fontWeight: '500',
+                    marginBottom: '6px',
+                    display: 'block',
+                    color: '#444'
+                  }}>Event Name</label>
                   <input
                     type="text"
-                    name="custom_event_type"
+                    name="event_name"
                     className={styles.formControl}
-                    value={formData.custom_event_type}
+                    value={formData.event_name}
                     onChange={handleInputChange}
-                    placeholder="Enter custom event type"
                     required
+                    style={{
+                      padding: '12px',
+                      borderRadius: '6px',
+                      border: '1px solid #ddd',
+                      width: '100%',
+                      transition: 'border 0.2s ease',
+                      fontSize: '1rem'
+                    }}
                   />
                 </div>
-              )}
-              <div className={styles.formRow}>
-                <div className={styles.formGroup}>
-                  <label className={styles.formLabel}>Capacity</label>
-                  <input
-                    type="number"
-                    name="capacity"
-                    className={styles.formControl}
-                    value={formData.capacity}
-                    onChange={handleInputChange}
-                    min="1"
-                  />
+                
+                <div className={styles.formRow} style={{
+                  display: 'grid',
+                  gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
+                  gap: '16px'
+                }}>
+                  <div className={styles.formGroup}>
+                    <label className={styles.formLabel} style={{
+                      fontWeight: '500',
+                      marginBottom: '6px',
+                      display: 'block',
+                      color: '#444'
+                    }}>Event Type</label>
+                    <select
+                      name="event_type"
+                      className={styles.formControl}
+                      value={formData.event_type}
+                      onChange={handleInputChange}
+                      required
+                      style={{
+                        padding: '12px',
+                        borderRadius: '6px',
+                        border: '1px solid #ddd',
+                        width: '100%',
+                        transition: 'border 0.2s ease',
+                        backgroundColor: '#fff',
+                        fontSize: '1rem',
+                        appearance: 'none'
+                      }}
+                    >
+                      {PREDEFINED_EVENT_TYPES.map(type => (
+                        <option key={type.value} value={type.value}>
+                          {type.label}
+                        </option>
+                      ))}
+                      {!PREDEFINED_EVENT_TYPES.some(type => type.value === "other") && (
+                        <option value="other">Other</option>
+                      )}
+                    </select>
+                  </div>
+                  
+                  <div className={styles.formGroup}>
+                    <label className={styles.formLabel} style={{
+                      fontWeight: '500',
+                      marginBottom: '6px',
+                      display: 'block',
+                      color: '#444'
+                    }}>Status</label>
+                    <select
+                      name="status"
+                      className={styles.formControl}
+                      value={formData.status}
+                      onChange={handleInputChange}
+                      required
+                      style={{
+                        padding: '12px',
+                        borderRadius: '6px',
+                        border: '1px solid #ddd',
+                        width: '100%',
+                        transition: 'border 0.2s ease',
+                        backgroundColor: '#fff',
+                        fontSize: '1rem',
+                        appearance: 'none'
+                      }}
+                    >
+                      {STATUS_OPTIONS.map(status => (
+                        <option key={status.value} value={status.value}>
+                          {status.label}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
                 </div>
+                
+                {showCustomType && (
+                  <div className={styles.formGroup}>
+                    <label className={styles.formLabel} style={{
+                      fontWeight: '500',
+                      marginBottom: '6px',
+                      display: 'block',
+                      color: '#444'
+                    }}>Custom Event Type</label>
+                    <input
+                      type="text"
+                      name="custom_event_type"
+                      className={styles.formControl}
+                      value={formData.custom_event_type}
+                      onChange={handleInputChange}
+                      placeholder="Enter custom event type"
+                      required
+                      style={{
+                        padding: '12px',
+                        borderRadius: '6px',
+                        border: '1px solid #ddd',
+                        width: '100%',
+                        fontSize: '1rem'
+                      }}
+                    />
+                  </div>
+                )}
+                
                 <div className={styles.formGroup}>
-                  <label className={styles.formLabel}>Price (₹)</label>
-                  <input
-                    type="number"
-                    name="price"
+                  <label className={styles.formLabel} style={{
+                    fontWeight: '500',
+                    marginBottom: '6px',
+                    display: 'block',
+                    color: '#444'
+                  }}>Description</label>
+                  <textarea
+                    name="description"
                     className={styles.formControl}
-                    value={formData.price}
+                    value={formData.description}
                     onChange={handleInputChange}
-                    min="0"
+                    rows="3"
+                    style={{
+                      padding: '12px',
+                      borderRadius: '6px',
+                      border: '1px solid #ddd',
+                      width: '100%',
+                      resize: 'vertical',
+                      fontSize: '1rem',
+                      minHeight: '80px'
+                    }}
                   />
                 </div>
               </div>
-              <div className={styles.modalFooter}>
+              
+              {/* Date and Time Section */}
+              <div className={styles.formSection} style={{
+                background: '#f8f9fa',
+                borderRadius: '8px',
+                padding: '20px',
+                marginBottom: '24px',
+                boxShadow: '0 2px 5px rgba(0, 0, 0, 0.05)'
+              }}>
+                <h3 className={styles.sectionTitle} style={{
+                  fontSize: '1.2rem',
+                  fontWeight: '600',
+                  color: '#6c5ce7',
+                  marginBottom: '16px',
+                  paddingBottom: '8px',
+                  borderBottom: '1px solid #e5e5e5'
+                }}>Date and Time</h3>
+                
+                <div className={styles.formRow} style={{
+                  display: 'grid',
+                  gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
+                  gap: '16px'
+                }}>
+                  <div className={styles.formGroup}>
+                    <label className={styles.formLabel} style={{
+                      fontWeight: '500',
+                      marginBottom: '6px',
+                      display: 'block',
+                      color: '#444'
+                    }}>Event Date</label>
+                    <input
+                      type="date"
+                      name="event_date"
+                      className={styles.formControl}
+                      value={formData.event_date ? formData.event_date.split('T')[0] : ''}
+                      onChange={handleInputChange}
+                      required
+                      style={{
+                        padding: '12px',
+                        borderRadius: '6px',
+                        border: '1px solid #ddd',
+                        width: '100%',
+                        fontSize: '1rem'
+                      }}
+                    />
+                  </div>
+                  
+                  <div className={styles.formGroup}>
+                    <label className={styles.formLabel} style={{
+                      fontWeight: '500',
+                      marginBottom: '6px',
+                      display: 'block',
+                      color: '#444'
+                    }}>Event Time</label>
+                    <input
+                      type="time"
+                      name="event_time"
+                      className={styles.formControl}
+                      value={formData.event_time}
+                      onChange={handleInputChange}
+                      required
+                      style={{
+                        padding: '12px',
+                        borderRadius: '6px',
+                        border: '1px solid #ddd',
+                        width: '100%',
+                        fontSize: '1rem'
+                      }}
+                    />
+                  </div>
+                </div>
+              </div>
+              
+              {/* Options Section */}
+              <div className={styles.formSection} style={{
+                background: '#f8f9fa',
+                borderRadius: '8px',
+                padding: '20px',
+                marginBottom: '24px',
+                boxShadow: '0 2px 5px rgba(0, 0, 0, 0.05)'
+              }}>
+                <h3 className={styles.sectionTitle} style={{
+                  fontSize: '1.2rem',
+                  fontWeight: '600',
+                  color: '#6c5ce7',
+                  marginBottom: '16px',
+                  paddingBottom: '8px',
+                  borderBottom: '1px solid #e5e5e5'
+                }}>Registration Options</h3>
+                
+                <div className={styles.optionsGroup} style={{
+                  display: 'flex',
+                  flexWrap: 'wrap',
+                  gap: '16px',
+                  marginBottom: '16px'
+                }}>
+                  <div className={styles.option} style={{
+                    display: 'flex',
+                    alignItems: 'center'
+                  }}>
+                    <label className={styles.checkboxLabel} style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      cursor: 'pointer',
+                      marginRight: '16px'
+                    }}>
+                      <input 
+                        type="checkbox" 
+                        name="is_paid"
+                        checked={formData.is_paid}
+                        onChange={(e) => setFormData({...formData, is_paid: e.target.checked})}
+                        style={{
+                          marginRight: '8px',
+                          width: '18px',
+                          height: '18px',
+                          accentColor: '#6c5ce7'
+                        }}
+                      />
+                      <span>Paid Event</span>
+                    </label>
+                  </div>
+                  
+                  <div className={styles.option} style={{
+                    display: 'flex',
+                    alignItems: 'center'
+                  }}>
+                    <label className={styles.checkboxLabel} style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      cursor: 'pointer',
+                      marginRight: '16px'
+                    }}>
+                      <input 
+                        type="checkbox" 
+                        name="rsvp_required"
+                        checked={formData.rsvp_required}
+                        onChange={(e) => setFormData({...formData, rsvp_required: e.target.checked})}
+                        style={{
+                          marginRight: '8px',
+                          width: '18px',
+                          height: '18px',
+                          accentColor: '#6c5ce7'
+                        }}
+                      />
+                      <span>Require RSVP</span>
+                    </label>
+                  </div>
+                  
+                  <div className={styles.option} style={{
+                    display: 'flex',
+                    alignItems: 'center'
+                  }}>
+                    <label className={styles.checkboxLabel} style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      cursor: 'pointer'
+                    }}>
+                      <input 
+                        type="checkbox" 
+                        name="limited_capacity"
+                        checked={formData.limited_capacity}
+                        onChange={(e) => setFormData({...formData, limited_capacity: e.target.checked})}
+                        style={{
+                          marginRight: '8px',
+                          width: '18px',
+                          height: '18px',
+                          accentColor: '#6c5ce7'
+                        }}
+                      />
+                      <span>Limit Capacity</span>
+                    </label>
+                  </div>
+                </div>
+                
+                <div className={styles.formRow} style={{
+                  display: 'grid',
+                  gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
+                  gap: '16px'
+                }}>
+                  {formData.is_paid && (
+                    <div className={styles.formGroup}>
+                      <label className={styles.formLabel} style={{
+                        fontWeight: '500',
+                        marginBottom: '6px',
+                        display: 'block',
+                        color: '#444'
+                      }}>Price (₹)</label>
+                      <input
+                        type="number"
+                        name="price"
+                        className={styles.formControl}
+                        value={formData.price}
+                        onChange={handleInputChange}
+                        min="0"
+                        step="0.01"
+                        required={formData.is_paid}
+                        style={{
+                          padding: '12px',
+                          borderRadius: '6px',
+                          border: '1px solid #ddd',
+                          width: '100%',
+                          fontSize: '1rem'
+                        }}
+                      />
+                    </div>
+                  )}
+                  
+                  {formData.limited_capacity && (
+                    <div className={styles.formGroup}>
+                      <label className={styles.formLabel} style={{
+                        fontWeight: '500',
+                        marginBottom: '6px',
+                        display: 'block',
+                        color: '#444'
+                      }}>Maximum Attendees</label>
+                      <input
+                        type="number"
+                        name="capacity"
+                        className={styles.formControl}
+                        value={formData.capacity}
+                        onChange={handleInputChange}
+                        min="1"
+                        required={formData.limited_capacity}
+                        style={{
+                          padding: '12px',
+                          borderRadius: '6px',
+                          border: '1px solid #ddd',
+                          width: '100%',
+                          fontSize: '1rem'
+                        }}
+                      />
+                    </div>
+                  )}
+                </div>
+              </div>
+              
+              {/* Venue Section */}
+              <div className={styles.formSection} style={{
+                background: '#f8f9fa',
+                borderRadius: '8px',
+                padding: '20px',
+                marginBottom: '24px',
+                boxShadow: '0 2px 5px rgba(0, 0, 0, 0.05)'
+              }}>
+                <h3 className={styles.sectionTitle} style={{
+                  fontSize: '1.2rem',
+                  fontWeight: '600',
+                  color: '#6c5ce7',
+                  marginBottom: '16px',
+                  paddingBottom: '8px',
+                  borderBottom: '1px solid #e5e5e5'
+                }}>Venue</h3>
+                
+                <div className={styles.formGroup}>
+                  <label className={styles.formLabel} style={{
+                    fontWeight: '500',
+                    marginBottom: '6px',
+                    display: 'block',
+                    color: '#444'
+                  }}>{selectedVenue ? 'Selected Venue' : 'Location/Venue'}</label>
+                  <input
+                    type="text"
+                    name="venue"
+                    className={styles.formControl}
+                    value={formData.venue}
+                    onChange={handleInputChange}
+                    placeholder="Enter venue or location"
+                    required
+                    style={{
+                      padding: '12px',
+                      borderRadius: '6px',
+                      border: '1px solid #ddd',
+                      width: '100%',
+                      fontSize: '1rem'
+                    }}
+                  />
+                </div>
+                
+                {venues.length > 0 && (
+                  <div className={styles.venuesSection} style={{ marginTop: '16px' }}>
+                    <label className={styles.formLabel} style={{
+                      fontWeight: '500',
+                      marginBottom: '12px',
+                      display: 'block',
+                      color: '#444'
+                    }}>Select from available venues:</label>
+                    
+                    <div className={styles.venuesGrid} style={{
+                      display: 'grid',
+                      gridTemplateColumns: 'repeat(auto-fill, minmax(160px, 1fr))',
+                      gap: '16px',
+                      marginTop: '8px'
+                    }}>
+                      {venues.slice(0, 6).map(venue => (
+                        <div 
+                          key={venue.id}
+                          className={styles.venueCard}
+                          style={{
+                            border: selectedVenue?.id === venue.id ? '2px solid #6c5ce7' : '1px solid #ddd',
+                            borderRadius: '8px',
+                            overflow: 'hidden',
+                            cursor: 'pointer',
+                            transition: 'all 0.2s ease',
+                            backgroundColor: selectedVenue?.id === venue.id ? '#f0f0ff' : '#fff',
+                            boxShadow: selectedVenue?.id === venue.id ? '0 2px 8px rgba(108, 92, 231, 0.2)' : 'none'
+                          }}
+                          onClick={() => handleVenueSelect(venue)}
+                        >
+                          <div style={{
+                            height: '90px',
+                            backgroundImage: `url(${venue.image_url})`,
+                            backgroundSize: 'cover',
+                            backgroundPosition: 'center'
+                          }} />
+                          <div style={{ padding: '10px' }}>
+                            <h5 style={{ fontSize: '0.9rem', margin: '0 0 4px 0', fontWeight: '600', color: selectedVenue?.id === venue.id ? '#6c5ce7' : '#333' }}>{venue.name}</h5>
+                            <p style={{ fontSize: '0.8rem', margin: '0', color: '#666' }}>
+                              Capacity: {venue.capacity}<br />
+                              ₹{venue.price_per_hour}/hr
+                            </p>
+                          </div>
+                        </div>
+                      ))}
+                      
+                      {venues.length > 6 && (
+                        <div className={styles.moreVenuesLink} style={{
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          border: '1px dashed #ccc',
+                          borderRadius: '8px',
+                          padding: '10px',
+                          fontSize: '0.9rem',
+                          color: '#6c5ce7',
+                          cursor: 'pointer',
+                          height: '100%'
+                        }}>
+                          +{venues.length - 6} more venues
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )}
+              </div>
+              
+              <div className={styles.modalFooter} style={{
+                display: 'flex',
+                justifyContent: 'flex-end',
+                gap: '12px',
+                marginTop: '32px',
+                padding: '16px 0 8px 0',
+                borderTop: '1px solid #eee',
+              }}>
                 <button
                   type="button"
-                  className={`${styles.button} ${styles.secondaryButton}`}
+                  className={styles.secondaryButton}
                   onClick={() => setIsModalOpen(false)}
+                  style={{
+                    padding: '12px 20px',
+                    borderRadius: '8px',
+                    border: '1px solid #ddd',
+                    background: 'white',
+                    fontSize: '0.95rem',
+                    fontWeight: '500',
+                    cursor: 'pointer',
+                    transition: 'all 0.2s ease'
+                  }}
                 >
                   Cancel
                 </button>
                 <button 
                   type="submit" 
-                  className={`${styles.button} ${styles.primaryButton}`}
+                  className={styles.primaryButton}
+                  style={{
+                    padding: '12px 24px',
+                    borderRadius: '8px',
+                    border: 'none',
+                    background: 'linear-gradient(135deg, #6c5ce7, #8e44ad)',
+                    color: 'white',
+                    fontSize: '0.95rem',
+                    fontWeight: '500',
+                    cursor: 'pointer',
+                    boxShadow: '0 2px 8px rgba(108, 92, 231, 0.3)',
+                    transition: 'all 0.2s ease'
+                  }}
                 >
-                  {selectedEvent ? "Update Event" : "Create Event"}
+                  {selectedEvent ? "Save Changes" : "Create Event"}
                 </button>
               </div>
             </form>
@@ -952,7 +1795,7 @@ const EventsManagement = () => {
       {/* Event View Modal */}
       {isViewModalOpen && viewEvent && (
         <div className={styles.modalBackdrop}>
-          <div className={`${styles.modal} ${styles.viewModal}`}>
+          <div className={`${styles.modal} ${styles.viewModal}`} style={{ maxWidth: '800px', width: '90%' }}>
             <div className={styles.modalHeader}>
               <h2>Event Details</h2>
               <button 
@@ -1036,6 +1879,125 @@ const EventsManagement = () => {
             <div className={styles.eventDescription}>
               <h4>Description</h4>
               <p>{viewEvent.description || "No description provided."}</p>
+            </div>
+
+            {/* Event Statistics Section */}
+            <div className={styles.eventStatsSection}>
+              <h4>Event Statistics</h4>
+              <div className={styles.statsGrid}>
+                <div className={styles.statItem}>
+                  <h5>Registrations</h5>
+                  <p>{eventStats.totalRegistered} / {viewEvent.max_participants || "∞"}</p>
+                </div>
+                <div className={styles.statItem}>
+                  <h5>Attendance</h5>
+                  <p>{eventStats.totalAttended} ({eventStats.totalRegistered > 0 ? 
+                    Math.round((eventStats.totalAttended/eventStats.totalRegistered)*100) : 0}%)</p>
+                </div>
+                <div className={styles.statItem}>
+                  <h5>Capacity Filled</h5>
+                  <p>{eventStats.registrationRate}%</p>
+                </div>
+                <div className={styles.statItem}>
+                  <h5>Revenue</h5>
+                  <p>{formatCurrency(eventStats.revenue)}</p>
+                </div>
+              </div>
+            </div>
+            
+            {/* Participants Section */}
+            <div className={styles.participantsSection}>
+              <h4 className={styles.sectionTitle} style={{
+                fontSize: '1.2rem',
+                fontWeight: '600',
+                color: '#6c5ce7',
+                marginBottom: '16px',
+                paddingBottom: '8px',
+                borderBottom: '1px solid #e5e5e5'
+              }}>Participants</h4>
+              
+              {loadingParticipants ? (
+                <div className={styles.loadingParticipants}>
+                  <Spinner animation="border" variant="primary" />
+                  <p className={styles.loadingText}>Loading participants...</p>
+                </div>
+              ) : participants.length === 0 ? (
+                <div className={styles.noParticipants}>
+                  <p>No participants registered for this event yet.</p>
+                </div>
+              ) : (
+                <div className={styles.participantsGrid}>
+                  <table className={styles.participantsTable} style={{
+                    width: '100%',
+                    borderCollapse: 'collapse',
+                    boxShadow: '0 1px 3px rgba(0,0,0,0.1)',
+                    borderRadius: '4px',
+                    overflow: 'hidden'
+                  }}>
+                    <thead>
+                      <tr style={{ 
+                        backgroundColor: '#f8f9fa',
+                        borderBottom: '2px solid #dee2e6'
+                      }}>
+                        <th style={{padding: '12px', textAlign: 'left'}}>Name</th>
+                        <th style={{padding: '12px', textAlign: 'left'}}>Email</th>
+                        <th style={{padding: '12px', textAlign: 'left'}}>Phone</th>
+                        <th style={{padding: '12px', textAlign: 'left'}}>Registration Date</th>
+                        <th style={{padding: '12px', textAlign: 'center'}}>Status</th>
+                        <th style={{padding: '12px', textAlign: 'center'}}>Actions</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {participants.map((participant, index) => {
+                        // Safely extract user data with fallbacks
+                        const user = participant.user || {};
+                        const firstName = user.first_name || 'Guest';
+                        const lastName = user.last_name || '';
+                        const fullName = `${firstName} ${lastName}`.trim() || 'Guest User';
+                        const email = user.email || 'No email provided';
+                        const phone = user.phone_number || 'No phone provided';
+                        const isAttended = !!participant.attended;
+                        
+                        return (
+                          <tr key={participant.id || index} style={{
+                            borderBottom: '1px solid #dee2e6',
+                            backgroundColor: index % 2 === 0 ? 'white' : '#f8f9fa'
+                          }}>
+                            <td style={{padding: '10px', textAlign: 'left'}}>{fullName}</td>
+                            <td style={{padding: '10px', textAlign: 'left'}}>{email}</td>
+                            <td style={{padding: '10px', textAlign: 'left'}}>{phone}</td>
+                            <td style={{padding: '10px', textAlign: 'left'}}>{formatDate(participant.registered_at)}</td>
+                            <td style={{padding: '10px', textAlign: 'center'}}>
+                              <Badge bg={isAttended ? 'success' : 'secondary'}>
+                                {isAttended ? 'Attended' : 'Registered'}
+                              </Badge>
+                            </td>
+                            <td style={{padding: '10px', textAlign: 'center'}}>
+                              <div className={styles.formCheck}>
+                                <input 
+                                  className={styles.formCheckInput} 
+                                  type="checkbox" 
+                                  checked={isAttended} 
+                                  onChange={() => toggleAttendance(participant.id)}
+                                  disabled={attendanceLoading}
+                                  style={{
+                                    cursor: 'pointer',
+                                    height: '1.5rem', 
+                                    width: '3rem'
+                                  }}
+                                />
+                                <label className={styles.formCheckLabel}>
+                                  {isAttended ? 'Present' : 'Mark Present'}
+                                </label>
+                              </div>
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              )}
             </div>
             
             <div className={styles.modalFooter}>

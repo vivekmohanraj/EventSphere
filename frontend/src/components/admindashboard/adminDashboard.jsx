@@ -178,56 +178,71 @@ const Dashboard = () => {
   const fetchDashboardStats = async () => {
     try {
       setLoading(true);
+      console.log("Fetching dashboard stats from API...");
+      const response = await fetch('/users/stats/');
       
-      // First try to get stats from a dedicated endpoint
-      let statsData = null;
-      
-      try {
-        // Primary endpoint for dashboard stats
-        const response = await api.get("/users/stats/");
-        if (response.data) {
-          console.log("Successfully fetched stats from /users/stats/");
-          statsData = response.data;
-        }
-      } catch (error) {
-        console.warn("Could not fetch stats from primary endpoint, fetching directly");
+      if (!response.ok) {
+        throw new Error(`API error: ${response.status}`);
       }
       
-      // If no stats endpoint exists, count entities directly
-      if (!statsData) {
-        await fetchCountsDirectly();
-      } else {
-        // Extract stats from the response
-        const normalizedStats = {
-          totalUsers: statsData.total_users || statsData.totalUsers || statsData.users_count || 0,
-          totalEvents: statsData.total_events || statsData.totalEvents || statsData.events_count || 0,
-          totalRevenue: statsData.total_revenue || statsData.totalRevenue || statsData.revenue || 0,
-          activeEvents: statsData.active_events || statsData.activeEvents || 0,
-          pendingRequests: statsData.pending_requests || statsData.pendingRequests || 0,
-        };
+      const statsData = await response.json();
+      console.log("Dashboard stats received:", statsData);
+      
+      // Extract the base stats from the response
+      const newStats = {
+        totalUsers: statsData.total_users || 0,
+        totalEvents: statsData.total_events || 0,
+        totalRevenue: statsData.total_revenue || 0,
+        activeEvents: statsData.active_events || 0,
+        pendingRequests: statsData.pending_requests || 0,
         
-        console.log("Setting stats:", normalizedStats);
-        setStats(normalizedStats);
+        // Monthly data
+        monthlyRevenue: statsData.monthly_revenue || Array(12).fill(0),
+        monthlyEvents: statsData.monthly_events || Array(12).fill(0),
+        monthlyUsers: statsData.monthly_users || Array(12).fill(0),
         
-        // Get upcoming events and activity data if available
-        if (statsData.upcoming_events || statsData.upcomingEvents) {
-          setUpcomingEvents(statsData.upcoming_events || statsData.upcomingEvents);
-        } else {
-          fetchUpcomingEvents();
-        }
+        // Growth rates
+        growthRates: statsData.growth_rates || {
+          users: 0,
+          events: 0,
+          revenue: 0,
+          active: 0
+        },
         
-        if (statsData.recent_activity || statsData.recentActivity) {
-          setRecentActivity(statsData.recent_activity || statsData.recentActivity);
-        } else {
-          fetchRecentActivity();
-        }
+        // Event type distribution
+        eventTypes: statsData.event_types || [],
+        
+        // Additional analytics data
+        attendance_data: statsData.attendance_data || null,
+        event_ratings: statsData.event_ratings || null,
+        participation_trends: statsData.participation_trends || null,
+        booking_time_data: statsData.booking_time_data || null,
+        popular_venues: statsData.popular_venues || null,
+      };
+
+      // If venue data is available, format it for the chart
+      if (statsData.popular_venues && Array.isArray(statsData.popular_venues)) {
+        // Format it as expected by the chart
+        newStats.popular_venues = statsData.popular_venues.map(venue => ({
+          name: venue.name || venue.venue || 'Unknown Venue',
+          count: venue.count || venue.value || 0
+        }));
+      } else if (statsData.venue_distribution) {
+        // Alternative format that might be in the API
+        newStats.popular_venues = Object.entries(statsData.venue_distribution)
+          .map(([venue, count]) => ({ name: venue, count: count }))
+          .filter(v => v.name && v.count > 0);
       }
+      
+      setStats(newStats);
+      setLoading(false);
+      return newStats;
     } catch (error) {
       console.error("Error fetching dashboard stats:", error);
-      toast.error("Failed to load dashboard statistics");
-      await fetchCountsDirectly(); // Fallback to direct counting
-    } finally {
+      // Fall back to direct counting if stats endpoint fails
+      await fetchCountsDirectly();
       setLoading(false);
+      return null;
     }
   };
 
@@ -237,28 +252,79 @@ const Dashboard = () => {
       let eventCount = 0;
       let activeCount = 0;
       let requestCount = 0;
+      let totalRevenue = 0;
       
-      // Get user count from the correct endpoint
+      // Arrays to store monthly data
+      let monthlyRevenue = new Array(12).fill(0);
+      let monthlyEvents = new Array(12).fill(0);
+      let monthlyUsers = new Array(12).fill(0);
+      
+      // Storage for additional analytics data
+      let attendanceData = [];
+      let eventRatings = [0, 0, 0, 0, 0]; // 1-5 star ratings
+      let participationTrends = new Array(12).fill(0);
+      let bookingTimeData = [0, 0, 0, 0, 0, 0]; // Registration timing buckets
+      let popularVenues = {};
+      
+      // Track current and previous month data for growth calculation
+      let currentMonthUsers = 0;
+      let prevMonthUsers = 0;
+      let currentMonthEvents = 0;
+      let prevMonthEvents = 0;
+      let currentMonthRevenue = 0;
+      let prevMonthRevenue = 0;
+      
+      // Current date info for month comparison
+      const now = new Date();
+      const currentMonth = now.getMonth();
+      const prevMonth = currentMonth === 0 ? 11 : currentMonth - 1;
+      
+      // Get user count and monthly distribution
       try {
         const response = await api.get("/users/users/");
         if (response.data) {
+          let users = [];
+          
           if (Array.isArray(response.data)) {
-            userCount = response.data.length;
+            users = response.data;
+            userCount = users.length;
           } else if (response.data.results && Array.isArray(response.data.results)) {
-            userCount = response.data.results.length;
+            users = response.data.results;
+            userCount = users.length;
           } else if (response.data.count) {
             userCount = response.data.count;
+          }
+          
+          // Calculate monthly user sign-ups if creation date is available
+          if (users.length > 0 && (users[0].created_at || users[0].date_joined)) {
+            users.forEach(user => {
+              const creationDate = new Date(user.created_at || user.date_joined);
+              if (!isNaN(creationDate.getTime())) {
+                const month = creationDate.getMonth();
+                monthlyUsers[month]++;
+                
+                // Check if user was created this month or previous month
+                if (creationDate.getMonth() === currentMonth && 
+                    creationDate.getFullYear() === now.getFullYear()) {
+                  currentMonthUsers++;
+                } else if (creationDate.getMonth() === prevMonth && 
+                          ((creationDate.getFullYear() === now.getFullYear()) || 
+                          (prevMonth === 11 && creationDate.getFullYear() === now.getFullYear() - 1))) {
+                  prevMonthUsers++;
+                }
+              }
+            });
           }
         }
       } catch (error) {
         console.warn("Could not fetch user count", error);
       }
       
-      // Get event count from the correct endpoint
+      // Get event count, active events, and monthly distribution
+      let events = [];
       try {
         const response = await api.get("/events/events/");
         if (response.data) {
-          let events = [];
           if (Array.isArray(response.data)) {
             events = response.data;
           } else if (response.data.results && Array.isArray(response.data.results)) {
@@ -269,11 +335,36 @@ const Dashboard = () => {
             eventCount = events.length;
             
             // Count active events (upcoming or ongoing)
-            const now = new Date();
             activeCount = events.filter(event => {
               const eventDate = new Date(event.event_time || event.event_date);
               return eventDate >= now || event.status === 'upcoming' || event.status === 'ongoing';
             }).length;
+            
+            // Collect venue data for popular venues chart
+            events.forEach(event => {
+              if (event.venue) {
+                popularVenues[event.venue] = (popularVenues[event.venue] || 0) + 1;
+              }
+            });
+            
+            // Calculate monthly event creation
+            events.forEach(event => {
+              const creationDate = new Date(event.created_at || event.event_time);
+              if (!isNaN(creationDate.getTime())) {
+                const month = creationDate.getMonth();
+                monthlyEvents[month]++;
+                
+                // Check if event was created this month or previous month
+                if (creationDate.getMonth() === currentMonth && 
+                    creationDate.getFullYear() === now.getFullYear()) {
+                  currentMonthEvents++;
+                } else if (creationDate.getMonth() === prevMonth && 
+                          ((creationDate.getFullYear() === now.getFullYear()) || 
+                          (prevMonth === 11 && creationDate.getFullYear() === now.getFullYear() - 1))) {
+                  prevMonthEvents++;
+                }
+              }
+            });
           } else if (response.data.count) {
             eventCount = response.data.count;
           }
@@ -298,13 +389,200 @@ const Dashboard = () => {
         console.warn("Could not fetch coordinator requests", error);
       }
       
-      // Update dashboard with real counts
+      // Get payment data for revenue calculations
+      try {
+        const response = await api.get("/payments/payments/");
+        if (response.data) {
+          let payments = [];
+          
+          if (Array.isArray(response.data)) {
+            payments = response.data;
+          } else if (response.data.results && Array.isArray(response.data.results)) {
+            payments = response.data.results;
+          }
+          
+          if (payments.length > 0) {
+            // Calculate total revenue from completed payments
+            payments.filter(payment => payment.payment_status === 'completed')
+              .forEach(payment => {
+                totalRevenue += parseFloat(payment.amount || 0);
+              });
+            
+            // Calculate monthly revenue
+            payments.filter(payment => payment.payment_status === 'completed')
+              .forEach(payment => {
+                const creationDate = new Date(payment.created_at);
+                if (!isNaN(creationDate.getTime())) {
+                  const month = creationDate.getMonth();
+                  monthlyRevenue[month] += parseFloat(payment.amount || 0);
+                  
+                  // Check if payment was received this month or previous month
+                  if (creationDate.getMonth() === currentMonth && 
+                      creationDate.getFullYear() === now.getFullYear()) {
+                    currentMonthRevenue += parseFloat(payment.amount || 0);
+                  } else if (creationDate.getMonth() === prevMonth && 
+                            ((creationDate.getFullYear() === now.getFullYear()) || 
+                            (prevMonth === 11 && creationDate.getFullYear() === now.getFullYear() - 1))) {
+                    prevMonthRevenue += parseFloat(payment.amount || 0);
+                  }
+                }
+              });
+          }
+        }
+      } catch (error) {
+        console.warn("Could not fetch payment data", error);
+      }
+      
+      // Get participant data for attendance, participation trends and registration timing analytics
+      let participants = [];
+      try {
+        const response = await api.get("/events/participants/");
+        if (response.data) {
+          if (Array.isArray(response.data)) {
+            participants = response.data;
+          } else if (response.data.results && Array.isArray(response.data.results)) {
+            participants = response.data.results;
+          }
+          
+          if (participants.length > 0) {
+            // Count registrations by status for attendance chart
+            const registered = participants.filter(p => p.status === 'registered').length;
+            const attended = participants.filter(p => p.status === 'attended').length;
+            const cancelled = participants.filter(p => p.status === 'canceled').length;
+            const noShows = registered - attended - cancelled;
+            
+            attendanceData = [
+              { status: 'registered', count: registered },
+              { status: 'attended', count: attended },
+              { status: 'no_show', count: Math.max(0, noShows) },
+              { status: 'canceled', count: cancelled }
+            ];
+            
+            // Count monthly participant registrations for participation trends
+            participants.forEach(participant => {
+              const regDate = new Date(participant.registered_at);
+              if (!isNaN(regDate.getTime())) {
+                const month = regDate.getMonth();
+                participationTrends[month]++;
+              }
+            });
+            
+            // Analyze registration timing (how far in advance people register)
+            participants.forEach(participant => {
+              // Skip if missing data
+              if (!participant.registered_at || !participant.event) {
+                return;
+              }
+              
+              // Find the associated event
+              const event = events.find(e => e.id === participant.event);
+              if (!event || !event.event_time) {
+                return;
+              }
+              
+              const regDate = new Date(participant.registered_at);
+              const eventDate = new Date(event.event_time);
+              
+              if (isNaN(regDate.getTime()) || isNaN(eventDate.getTime())) {
+                return;
+              }
+              
+              // Calculate days between registration and event
+              const daysDiff = Math.floor((eventDate - regDate) / (1000 * 60 * 60 * 24));
+              
+              // Categorize into buckets
+              if (daysDiff < 1) {
+                bookingTimeData[0]++; // Same day
+              } else if (daysDiff < 4) {
+                bookingTimeData[1]++; // 1-3 days
+              } else if (daysDiff < 8) {
+                bookingTimeData[2]++; // 4-7 days
+              } else if (daysDiff < 15) {
+                bookingTimeData[3]++; // 1-2 weeks
+              } else if (daysDiff < 29) {
+                bookingTimeData[4]++; // 2-4 weeks
+              } else {
+                bookingTimeData[5]++; // 1+ month
+              }
+            });
+          }
+        }
+      } catch (error) {
+        console.warn("Could not fetch participant data", error);
+      }
+      
+      // Get feedback data for event ratings
+      try {
+        const response = await api.get("/events/events/");
+        let feedbackData = [];
+        
+        // Loop through events to get feedback for each one
+        for (const event of events) {
+          try {
+            const feedbackResponse = await api.get(`/events/events/${event.id}/feedback/`);
+            if (feedbackResponse.data) {
+              if (Array.isArray(feedbackResponse.data)) {
+                feedbackData = [...feedbackData, ...feedbackResponse.data];
+              } else if (feedbackResponse.data.results && Array.isArray(feedbackResponse.data.results)) {
+                feedbackData = [...feedbackData, ...feedbackResponse.data.results];
+              }
+            }
+          } catch (error) {
+            // Skip if can't get feedback for this event
+            continue;
+          }
+        }
+        
+        // Process feedback data for ratings chart
+        if (feedbackData.length > 0) {
+          feedbackData.forEach(feedback => {
+            const rating = parseInt(feedback.rating);
+            if (rating >= 1 && rating <= 5) {
+              eventRatings[rating - 1]++;
+            }
+          });
+        }
+      } catch (error) {
+        console.warn("Could not fetch feedback data", error);
+      }
+      
+      // Format venue data for chart
+      const formattedVenues = Object.entries(popularVenues)
+        .map(([name, count]) => ({ name, count }))
+        .sort((a, b) => b.count - a.count)
+        .slice(0, 5); // Top 5 venues
+      
+      // Calculate growth rates
+      const userGrowth = calculateGrowthRate(prevMonthUsers, currentMonthUsers);
+      const eventGrowth = calculateGrowthRate(prevMonthEvents, currentMonthEvents);
+      const revenueGrowth = calculateGrowthRate(prevMonthRevenue, currentMonthRevenue);
+      
+      // Update dashboard with real counts and calculated data
       setStats({
         totalUsers: userCount,
         totalEvents: eventCount,
-        totalRevenue: 0, // We would need a separate endpoint for this
+        totalRevenue: totalRevenue,
         activeEvents: activeCount,
-        pendingRequests: requestCount
+        pendingRequests: requestCount,
+        
+        // Include monthly data for charts
+        monthly_revenue: monthlyRevenue,
+        monthly_events: monthlyEvents,
+        monthly_users: monthlyUsers,
+        
+        // Include growth rates
+        growth_rates: {
+          users: userGrowth,
+          events: eventGrowth,
+          revenue: revenueGrowth
+        },
+        
+        // Include additional analytics data
+        attendance_data: attendanceData,
+        event_ratings: eventRatings,
+        participation_trends: participationTrends,
+        booking_time_data: bookingTimeData,
+        popular_venues: formattedVenues
       });
       
       // Get upcoming events
@@ -316,6 +594,14 @@ const Dashboard = () => {
     } catch (error) {
       console.error("Error fetching counts directly:", error);
     }
+  };
+  
+  // Helper function to calculate growth rate
+  const calculateGrowthRate = (previous, current) => {
+    if (previous === 0) {
+      return current > 0 ? 100 : 0; // If previous is 0, and current is positive, 100% growth
+    }
+    return Math.round(((current - previous) / previous) * 100);
   };
 
   const fetchUpcomingEvents = async () => {
@@ -564,10 +850,91 @@ const Dashboard = () => {
   const createRevenueChart = () => {
     const ctx = chartRef.current.getContext('2d');
     
-    // Sample data - replace with actual API data when available
-    const labels = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-    const revenueData = [5000, 7500, 8000, 7800, 9500, 10200, 11000, 10500, 11700, 12500, 14000, 15000];
-    const eventsData = [5, 7, 8, 6, 9, 10, 12, 10, 11, 13, 15, 18];
+    // Default months for x-axis
+    const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+    
+    // Initialize with placeholder data
+    let revenueData = [5000, 7500, 8000, 7800, 9500, 10200, 11000, 10500, 11700, 12500, 14000, 15000];
+    let eventsData = [5, 7, 8, 6, 9, 10, 12, 10, 11, 13, 15, 18];
+    
+    // Check if we have real data from the backend
+    if (stats && stats.monthly_revenue && Array.isArray(stats.monthly_revenue) && stats.monthly_revenue.length === 12) {
+      // Direct array format
+      revenueData = stats.monthly_revenue;
+    } else if (stats && stats.monthlyRevenue && Array.isArray(stats.monthlyRevenue) && stats.monthlyRevenue.length === 12) {
+      // Alternative property name
+      revenueData = stats.monthlyRevenue;
+    }
+    
+    if (stats && stats.monthly_events && Array.isArray(stats.monthly_events) && stats.monthly_events.length === 12) {
+      // Direct array format
+      eventsData = stats.monthly_events;
+    } else if (stats && stats.monthlyEvents && Array.isArray(stats.monthlyEvents) && stats.monthlyEvents.length === 12) {
+      // Alternative property name
+      eventsData = stats.monthlyEvents;
+    }
+    
+    // If we have monthly data in object format (with month/value properties)
+    if (stats && stats.monthly_revenue && Array.isArray(stats.monthly_revenue) && 
+        stats.monthly_revenue.length > 0 && stats.monthly_revenue.length < 12 && 
+        typeof stats.monthly_revenue[0] === 'object') {
+      
+      // Reset array to zeros
+      revenueData = new Array(12).fill(0);
+      
+      // Fill in data from the API
+      stats.monthly_revenue.forEach(item => {
+        if (item.month) {
+          // Try to parse the month (could be different formats)
+          let monthIndex = -1;
+          
+          if (typeof item.month === 'string') {
+            // Try to match month name (Jan, February, etc.)
+            monthIndex = months.findIndex(m => 
+              item.month.toLowerCase().includes(m.toLowerCase())
+            );
+          } else if (item.month && item.month.month) {
+            // Month might be a number (1-12)
+            monthIndex = parseInt(item.month.month) - 1;
+          }
+          
+          if (monthIndex >= 0 && monthIndex < 12) {
+            revenueData[monthIndex] = parseFloat(item.value || item.revenue || item.amount || 0);
+          }
+        }
+      });
+    }
+    
+    // Similar processing for events data if in object format
+    if (stats && stats.monthly_events && Array.isArray(stats.monthly_events) && 
+        stats.monthly_events.length > 0 && stats.monthly_events.length < 12 && 
+        typeof stats.monthly_events[0] === 'object') {
+      
+      // Reset array to zeros
+      eventsData = new Array(12).fill(0);
+      
+      // Fill in data from the API
+      stats.monthly_events.forEach(item => {
+        if (item.month) {
+          // Try to parse the month (could be different formats)
+          let monthIndex = -1;
+          
+          if (typeof item.month === 'string') {
+            // Try to match month name (Jan, February, etc.)
+            monthIndex = months.findIndex(m => 
+              item.month.toLowerCase().includes(m.toLowerCase())
+            );
+          } else if (item.month && item.month.month) {
+            // Month might be a number (1-12)
+            monthIndex = parseInt(item.month.month) - 1;
+          }
+          
+          if (monthIndex >= 0 && monthIndex < 12) {
+            eventsData[monthIndex] = parseInt(item.value || item.count || 0);
+          }
+        }
+      });
+    }
     
     // Destroy existing chart if it exists
     if (chart.current) {
@@ -578,7 +945,7 @@ const Dashboard = () => {
     chart.current = new Chart(ctx, {
       type: 'bar',
       data: {
-        labels: labels,
+        labels: months,
         datasets: [
           {
             label: 'Revenue (₹)',

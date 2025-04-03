@@ -1,0 +1,212 @@
+/* Sidebar Styles */
+:root {
+  --accent-color: #ff4a17;
+  --accent-light: rgba(255, 74, 23, 0.1);
+  --accent-hover: #e63c0c;
+}
+
+.sidebar {
+  width: 260px;
+  background-color: #fff;
+  box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+  display: flex;
+  flex-direction: column;
+  position: fixed;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  z-index: 100;
+  transition: all 0.3s ease;
+}
+
+.sidebarHeader {
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  border-bottom: 1px solid #eee;
+}
+
+.sidebarHeader h2 {
+  margin-top: 10px;
+  font-weight: 700;
+  color: #333;
+  font-size: 1.5rem;
+}
+
+.userAvatar {
+  width: 80px;
+  height: 80px;
+  border-radius: 50%;
+  object-fit: cover;
+  border: 3px solid var(--accent-color);
+}
+
+.userAvatarPlaceholder {
+  width: 80px;
+  height: 80px;
+  border-radius: 50%;
+  background-color: var(--accent-color);
+  color: white;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.5rem;
+  font-weight: bold;
+}
+
+.nav {
+  display: flex;
+  flex-direction: column;
+  padding: 20px 0;
+  flex-grow: 1;
+}
+
+.navButton {
+  display: flex;
+  align-items: center;
+  padding: 15px 25px;
+  background: none;
+  border: none;
+  color: #555;
+  font-size: 1rem;
+  text-align: left;
+  transition: all 0.2s ease;
+  cursor: pointer;
+}
+
+.navButton:hover {
+  background-color: #f5f5f5;
+  color: var(--accent-color);
+}
+
+.navButton.active {
+  background-color: var(--accent-light);
+  color: var(--accent-color);
+  border-left: 4px solid var(--accent-color);
+  font-weight: 600;
+}
+
+.navButton svg {
+  margin-right: 10px;
+  font-size: 1.2rem;
+}
+
+.logoutButton {
+  display: flex;
+  align-items: center;
+  padding: 15px 25px;
+  margin-top: auto;
+  border: none;
+  background: none;
+  color: #555;
+  font-size: 1rem;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.logoutButton:hover {
+  color: var(--accent-color);
+}
+
+.logoutButton svg {
+  margin-right: 10px;
+  font-size: 1.2rem;
+}
+
+/* Main container styles to accommodate the sidebar */
+.dashboardContainer {
+  display: flex;
+  min-height: 100vh;
+  background-color: #f8f9fa;
+  color: #333;
+  font-family: 'Roboto', 'Segoe UI', sans-serif;
+}
+
+.main {
+  flex: 1;
+  padding: 30px;
+  margin-left: 260px;
+  transition: all 0.3s ease;
+}
+
+.main h1 {
+  font-size: 1.8rem;
+  margin-bottom: 30px;
+  font-weight: 700;
+  color: #333;
+  position: relative;
+  padding-bottom: 10px;
+}
+
+.main h1:after {
+  content: '';
+  position: absolute;
+  left: 0;
+  bottom: 0;
+  width: 50px;
+  height: 4px;
+  background-color: var(--accent-color);
+}
+
+/* Loader */
+.loader {
+  text-align: center;
+  padding: 50px 0;
+  color: #555;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+}
+
+.loaderSpinner {
+  border: 3px solid var(--accent-light);
+  border-radius: 50%;
+  border-top: 3px solid var(--accent-color);
+  width: 30px;
+  height: 30px;
+  animation: spin 1s linear infinite;
+  margin-bottom: 10px;
+}
+
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+  .sidebar {
+    width: 70px;
+    overflow: hidden;
+  }
+  
+  .sidebarHeader h2 {
+    display: none;
+  }
+  
+  .userAvatar, .userAvatarPlaceholder {
+    width: 40px;
+    height: 40px;
+  }
+  
+  .navButton span, .logoutButton span {
+    display: none;
+  }
+  
+  .navButton, .logoutButton {
+    justify-content: center;
+    padding: 15px;
+  }
+  
+  .navButton svg, .logoutButton svg {
+    margin-right: 0;
+    font-size: 1.3rem;
+  }
+  
+  .main {
+    margin-left: 70px;
+    padding: 20px;
+  }
+} 

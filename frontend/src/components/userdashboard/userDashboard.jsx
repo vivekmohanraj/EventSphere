@@ -141,10 +141,19 @@ const UserDashboard = () => {
 
   useEffect(() => {
     if (activeTab === "browse") {
+      console.log("Browse events tab activated - fetching events");
       fetchAllEvents();
     }
   }, [activeTab]);
   
+  // Add a separate effect to initialize event list when dashboard first loads
+  useEffect(() => {
+    if (!loading && allEvents.length === 0) {
+      console.log("Initializing events list for dashboard");
+      fetchAllEvents();
+    }
+  }, []);
+
   // Fetch user profile data when component mounts
   useEffect(() => {
     fetchUserProfile();
@@ -484,11 +493,26 @@ const UserDashboard = () => {
   const fetchAllEvents = async () => {
     try {
       setLoading(true);
+      // Use the proper API endpoint to fetch events
       const response = await api.get("/events/events/");
+      
       if (response.data && Array.isArray(response.data)) {
-        setAllEvents(response.data);
+        console.log("Events fetched successfully:", response.data);
+        
+        // Process events to ensure they have all required properties
+        const processedEvents = response.data.map(event => ({
+          ...event,
+          // Ensure consistent property access by providing fallbacks
+          event_name: event.event_name || "Unnamed Event",
+          description: event.description || "No description available",
+          venue: event.venue || "TBD",
+          event_time: event.event_time || new Date().toISOString(),
+          category: event.event_type || event.category || "Other"
+        }));
+        
+        setAllEvents(processedEvents);
       } else {
-        console.warn("Events data is not an array or is missing");
+        console.warn("Events data is not an array or is missing:", response.data);
         setAllEvents([]);
       }
     } catch (error) {
@@ -503,29 +527,37 @@ const UserDashboard = () => {
   const handleRegister = async (eventId) => {
     try {
       setRegistering(true);
-      const response = await api.post(`events/${eventId}/register/`);
+      console.log(`Attempting to register for event ${eventId}`);
+      
+      // Use the correct API endpoint for registration
+      const response = await api.post(`/events/participants/`, {
+        event: eventId
+      });
+      
       if (response.status === 200 || response.status === 201) {
+        console.log("Registration response:", response.data);
         toast.success("Successfully registered for event!");
-        // Refresh upcoming events list
-        const upcomingResponse = await api.get("events/user-events/");
-        if (upcomingResponse.data) {
-          setUpcomingEvents(upcomingResponse.data.filter(event => 
-            new Date(event.event_date) >= new Date()));
-        }
         
-        // Update stats
-        const statsResponse = await api.get("events/user-stats/");
-        if (statsResponse.data) {
-          setStats({
-            registeredEvents: statsResponse.data.registered_events || 0,
-            upcomingEvents: statsResponse.data.upcoming_events || 0,
-            completedEvents: statsResponse.data.completed_events || 0,
-          });
-        }
+        // Update local state to reflect the new registration
+        setAllEvents(allEvents.map(event => 
+          event.id === eventId 
+            ? { 
+                ...event, 
+                is_registered: true,
+                participants: [...(event.participants || []), {
+                  user: user.id,
+                  status: 'registered'
+                }]
+              } 
+            : event
+        ));
+        
+        // Refresh upcoming events
+        fetchDashboardData();
       }
     } catch (error) {
-      console.error("Registration error:", error);
-      toast.error(error.response?.data?.message || "Failed to register for event");
+      console.error("Registration error:", error.response?.data || error);
+      toast.error(error.response?.data?.error || "Failed to register for event. Please try again.");
     } finally {
       setRegistering(false);
     }
@@ -572,21 +604,37 @@ const UserDashboard = () => {
   };
 
   const filteredEvents = allEvents && Array.isArray(allEvents) ? allEvents.filter(event => {
-    // Search query filter
-    const matchesSearch = searchQuery === "" || 
-      event.event_name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      (event.description && event.description.toLowerCase().includes(searchQuery.toLowerCase())) ||
-      (event.venue && event.venue.toLowerCase().includes(searchQuery.toLowerCase()));
+    // Search query filter - handle missing fields gracefully
+    const eventName = (event.event_name || "").toLowerCase();
+    const eventDesc = (event.description || "").toLowerCase();
+    const eventVenue = (event.venue || "").toLowerCase();
+    const query = searchQuery.toLowerCase();
     
-    // Filter options
-    const matchesLocation = filterOptions.location === "" || 
-      (event.venue && event.venue.toLowerCase().includes(filterOptions.location.toLowerCase()));
+    const matchesSearch = !query || 
+      eventName.includes(query) || 
+      eventDesc.includes(query) || 
+      eventVenue.includes(query);
     
-    const matchesType = filterOptions.type === "" || 
-      (event.category && event.category.toLowerCase() === filterOptions.type.toLowerCase());
+    // Filter options - handle missing fields gracefully
+    const locationFilter = filterOptions.location.toLowerCase();
+    const matchesLocation = !locationFilter || eventVenue.includes(locationFilter);
     
-    const matchesDate = filterOptions.date === "" || 
-      (event.event_time && new Date(event.event_time).toISOString().split('T')[0] === filterOptions.date);
+    const categoryFilter = filterOptions.type.toLowerCase();
+    const eventCategory = (event.event_type || event.category || "").toLowerCase();
+    const matchesType = !categoryFilter || eventCategory === categoryFilter;
+    
+    // Handle date filtering with proper date comparison
+    let matchesDate = true;
+    if (filterOptions.date) {
+      try {
+        const filterDate = new Date(filterOptions.date).toISOString().split('T')[0];
+        const eventDate = new Date(event.event_time).toISOString().split('T')[0];
+        matchesDate = eventDate === filterDate;
+      } catch (e) {
+        console.warn("Date comparison error:", e);
+        matchesDate = true; // On error, include the event
+      }
+    }
     
     return matchesSearch && matchesLocation && matchesType && matchesDate;
   }) : [];
@@ -1327,11 +1375,17 @@ const UserDashboard = () => {
                   className={styles.filterSelect}
                 >
                   <option value="">All Types</option>
-                  <option value="conference">Conference</option>
-                  <option value="workshop">Workshop</option>
-                  <option value="social">Social</option>
-                  <option value="concert">Concert</option>
-                  <option value="hackathon">Hackathon</option>
+                  {/* Get unique event types from data */}
+                  {allEvents && Array.isArray(allEvents) && 
+                    [...new Set(allEvents.map(event => 
+                      event.event_type || event.category || "Other"
+                    ))]
+                    .filter(type => !!type)
+                    .sort()
+                    .map((type, index) => (
+                      <option key={index} value={type}>{type}</option>
+                    ))
+                  }
                 </select>
               </div>
               
@@ -1356,26 +1410,28 @@ const UserDashboard = () => {
             {filteredEvents.map((event, index) => (
               <div key={index} className={styles.eventCard}>
                 <div className={styles.eventCardImage}>
-                  {event.image_url ? (
+                  {event.photos && event.photos.length > 0 ? (
+                    <img src={event.photos[0].photo_url} alt={event.event_name} />
+                  ) : event.image_url ? (
                     <img src={event.image_url} alt={event.event_name} />
                   ) : (
                     <div className={styles.eventCardImagePlaceholder}>
                       <FaCalendarAlt />
                     </div>
                   )}
-                  {event.category && (
-                    <span className={styles.eventType}>{event.category}</span>
-                  )}
+                  <span className={styles.eventType}>
+                    {event.event_type || event.category || "Event"}
+                  </span>
                 </div>
                 <div className={styles.eventCardContent}>
                   <h3>{event.event_name}</h3>
                   <p className={styles.eventCardDescription}>
-                    {event.description?.substring(0, 100)}...
+                    {(event.description || "No description available").substring(0, 100)}...
                   </p>
                   <div className={styles.eventCardDetails}>
-                    <p><FaMapMarkerAlt /> {event.venue || "TBD"}</p>
+                    <p><FaMapMarkerAlt /> {event.venue || "Location TBD"}</p>
                     <p><FaCalendarAlt /> {new Date(event.event_time).toLocaleDateString()}</p>
-                    <p><FaClock /> {new Date(event.event_time).toLocaleTimeString() || "TBA"}</p>
+                    <p><FaClock /> {new Date(event.event_time).toLocaleTimeString()}</p>
                   </div>
                   <button
                     className={styles.registerButton}
