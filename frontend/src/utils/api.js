@@ -1,87 +1,152 @@
 import axios from "axios";
 import { ACCESS_TOKEN, REFRESH_TOKEN } from "./constants";
 
-// Use the existing API URL from the project
-const apiUrl = "http://127.0.0.1:8000/";
-
-// Export the base URL for use in components that need to construct full URLs
-export const getBaseUrl = () => {
-  return import.meta.env.VITE_API_URL ? import.meta.env.VITE_API_URL : apiUrl;
-};
-
-// Export a function to get the full media URL
-export const getMediaUrl = (relativePath) => {
-  if (!relativePath) return null;
-  if (relativePath.startsWith('http')) return relativePath;
-  
-  const baseUrl = getBaseUrl();
-  // Ensure proper path joining with slash handling
-  const baseWithTrailingSlash = baseUrl.endsWith('/') ? baseUrl : `${baseUrl}/`;
-  const pathWithoutLeadingSlash = relativePath.startsWith('/') ? relativePath.substring(1) : relativePath;
-  return `${baseWithTrailingSlash}${pathWithoutLeadingSlash}`;
-};
-
+// Create a base API instance
 const api = axios.create({
-  baseURL: getBaseUrl(),
+  baseURL: import.meta.env.VITE_API_URL || "http://localhost:8000/",
   headers: {
-    'Content-Type': 'application/json',
-    'Accept': 'application/json'
-  }
+    "Content-Type": "application/json",
+  },
 });
 
-// Add request interceptor for handling auth tokens
+// Add a request interceptor to add authorization headers
 api.interceptors.request.use(
   (config) => {
     const token = localStorage.getItem(ACCESS_TOKEN);
+    console.log("API Request:", config.url);
+
     if (token) {
-      // Try both common auth header formats based on token format
-      if (token.split('.').length === 3) {
-        // Looks like a JWT token
-        config.headers['Authorization'] = `Bearer ${token}`;
-      } else {
-        // Might be a simple token
-        config.headers['Authorization'] = `Token ${token}`;
-      }
+      config.headers.Authorization = `Bearer ${token}`;
     }
     return config;
   },
   (error) => {
+    console.error("Request interceptor error:", error);
     return Promise.reject(error);
   }
 );
 
-// Add response interceptor with original refresh token functionality
+// Add a function to dispatch auth errors as events
+const dispatchAuthError = (error) => {
+  // TEMPORARILY DISABLED: Don't treat any 401 errors as auth errors to allow inactive users to use the dashboard
+  // This is a development-only fix
+  console.log("Auth check bypassed - allowing all users (including inactive) to access the dashboard");
+  return;
+
+  /* Original code - commented out for development
+  // Only dispatch if this is a legitimate auth error, not a network error
+  if (error.response && (error.response.status === 401 || error.response.status === 403)) {
+    // Check for user_inactive error code and don't trigger auth error for inactive users
+    if (error.response.data && error.response.data.code === 'user_inactive') {
+      console.log("User is inactive - not dispatching auth error event");
+      return; // Don't dispatch auth error for inactive users
+    }
+
+    console.log("Dispatching auth error event");
+    const event = new CustomEvent('auth-error', {
+      detail: {
+        isAuthError: true,
+        authErrorMessage: error.authErrorMessage || "Authentication failed",
+        status: error.response?.status,
+        originalError: error
+      }
+    });
+    window.dispatchEvent(event);
+  }
+  */
+};
+
+// Add a response interceptor to handle token refresh
 api.interceptors.response.use(
-  (response) => response,
+  (response) => {
+    return response;
+  },
   async (error) => {
     const originalRequest = error.config;
-    
-    // Log error details for debugging
-    console.error('API Error:', error.response ? `Status: ${error.response.status}` : error.message);
-    
-    if (error.response?.status === 401 && !originalRequest._retry) {
+    console.log("API Error Response:", error.response?.status, error.response?.data);
+
+    // Don't retry if we've already retried or there's no response
+    if (!error.response || originalRequest._retry) {
+      return Promise.reject(error);
+    }
+
+    // If the error is due to an expired token (401)
+    if (error.response.status === 401) {
+      // Check if this is the first attempt to check auth in dashboard
+      // Special handling for users/check-auth/ endpoint to avoid immediate logout
+      if (originalRequest.url.includes('users/check-auth/')) {
+        console.log("Initial auth check failed - continuing without event dispatch");
+        return Promise.reject(error);
+      }
+      
       originalRequest._retry = true;
+      
       try {
         const refreshToken = localStorage.getItem(REFRESH_TOKEN);
+        
         if (!refreshToken) {
-          throw new Error('No refresh token available');
+          console.warn("No refresh token available for automatic refresh");
+          return Promise.reject(error);
         }
-
-        const response = await axios.post(`${getBaseUrl()}token/refresh/`, {
-          refresh: refreshToken,
+        
+        console.log("Attempting token refresh");
+        
+        // Use a direct axios instance (not our api instance) to avoid interceptor loop
+        const refreshResponse = await axios({
+          method: 'post',
+          url: `${api.defaults.baseURL}token/refresh/`,
+          data: { refresh: refreshToken },
+          headers: { 'Content-Type': 'application/json' }
         });
 
-        if (response.status === 200) {
-          localStorage.setItem(ACCESS_TOKEN, response.data.access);
-          api.defaults.headers.common['Authorization'] = `Bearer ${response.data.access}`;
-          originalRequest.headers['Authorization'] = `Bearer ${response.data.access}`;
-          return api(originalRequest);
+        if (refreshResponse.status === 200 && refreshResponse.data.access) {
+          // Update access token in localStorage
+          const newToken = refreshResponse.data.access;
+          localStorage.setItem(ACCESS_TOKEN, newToken);
+          
+          console.log("Token refreshed successfully");
+          
+          // Create a new request with the new token
+          const newRequest = {
+            ...originalRequest,
+            headers: {
+              ...originalRequest.headers,
+              Authorization: `Bearer ${newToken}`
+            },
+            _retry: true
+          };
+          
+          return axios(newRequest);
+        } else {
+          console.error("Token refresh succeeded but returned invalid data");
+          return Promise.reject(error);
         }
-      } catch (error) {
-        console.error('Token refresh failed:', error);
-        localStorage.removeItem(ACCESS_TOKEN);
-        localStorage.removeItem(REFRESH_TOKEN);
-        window.location.href = '/login_reg';
+      } catch (refreshError) {
+        console.error("Token refresh failed:", refreshError);
+        
+        // Only redirect if refresh explicitly failed with auth error
+        // NOT on network errors or other temporary issues
+        const shouldRedirect = refreshError.response && 
+          (refreshError.response.status === 401 || refreshError.response.status === 403);
+          
+        if (shouldRedirect) {
+          console.warn("Invalid refresh token, redirecting to login");
+          // Only send the auth error event for non-check-auth endpoints
+          if (!originalRequest.url.includes('check-auth')) {
+            const authError = {
+              ...error,
+              isAuthError: true,
+              authErrorMessage: "Session expired. Please log in again."
+            };
+            
+            // Dispatch an auth error event
+            dispatchAuthError(authError);
+          }
+          
+          // Instead of rejecting with auth error, just reject with regular error
+          return Promise.reject(error);
+        }
+        
         return Promise.reject(error);
       }
     }
@@ -89,6 +154,22 @@ api.interceptors.response.use(
     return Promise.reject(error);
   }
 );
+
+// Helper function to get correct media URL
+export const getMediaUrl = (relativeUrl) => {
+  if (!relativeUrl) return null;
+  
+  // If it's already an absolute URL, return it as is
+  if (relativeUrl.startsWith('http://') || relativeUrl.startsWith('https://')) {
+    return relativeUrl;
+  }
+  
+  // If it has a leading slash, remove it
+  const cleanUrl = relativeUrl.startsWith('/') ? relativeUrl.substring(1) : relativeUrl;
+  
+  // Combine with the API base URL
+  return `${api.defaults.baseURL}${cleanUrl}`;
+};
 
 // Function to send reset password link
 export const sendResetLink = async (email) => {
@@ -175,7 +256,7 @@ export const tryMultipleEndpoints = async (endpoints, method = 'get', data = nul
 // Add this function for better direct fetch handling with CORS
 export const directFetch = async (endpoint, method = 'GET', body = null) => {
   const token = localStorage.getItem(ACCESS_TOKEN);
-  const baseUrl = getBaseUrl();
+  const baseUrl = api.defaults.baseURL;
   const url = `${baseUrl}${endpoint.startsWith('/') ? endpoint.substring(1) : endpoint}`;
   
   const headers = {

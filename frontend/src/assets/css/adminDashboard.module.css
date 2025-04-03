@@ -44,24 +44,26 @@
 }
 
 .userAvatar {
-  width: 80px;
-  height: 80px;
+  width: 120px;
+  height: 120px;
   border-radius: 50%;
   object-fit: cover;
   border: 3px solid var(--primary-color);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
 }
 
 .userAvatarPlaceholder {
-  width: 80px;
-  height: 80px;
+  width: 120px;
+  height: 120px;
   border-radius: 50%;
   background-color: var(--primary-color);
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 24px;
+  font-size: 36px;
   font-weight: bold;
   color: white;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
 }
 
 .sidebarHeader h2 {
@@ -1239,24 +1241,26 @@
 
 /* Profile image enhanced styling */
 .userAvatar {
-  width: 100px;
-  height: 100px;
+  width: 120px;
+  height: 120px;
   border-radius: 50%;
   object-fit: cover;
   border: 3px solid var(--primary-color);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
 }
 
 .userAvatarPlaceholder {
-  width: 100px;
-  height: 100px;
+  width: 120px;
+  height: 120px;
   border-radius: 50%;
   background-color: var(--primary-color);
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 2rem;
+  font-size: 36px;
   font-weight: bold;
   color: white;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
 }
 
 /* Request details styling */
@@ -1533,11 +1537,11 @@
   gap: 12px;
 }
 
-.userAvatar {
-  width: 38px;
-  height: 38px;
+.userAvatarInTable {
+  width: 40px;
+  height: 40px;
   border-radius: 50%;
-  background-color: #ff4a17;
+  background-color: var(--primary-color);
   color: white;
   display: flex;
   align-items: center;
@@ -1548,7 +1552,7 @@
   flex-shrink: 0;
 }
 
-.userAvatar img {
+.userAvatarInTable img {
   width: 100%;
   height: 100%;
   object-fit: cover;
@@ -2123,20 +2127,18 @@
 }
 
 .userAvatarInTable {
-  width: 42px;
-  height: 42px;
-  min-width: 42px;
+  width: 40px;
+  height: 40px;
   border-radius: 50%;
-  background-color: #f3f4f6;
-  color: #4b5563;
+  background-color: var(--primary-color);
+  color: white;
   display: flex;
   align-items: center;
   justify-content: center;
   font-weight: 600;
-  font-size: 1rem;
-  border: 2px solid #eaedf2;
+  font-size: 0.9rem;
   overflow: hidden;
-  position: relative;
+  flex-shrink: 0;
 }
 
 .userAvatarInTable img {
@@ -4267,6 +4269,68 @@
   .eventMonth {
     margin-top: 0;
   }
+}
+
+/* Profile Photo Upload */
+.profilePhotoSection {
+  display: flex;
+  justify-content: center;
+  margin-bottom: 1.5rem;
+}
+
+.photoUploadPreview {
+  position: relative;
+  width: 180px;  /* Increased from 120px */
+  height: 180px; /* Increased from 120px */
+  border-radius: 50%;
+  background-size: cover;
+  background-position: center;
+  background-color: #f0f2f5;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 3px solid #e0e0e0; /* Increased border thickness */
+  overflow: hidden;
+  transition: all 0.3s ease;
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1); /* Added shadow for better visibility */
+}
+
+.photoUploadPreview:hover {
+  box-shadow: 0 6px 12px rgba(66, 153, 225, 0.3);
+}
+
+.photoPlaceholder {
+  font-size: 3.5rem; /* Increased from 2.5rem */
+  font-weight: bold;
+  color: #718096;
+}
+
+.photoInput {
+  position: absolute;
+  width: 0;
+  height: 0;
+  visibility: hidden;
+}
+
+.photoUploadLabel {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  background-color: rgba(0, 0, 0, 0.7);
+  color: white;
+  text-align: center;
+  padding: 10px 0;  /* Increased from 6px */
+  font-size: 0.875rem;  /* Increased from 0.75rem */
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  opacity: 0.8;  /* Always partially visible now */
+}
+
+.photoUploadPreview:hover .photoUploadLabel {
+  opacity: 1;
+  background-color: rgba(0, 0, 0, 0.8);
 }
 
 

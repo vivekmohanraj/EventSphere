@@ -1,0 +1,383 @@
+/* Profile component styles */
+.profileContainer {
+  background-color: white;
+  border-radius: 12px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+  padding: 20px;
+  margin-bottom: 30px;
+}
+
+.profileHeader {
+  margin-bottom: 24px;
+  border-bottom: 1px solid #eaeaea;
+  padding-bottom: 15px;
+}
+
+.profileHeader h2 {
+  color: #333;
+  font-size: 1.5rem;
+  margin-bottom: 5px;
+}
+
+.profileHeader p {
+  color: #666;
+  font-size: 0.95rem;
+}
+
+.profileContent {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 30px;
+  margin-bottom: 30px;
+}
+
+.profilePhoto {
+  flex: 0 0 200px;
+  text-align: center;
+}
+
+.profileImage {
+  width: 180px;
+  height: 180px;
+  border-radius: 50%;
+  object-fit: cover;
+  border: 3px solid #ff4a17;
+  margin-bottom: 15px;
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+  transition: transform 0.3s ease;
+}
+
+.profileImage:hover {
+  transform: scale(1.03);
+}
+
+.photoPlaceholder {
+  width: 180px;
+  height: 180px;
+  border-radius: 50%;
+  background-color: #f5f5f5;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 3px solid #ff4a17;
+  margin-bottom: 15px;
+  font-size: 3rem;
+  color: #888;
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+}
+
+.photoUpload {
+  position: relative;
+  overflow: hidden;
+  display: inline-block;
+  margin-top: 10px;
+}
+
+.photoUpload input[type=file] {
+  position: absolute;
+  left: 0;
+  top: 0;
+  opacity: 0;
+  width: 100%;
+  height: 100%;
+  cursor: pointer;
+}
+
+.uploadLabel {
+  background-color: #ff4a17;
+  color: white;
+  padding: 8px 16px;
+  border-radius: 4px;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  cursor: pointer;
+  transition: background-color 0.3s;
+  font-size: 0.9rem;
+}
+
+.uploadLabel:hover {
+  background-color: #e53c09;
+}
+
+.profileDetails {
+  flex: 1;
+  min-width: 300px;
+}
+
+.profileInfo {
+  margin-bottom: 20px;
+}
+
+.infoRow {
+  margin-bottom: 16px;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  padding-bottom: 10px;
+  border-bottom: 1px solid #f0f0f0;
+}
+
+.infoRow:last-child {
+  border-bottom: none;
+}
+
+.infoLabel {
+  flex: 0 0 120px;
+  font-weight: 600;
+  color: #555;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.infoLabel svg {
+  color: #ff4a17;
+}
+
+.infoValue {
+  flex: 1;
+  color: #333;
+  font-size: 1rem;
+}
+
+.profileForm {
+  display: flex;
+  flex-direction: column;
+  gap: 15px;
+}
+
+.formRow {
+  display: flex;
+  flex-direction: column;
+  margin-bottom: 15px;
+}
+
+.formLabel {
+  font-weight: 600;
+  margin-bottom: 5px;
+  color: #555;
+}
+
+.formInput {
+  padding: 10px;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  font-size: 1rem;
+  transition: all 0.3s ease;
+}
+
+.formInput:focus {
+  border-color: #ff4a17;
+  outline: none;
+  box-shadow: 0 0 0 2px rgba(255, 74, 23, 0.1);
+}
+
+.errorInput {
+  border-color: #d32f2f;
+  background-color: rgba(211, 47, 47, 0.05);
+}
+
+.errorText {
+  color: #d32f2f;
+  font-size: 0.85rem;
+  margin-top: 5px;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.profileActions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 20px;
+}
+
+.buttonPrimary {
+  background-color: #ff4a17;
+  color: white;
+  border: none;
+  padding: 10px 20px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-weight: 600;
+  transition: background-color 0.3s;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.buttonPrimary:hover:not(:disabled) {
+  background-color: #e53c09;
+}
+
+.buttonPrimary:disabled {
+  background-color: #ccc;
+  cursor: not-allowed;
+}
+
+.buttonSecondary {
+  background-color: transparent;
+  border: 1px solid #ddd;
+  color: #555;
+  padding: 10px 20px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-weight: 600;
+  transition: all 0.3s;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.buttonSecondary:hover:not(:disabled) {
+  border-color: #ff4a17;
+  color: #ff4a17;
+}
+
+.buttonSecondary:disabled {
+  color: #aaa;
+  border-color: #ddd;
+  cursor: not-allowed;
+}
+
+.tabContainer {
+  margin-top: 30px;
+}
+
+.tabNavigation {
+  display: flex;
+  border-bottom: 1px solid #eaeaea;
+  margin-bottom: 20px;
+}
+
+.tab {
+  padding: 12px 20px;
+  background: none;
+  border: none;
+  border-bottom: 3px solid transparent;
+  cursor: pointer;
+  font-weight: 600;
+  color: #666;
+  transition: all 0.3s;
+}
+
+.tab:hover {
+  color: #ff4a17;
+}
+
+.tabActive {
+  color: #ff4a17;
+  border-bottom: 3px solid #ff4a17;
+}
+
+.tabContent {
+  padding: 10px 0;
+}
+
+.formSection {
+  margin-bottom: 25px;
+}
+
+.formSection h3 {
+  margin-bottom: 15px;
+  font-size: 1.2rem;
+  color: #444;
+  border-bottom: 1px solid #eaeaea;
+  padding-bottom: 10px;
+}
+
+.success {
+  background-color: #e8f5e9;
+  color: #2e7d32;
+  padding: 12px;
+  border-radius: 4px;
+  margin-bottom: 15px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  animation: fadeIn 0.3s ease-in-out;
+}
+
+.error {
+  background-color: #ffebee;
+  color: #c62828;
+  padding: 12px;
+  border-radius: 4px;
+  margin-bottom: 15px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  animation: fadeIn 0.3s ease-in-out;
+}
+
+.loader {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 30px;
+  color: #666;
+  text-align: center;
+}
+
+/* Spinner animation */
+.spinnerIcon {
+  animation: spin 1s linear infinite;
+  font-size: 1.5rem;
+  color: #ff4a17;
+  margin-bottom: 10px;
+}
+
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+/* Responsive adjustments */
+@media (max-width: 900px) {
+  .profileContent {
+    flex-direction: column;
+  }
+  
+  .profilePhoto {
+    align-self: center;
+  }
+}
+
+@media (max-width: 600px) {
+  .infoRow {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+  
+  .infoLabel {
+    margin-bottom: 5px;
+  }
+  
+  .tabNavigation {
+    flex-wrap: wrap;
+  }
+  
+  .tab {
+    flex: 1;
+    min-width: 120px;
+    text-align: center;
+    padding: 10px;
+  }
+  
+  .profileActions {
+    flex-direction: column;
+  }
+  
+  .buttonPrimary, .buttonSecondary {
+    width: 100%;
+    justify-content: center;
+  }
+} 

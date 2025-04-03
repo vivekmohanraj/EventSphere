@@ -4,6 +4,14 @@
 export const normalizeUserData = (userData) => {
   if (!userData) return null;
   
+  // Handle conversion of user_role values for frontend
+  let userRole = userData.user_role || userData.user_type || 'user';
+  
+  // Handle legacy 'normal' value, convert to 'user'
+  if (userRole === 'normal') {
+    userRole = 'user';
+  }
+  
   return {
     id: userData.id,
     username: userData.username || '',
@@ -11,7 +19,7 @@ export const normalizeUserData = (userData) => {
     first_name: userData.first_name || '',
     last_name: userData.last_name || '',
     phone: userData.phone || '',
-    user_type: userData.user_role || userData.user_type || 'normal',
+    user_type: userRole, // For frontend consistency we still use user_type
     is_active: userData.is_active === undefined ? true : userData.is_active,
     coordinator_request: userData.coordinator_request || false,
     date_joined: userData.created_at || userData.date_joined || new Date().toISOString(),

@@ -6,8 +6,7 @@ import { ACCESS_TOKEN } from "../../utils/constants";
 import styles from "../../assets/css/adminDashboard.module.css";
 import { normalizeUserData } from "../../utils/dataFormatters";
 
-// Add this line after imports to debug
-console.log("CSS Module loaded:", Object.keys(styles));
+
 
 const UsersManagement = () => {
   const [users, setUsers] = useState([]);
@@ -21,10 +20,13 @@ const UsersManagement = () => {
     first_name: "",
     last_name: "",
     phone: "",
-    user_type: "normal",
+    user_type: "user",
     password: "",
-    is_active: true
+    confirm_password: "",
+    is_active: true,
+    profile_photo: null
   });
+  const [profilePreview, setProfilePreview] = useState(null);
   const [viewUser, setViewUser] = useState(null);
   const [showViewModal, setShowViewModal] = useState(false);
 
@@ -165,10 +167,13 @@ const UsersManagement = () => {
       first_name: "",
       last_name: "",
       phone: "",
-      user_type: "normal",
+      user_type: "user",
       password: "",
-      is_active: true
+      confirm_password: "",
+      is_active: true,
+      profile_photo: null
     });
+    setProfilePreview(null);
     setShowModal(true);
   };
 
@@ -192,9 +197,20 @@ const UsersManagement = () => {
       first_name: user.first_name || "",
       last_name: user.last_name || "",
       phone: user.phone || "",
-      user_type: user.user_type || "normal",
-      is_active: user.is_active !== undefined ? user.is_active : true
+      user_type: user.user_type || "user",
+      is_active: user.is_active !== undefined ? user.is_active : true,
+      profile_photo: null // Reset this on edit
     });
+    
+    // Set profile preview if exists
+    if (user.profile_photo) {
+      setProfilePreview(user.profile_photo.startsWith('http') ? 
+        user.profile_photo : 
+        `${api.defaults.baseURL}${user.profile_photo}`);
+    } else {
+      setProfilePreview(null);
+    }
+    
     setShowModal(true);
   };
 
@@ -253,85 +269,214 @@ const UsersManagement = () => {
   };
 
   const handleInputChange = (e) => {
-    const { name, value, type, checked } = e.target;
-    setFormData((prev) => ({
-      ...prev,
-      [name]: type === 'checkbox' ? checked : value,
-    }));
+    const { name, value, type, checked, files } = e.target;
+    
+    if (type === 'file') {
+      // Handle file uploads
+      if (files && files[0]) {
+        setFormData(prev => ({
+          ...prev,
+          [name]: files[0]
+        }));
+        
+        // Create a preview
+        const reader = new FileReader();
+        reader.onloadend = () => {
+          setProfilePreview(reader.result);
+        };
+        reader.readAsDataURL(files[0]);
+      }
+    } else {
+      // Handle other inputs
+      setFormData(prev => ({
+        ...prev,
+        [name]: type === 'checkbox' ? checked : value,
+      }));
+    }
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    
+    // Validate passwords match for new users
+    if (!selectedUser) {
+      if (formData.password !== formData.confirm_password) {
+        toast.error("Passwords don't match");
+        return;
+      }
+      
+      // Simple password validation to match login_reg.jsx
+      if (formData.password.length < 8) {
+        toast.error("Password must be at least 8 characters long");
+        return;
+      }
+      
+      const hasUppercase = /[A-Z]/.test(formData.password);
+      const hasLowercase = /[a-z]/.test(formData.password);
+      const hasNumber = /[0-9]/.test(formData.password);
+      const hasSpecial = /[!@#$%^&*]/.test(formData.password);
+      
+      if (!hasUppercase || !hasLowercase || !hasNumber || !hasSpecial) {
+        toast.error("Password must contain uppercase, lowercase, number, and special character");
+        return;
+      }
+    }
+    
     try {
       console.log("Submitting user data:", formData);
       
-      // Map form data to backend model fields
-      const userData = {
-        username: formData.username,
-        email: formData.email,
-        first_name: formData.first_name,
-        last_name: formData.last_name,
-        phone: formData.phone,
-        // Include both field names for compatibility
-        user_role: formData.user_type,
-        user_type: formData.user_type,
-        is_active: formData.is_active
-      };
+      // Use FormData to handle file uploads
+      const formDataToSend = new FormData();
+      formDataToSend.append('username', formData.username);
+      formDataToSend.append('email', formData.email);
+      formDataToSend.append('first_name', formData.first_name);
+      formDataToSend.append('last_name', formData.last_name);
+      formDataToSend.append('phone', formData.phone || '');
       
-      // Only include password for new users or if changed
-      if (formData.password) {
-        userData.password = formData.password;
+      // Align with login_reg.jsx - use user_role consistently
+      formDataToSend.append('user_role', formData.user_type);
+      formDataToSend.append('user_type', formData.user_type);
+      formDataToSend.append('is_active', formData.is_active);
+      
+      // Only include password for new users or if actually changed/filled
+      if (formData.password && formData.password.trim() !== '') {
+        formDataToSend.append('password', formData.password);
+        formDataToSend.append('confirm_password', formData.confirm_password);
       }
+      
+      // Add profile photo if selected
+      if (formData.profile_photo) {
+        formDataToSend.append('profile_photo', formData.profile_photo);
+      }
+      
+      console.log("Prepared FormData for API", formData.profile_photo ? "with profile photo" : "without profile photo");
+      
+      // Set headers for multipart form data
+      const config = {
+        headers: {
+          'Content-Type': 'multipart/form-data'
+        }
+      };
       
       if (selectedUser) {
         // Update existing user
         console.log(`Updating user ${selectedUser.id}`);
-        const response = await api.patch(`users/${selectedUser.id}/`, userData);
-        console.log("Update response:", response);
-        toast.success("User updated successfully");
+        try {
+          // Try multiple endpoints to update the user
+          let response;
+          const endpoints = [
+            `users/${selectedUser.id}/`,
+            `api/users/${selectedUser.id}/`
+          ];
+          
+          let successfulEndpoint = null;
+          for (let endpoint of endpoints) {
+            try {
+              console.log(`Attempting to update user via ${endpoint}`);
+              response = await api.patch(endpoint, formDataToSend, config);
+              console.log("Update response:", response);
+              successfulEndpoint = endpoint;
+              break; // Stop trying endpoints if one succeeds
+            } catch (error) {
+              console.error(`Failed to update using ${endpoint}`, error);
+              if (error.response) {
+                console.error("Error response status:", error.response.status);
+                console.error("Error response data:", error.response.data);
+                // Log each field error separately for clarity
+                if (typeof error.response.data === 'object') {
+                  Object.entries(error.response.data).forEach(([field, errorMsg]) => {
+                    console.error(`Field error - ${field}:`, errorMsg);
+                  });
+                }
+              }
+              
+              if (endpoints.indexOf(endpoint) === endpoints.length - 1) {
+                // If this is the last endpoint and it failed, throw the error
+                throw error;
+              }
+            }
+          }
+          
+          toast.success("User updated successfully");
+        } catch (error) {
+          console.error("Error saving user:", error);
+          
+          // Create a readable error message
+          let errorMessage = "Failed to update user";
+          if (error.response?.data) {
+            // Handle both array and object error responses
+            if (typeof error.response.data === 'object') {
+              const errors = Object.entries(error.response.data)
+                .map(([field, msgs]) => `${field}: ${Array.isArray(msgs) ? msgs.join(', ') : msgs}`)
+                .join('; ');
+              if (errors) errorMessage += `: ${errors}`;
+            } else if (typeof error.response.data === 'string') {
+              errorMessage += `: ${error.response.data}`;
+            }
+          }
+          
+          toast.error(errorMessage);
+          throw error;
+        }
       } else {
-        // Create new user - try both common endpoints
+        // Create new user - use the same endpoint as login_reg.jsx
         console.log("Creating new user");
         try {
-          const response = await api.post("users/register/", userData);
-          console.log("Create response:", response);
-        } catch (error) {
-          if (error.response?.status === 404) {
-            // Try the users/ endpoint if register endpoint doesn't exist
-            const response = await api.post("users/", userData);
-            console.log("Create response (alternate endpoint):", response);
-          } else {
-            throw error;
+          // Make sure we have a password for new users
+          if (!formData.password) {
+            toast.error("Password is required for new users");
+            return;
           }
+          
+          // Use the register endpoint first, matching login_reg.jsx
+          let response;
+          try {
+            response = await api.post("users/register/", formDataToSend, config);
+            console.log("Create response:", response);
+          } catch (error) {
+            // If register endpoint fails, try fallback endpoints
+            console.error("Registration endpoint failed:", error.response?.status);
+            
+            if (error.response?.status === 404) {
+              // Try other endpoints if register doesn't exist
+              try {
+                response = await api.post("users/", formDataToSend, config);
+              } catch (err) {
+                // One more fallback attempt
+                response = await api.post("api/users/", formDataToSend, config);
+              }
+              console.log("Create response (alternate endpoint):", response);
+            } else {
+              throw error;
+            }
+          }
+          toast.success("User created successfully");
+        } catch (error) {
+          console.error("Error creating user:", error);
+          
+          // Create a readable error message
+          let errorMessage = "Failed to create user";
+          if (error.response?.data) {
+            // Format error messages to match login_reg.jsx handling
+            if (typeof error.response.data === 'object') {
+              const errors = Object.entries(error.response.data)
+                .map(([field, msgs]) => `${field}: ${Array.isArray(msgs) ? msgs.join(', ') : msgs}`)
+                .join('; ');
+              if (errors) errorMessage += `: ${errors}`;
+            } else if (typeof error.response.data === 'string') {
+              errorMessage += `: ${error.response.data}`;
+            }
+          }
+          
+          toast.error(errorMessage);
+          throw error;
         }
-        toast.success("User created successfully");
       }
 
       setShowModal(false);
       fetchUsers();
     } catch (error) {
-      console.error("Error saving user:", error);
-      
-      if (error.response) {
-        console.log("Error status:", error.response.status);
-        console.log("Error data:", error.response.data);
-        
-        if (error.response.status === 400) {
-          // Validation error
-          const errorMsg = typeof error.response.data === 'object' 
-            ? Object.entries(error.response.data)
-                .map(([field, msgs]) => `${field}: ${Array.isArray(msgs) ? msgs.join(', ') : msgs}`)
-                .join('; ')
-            : error.response.data;
-          toast.error(`Validation error: ${errorMsg}`);
-        } else if (error.response.status === 403) {
-          toast.error("You don't have permission to perform this action");
-        } else {
-          toast.error(`Operation failed: ${error.response.status}`);
-        }
-      } else {
-        toast.error("Failed to save user - connection error");
-      }
+      console.error("Form submission error:", error);
     }
   };
 
@@ -410,16 +555,16 @@ const UsersManagement = () => {
                   <td>
                     <span
                       className={`${styles.userBadge} ${
-                        user.user_role === "admin"
+                        user.user_type === "admin"
                           ? styles.userAdminBadge
-                          : user.user_role === "coordinator"
+                          : user.user_type === "coordinator"
                           ? styles.userCoordinatorBadge
                           : styles.userNormalBadge
                       }`}
                     >
-                      {user.user_role === "admin"
+                      {user.user_type === "admin"
                         ? "Admin"
-                        : user.user_role === "coordinator"
+                        : user.user_type === "coordinator"
                         ? "Coordinator"
                         : "User"}
                     </span>
@@ -470,6 +615,33 @@ const UsersManagement = () => {
             </div>
             
             <form onSubmit={handleSubmit} className={styles.modalForm}>
+              <div className={styles.profilePhotoSection}>
+                <div 
+                  className={styles.photoUploadPreview}
+                  style={{ 
+                    backgroundImage: profilePreview ? `url(${profilePreview})` : 'none'
+                  }}
+                >
+                  {!profilePreview && (
+                    <div className={styles.photoPlaceholder}>
+                      {formData.first_name ? formData.first_name.charAt(0).toUpperCase() : ''}
+                      {formData.last_name ? formData.last_name.charAt(0).toUpperCase() : ''}
+                    </div>
+                  )}
+                  <input
+                    type="file"
+                    name="profile_photo"
+                    id="profile_photo"
+                    accept="image/*"
+                    onChange={handleInputChange}
+                    className={styles.photoInput}
+                  />
+                  <label htmlFor="profile_photo" className={styles.photoUploadLabel}>
+                    {profilePreview ? 'Change Photo' : 'Upload Photo'}
+                  </label>
+                </div>
+              </div>
+
               <div className={styles.formRow}>
                 <div className={styles.formGroup}>
                   <label className={styles.formLabel}>Username</label>
@@ -539,25 +711,45 @@ const UsersManagement = () => {
                     value={formData.user_type}
                     onChange={handleInputChange}
                   >
-                    <option value="normal">User</option>
-                    <option value="coordinator">Coordinator</option>
+                    <option value="user">Normal User</option>
+                    <option value="coordinator">Event Coordinator</option>
                     <option value="admin">Admin</option>
                   </select>
+                  <small className={styles.helpText}>
+                    Normal users can browse and attend events. Coordinators can create and manage events.
+                  </small>
                 </div>
               </div>
               
               {!selectedUser && (
-                <div className={styles.formGroup}>
-                  <label className={styles.formLabel}>Password</label>
-                  <input
-                    type="password"
-                    name="password"
-                    className={styles.formControl}
-                    value={formData.password}
-                    onChange={handleInputChange}
-                    required
-                  />
-                </div>
+                <>
+                  <div className={styles.formGroup}>
+                    <label className={styles.formLabel}>Password</label>
+                    <input
+                      type="password"
+                      name="password"
+                      className={styles.formControl}
+                      value={formData.password}
+                      onChange={handleInputChange}
+                      required
+                    />
+                    <small className={styles.helpText}>
+                      Password must be at least 8 characters with uppercase, lowercase, number, and special character.
+                    </small>
+                  </div>
+                  
+                  <div className={styles.formGroup}>
+                    <label className={styles.formLabel}>Confirm Password</label>
+                    <input
+                      type="password"
+                      name="confirm_password"
+                      className={styles.formControl}
+                      value={formData.confirm_password}
+                      onChange={handleInputChange}
+                      required
+                    />
+                  </div>
+                </>
               )}
               
               <div className={styles.formCheckGroup}>
@@ -632,11 +824,11 @@ const UsersManagement = () => {
                     viewUser.user_type === "coordinator" ? styles.coordinatorRole :
                     styles.userRole
                   }`}>
-                    {viewUser.user_type === "normal"
-                      ? "User"
+                    {viewUser.user_type === "admin"
+                      ? "Admin"
                       : viewUser.user_type === "coordinator"
                       ? "Coordinator"
-                      : "Admin"}
+                      : "User"}
                   </span>
                   
                   <span className={`${styles.statusDot} ${

@@ -526,8 +526,16 @@ const Dashboard = () => {
         
         // Handle profile photo URL
         if (userData.profile_photo) {
-          // Use the getMediaUrl utility function
-          setProfilePhotoPreview(getMediaUrl(userData.profile_photo));
+          // Set profile photo preview using full URL path when needed
+          const photoUrl = userData.profile_photo.startsWith('http') 
+            ? userData.profile_photo 
+            : `${api.defaults.baseURL}${userData.profile_photo}`;
+          
+          setProfilePhotoPreview(photoUrl);
+          
+          // Cache the profile photo for better performance
+          const img = new Image();
+          img.src = photoUrl;
         }
       } else {
         throw new Error("Could not fetch profile from any endpoint");
@@ -1068,9 +1076,13 @@ const Dashboard = () => {
               src={profilePhotoPreview} 
               alt="Profile" 
               className={styles.userAvatar}
+              style={{ width: '150px', height: '150px' }}
             />
           ) : (
-            <div className={styles.userAvatarPlaceholder}>
+            <div 
+              className={styles.userAvatarPlaceholder}
+              style={{ width: '150px', height: '150px', fontSize: '48px' }}
+            >
               <span>
                 {userProfile.first_name ? userProfile.first_name.charAt(0).toUpperCase() : ''}
                 {userProfile.last_name ? userProfile.last_name.charAt(0).toUpperCase() : ''}

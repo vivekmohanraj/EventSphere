@@ -118,11 +118,11 @@ const LoginRegistration = () => {
   };
 
   const handleRoleSelect = (role) => {
-    setValue("role", role);
+    setValue("role", role === "User" ? "user" : "coordinator");
     setShowRoleModal(false);
     setIsLogin(false);
     toast.success(
-      `Registered as ${role === "User" ? "normal" : "coordinator"}`
+      `Registered as ${role === "User" ? "User" : "Event Coordinator"}`
     );
   };
 
@@ -136,24 +136,48 @@ const LoginRegistration = () => {
 
   const onSubmitLogin = async (data) => {
     try {
+      console.log("Login attempt with:", { login: data.login });
+      
+      // Clean up any existing auth error events
+      window.removeEventListener('auth-error', () => {});
+      
       const response = await api.post("users/login/", {
-        // No leading slash
         login: data.login,
         password: data.password,
       });
 
-      // const { access, refresh } = response.data;
+      console.log("Login response:", response.data);
+      
+      // Clear any previous error states
+      localStorage.removeItem('auth_error_count');
+      
+      // Store tokens
       localStorage.setItem(ACCESS_TOKEN, response.data.access);
       localStorage.setItem(REFRESH_TOKEN, response.data.refresh);
 
-      // Store user data
+      // Extract and normalize role to ensure consistency
+      let userRole = response.data.role || response.data.user_role || 'normal';
+      
+      // Store user data with consistent field names
       const userData = {
         username: response.data.username,
-        role: response.data.role
+        role: userRole,
+        email: response.data.email
       };
+      
+      console.log("Storing user data:", userData);
       localStorage.setItem("user", JSON.stringify(userData));
+      
       toast.success("Login successful!");
-      window.location.href = "/";
+      
+      // Redirect based on role
+      if (userRole === 'admin') {
+        window.location.href = "/admin-dashboard";
+      } else if (userRole === 'coordinator') {
+        window.location.href = "/coordinator-dashboard";
+      } else {
+        window.location.href = "/";
+      }
     } catch (error) {
       console.error("Login error:", error.response?.data || error.message);
       toast.error(error.response?.data?.error || "Login failed.");
@@ -230,12 +254,22 @@ const LoginRegistration = () => {
     }
 
     const googleToken = response.credential; // Corrected field
-
+    
     try {
+      // Get role value, defaulting to 'user' if not set or if the value is 'normal'
+      let roleValue = getValues("role") || "user";
+      
+      // Convert 'normal' to 'user' to match backend expectations
+      if (roleValue === "normal") {
+        roleValue = "user";
+      }
+      
+      console.log("Sending Google login with role:", roleValue);
+      
       const res = await api.post("users/google-login/", {
         token: googleToken,
-        role: getValues("role") || "normal",// Make sure the role is sent
-      },console.log(getValues("role")));
+        role: roleValue
+      });
 
       console.log("Success:", res.data);
       localStorage.setItem(ACCESS_TOKEN, res.data.access);
@@ -250,11 +284,17 @@ const LoginRegistration = () => {
 
       toast.success("Login successful!");
 
-      window.location.href = "/";
+      // Redirect based on role
+      if (userData.role === 'admin') {
+        window.location.href = "/admin-dashboard";
+      } else if (userData.role === 'coordinator') {
+        window.location.href = "/coordinator-dashboard";
+      } else {
+        window.location.href = "/";
+      }
     } catch (error) {
       toast.error(error.response?.data?.error || "Login failed.");
-      console.error("Error:", error);
-      console.log(error.role)
+      console.error("Error:", error.response?.data || error.message);
     }
   };
 
@@ -325,19 +365,23 @@ const LoginRegistration = () => {
       ></div>
       <div
         className="container d-flex flex-column align-items-center py-5"
-        style={{ minHeight: "100vh" }}
+        style={{ minHeight: "100vh", backgroundColor: "#f9fafc" }}
       >
         <ToastContainer />
-        <div className={`${styles.formContainer} card shadow p-4`}>
-          <h3 className="text-center mb-4">{isLogin ? "Login" : "Register"}</h3>
+        <div className={`${styles.formContainer} card shadow`}>
+          <h3 className="text-center mb-4" style={{ fontWeight: '600', color: '#333', fontSize: '1.8rem' }}>
+            {isLogin ? "Login to Your Account" : "Create an Account"}
+          </h3>
 
           {isLogin ? (
             <Form onSubmit={handleLoginSubmit(onSubmitLogin)}>
-              <Form.Group className="mb-3">
-                <Form.Label>Username or Email</Form.Label>
+              <Form.Group className="mb-4">
+                <Form.Label style={{ fontWeight: '500', color: '#555' }}>Username or Email</Form.Label>
                 <Form.Control
                   {...loginRegister("login")}
                   isInvalid={!!loginErrors.login}
+                  className="py-2 px-3"
+                  style={{ borderRadius: '8px', border: '1px solid #dde1e7', boxShadow: 'none' }}
                 />
                 {loginErrors.login && (
                   <Form.Text className="text-danger">
@@ -346,39 +390,43 @@ const LoginRegistration = () => {
                 )}
               </Form.Group>
 
-              <Form.Group className="mb-3">
-                <Form.Label>Password</Form.Label>
+              <Form.Group className="mb-4">
+                <Form.Label style={{ fontWeight: '500', color: '#555' }}>Password</Form.Label>
                 <div className="position-relative">
                   <Form.Control
                     type={showPassword ? "text" : "password"}
                     {...loginRegister("password")}
                     isInvalid={!!loginErrors.password}
+                    className="py-2 px-3"
+                    style={{ borderRadius: '8px', border: '1px solid #dde1e7', boxShadow: 'none' }}
                   />
                   {showPassword ? (
                     <EyeOff
                       size={20}
-                      className="position-absolute end-0 top-50 translate-middle-y me-2 cursor-pointer"
+                      className="position-absolute end-0 top-50 translate-middle-y me-3 cursor-pointer"
                       onClick={() => setShowPassword(false)}
+                      style={{ color: '#6b7280', cursor: 'pointer' }}
                     />
                   ) : (
                     <Eye
                       size={20}
-                      className="position-absolute end-0 top-50 translate-middle-y me-2 cursor-pointer"
+                      className="position-absolute end-0 top-50 translate-middle-y me-3 cursor-pointer"
                       onClick={() => setShowPassword(true)}
+                      style={{ color: '#6b7280', cursor: 'pointer' }}
                     />
                   )}
                 </div>
                 {loginErrors.password && (
                   <Form.Text
                     className="text-danger"
-                    style={{ marginTop: "1.5rem" }}
+                    style={{ marginTop: "0.5rem" }}
                   >
                     {loginErrors.password.message}
                   </Form.Text>
                 )}
               </Form.Group>
 
-              <div className="d-grid gap-2">
+              <div className="d-grid gap-3 mt-4">
                 <Button type="submit" className={styles.customBtn}>
                   Login
                 </Button>
@@ -393,15 +441,16 @@ const LoginRegistration = () => {
                         type="button" // Prevents form submission
                         onClick={renderProps.onClick}
                         disabled={renderProps.disabled}
-                        className="d-flex align-items-center justify-content-center btn btn-outline-danger"
+                        className="d-flex align-items-center justify-content-center btn btn-outline-secondary"
+                        style={{ borderRadius: '8px', padding: '10px', fontWeight: '500' }}
                       >
-                        <FaGoogle size={20} className="me-2" /> Sign in with
+                        <FaGoogle size={18} className="me-2" /> Sign in with
                         Google
                       </button>
                     )}
                   />
                 </GoogleOAuthProvider>
-                <Link to="/reset-link-sent" className={styles.forgotPassword}>
+                <Link to="/forgot-password" className={styles.forgotPassword}>
                   Forgot Password?
                 </Link>
               </div>
@@ -427,6 +476,7 @@ const LoginRegistration = () => {
                   onChange={handleFileChange}
                   className="w-auto"
                   isInvalid={!!errors.profilePic}
+                  style={{ maxWidth: '220px' }}
                 />
                 {errors.profilePic && (
                   <Form.Text className="text-danger">
@@ -435,15 +485,17 @@ const LoginRegistration = () => {
                 )}
               </div>
 
-              <Row>
+              <Row className="mb-2">
                 <Col md={6}>
                   <Form.Group className="mb-3">
-                    <Form.Label>First Name</Form.Label>
+                    <Form.Label style={{ fontWeight: '500', color: '#555' }}>First Name</Form.Label>
                     <Form.Control
                       {...register("firstName", {
                         onChange: () => trigger("firstName"),
                       })}
                       isInvalid={!!errors.firstName}
+                      className="py-2 px-3"
+                      style={{ borderRadius: '8px', border: '1px solid #dde1e7', boxShadow: 'none' }}
                     />
                     {errors.firstName && (
                       <Form.Text className="text-danger">
@@ -454,12 +506,14 @@ const LoginRegistration = () => {
                 </Col>
                 <Col md={6}>
                   <Form.Group className="mb-3">
-                    <Form.Label>Last Name</Form.Label>
+                    <Form.Label style={{ fontWeight: '500', color: '#555' }}>Last Name</Form.Label>
                     <Form.Control
                       {...register("lastName", {
                         onChange: () => trigger("lastName"),
                       })}
                       isInvalid={!!errors.lastName}
+                      className="py-2 px-3"
+                      style={{ borderRadius: '8px', border: '1px solid #dde1e7', boxShadow: 'none' }}
                     />
                     {errors.lastName && (
                       <Form.Text className="text-danger">
@@ -471,7 +525,7 @@ const LoginRegistration = () => {
               </Row>
 
               <Form.Group className="mb-3">
-                <Form.Label>Username</Form.Label>
+                <Form.Label style={{ fontWeight: '500', color: '#555' }}>Username</Form.Label>
                 <Form.Control
                   {...register("username", {
                     onChange: () => trigger("username"),
@@ -479,6 +533,8 @@ const LoginRegistration = () => {
                   })}
                   isInvalid={!!errors.username || usernameAvailable === false}
                   isValid={usernameAvailable === true}
+                  className="py-2 px-3"
+                  style={{ borderRadius: '8px', border: '1px solid #dde1e7', boxShadow: 'none' }}
                 />
                 {errors.username && (
                   <Form.Text className="text-danger">
@@ -493,7 +549,7 @@ const LoginRegistration = () => {
               </Form.Group>
 
               <Form.Group className="mb-3">
-                <Form.Label>Email</Form.Label>
+                <Form.Label style={{ fontWeight: '500', color: '#555' }}>Email</Form.Label>
                 <Form.Control
                   type="email"
                   {...register("email", {
@@ -502,6 +558,8 @@ const LoginRegistration = () => {
                   })}
                   isInvalid={!!errors.email || emailAvailable === false}
                   isValid={emailAvailable === true}
+                  className="py-2 px-3"
+                  style={{ borderRadius: '8px', border: '1px solid #dde1e7', boxShadow: 'none' }}
                 />
                 {errors.email && (
                   <Form.Text className="text-danger">
@@ -518,9 +576,9 @@ const LoginRegistration = () => {
                 )}
               </Form.Group>
               <Form.Group className="mb-3">
-                <Form.Label>Phone Number</Form.Label>
+                <Form.Label style={{ fontWeight: '500', color: '#555' }}>Phone Number</Form.Label>
                 <div className="input-group">
-                  <span className="input-group-text" id="basic-addon1">
+                  <span className="input-group-text" id="basic-addon1" style={{ borderRadius: '8px 0 0 8px', border: '1px solid #dde1e7', backgroundColor: '#f7f9fc' }}>
                     +91
                   </span>
                   <Form.Control
@@ -530,6 +588,8 @@ const LoginRegistration = () => {
                     })}
                     isInvalid={!!errors.phoneNumber}
                     placeholder="Enter your phone number"
+                    className="py-2 px-3"
+                    style={{ borderRadius: '0 8px 8px 0', border: '1px solid #dde1e7', boxShadow: 'none' }}
                   />
                 </div>
                 {errors.phoneNumber && (
@@ -540,7 +600,7 @@ const LoginRegistration = () => {
               </Form.Group>
 
               <Form.Group className="mb-3">
-                <Form.Label>Password</Form.Label>
+                <Form.Label style={{ fontWeight: '500', color: '#555' }}>Password</Form.Label>
                 <div className="position-relative">
                   <Form.Control
                     type={showRegPassword ? "text" : "password"}
@@ -548,25 +608,29 @@ const LoginRegistration = () => {
                       onChange: () => trigger("password"),
                     })}
                     isInvalid={!!errors.password}
+                    className="py-2 px-3"
+                    style={{ borderRadius: '8px', border: '1px solid #dde1e7', boxShadow: 'none' }}
                   />
                   {showRegPassword ? (
                     <EyeOff
                       size={20}
-                      className="position-absolute end-0 top-50 translate-middle-y me-2 cursor-pointer"
+                      className="position-absolute end-0 top-50 translate-middle-y me-3 cursor-pointer"
                       onClick={() => setShowRegPassword(false)}
+                      style={{ color: '#6b7280', cursor: 'pointer' }}
                     />
                   ) : (
                     <Eye
                       size={20}
-                      className="position-absolute end-0 top-50 translate-middle-y me-2 cursor-pointer"
+                      className="position-absolute end-0 top-50 translate-middle-y me-3 cursor-pointer"
                       onClick={() => setShowRegPassword(true)}
+                      style={{ color: '#6b7280', cursor: 'pointer' }}
                     />
                   )}
                 </div>
                 {errors.password && (
                   <Form.Text
                     className="text-danger"
-                    style={{ marginTop: "1.5rem" }}
+                    style={{ marginTop: "0.5rem" }}
                   >
                     {errors.password.message}
                   </Form.Text>
@@ -574,7 +638,7 @@ const LoginRegistration = () => {
               </Form.Group>
 
               <Form.Group className="mb-3">
-                <Form.Label>Confirm Password</Form.Label>
+                <Form.Label style={{ fontWeight: '500', color: '#555' }}>Confirm Password</Form.Label>
                 <div className="position-relative">
                   <Form.Control
                     type={showRegConfirmPassword ? "text" : "password"}
@@ -582,46 +646,63 @@ const LoginRegistration = () => {
                       onChange: () => trigger("confirmPassword"),
                     })}
                     isInvalid={!!errors.confirmPassword}
+                    className="py-2 px-3"
+                    style={{ borderRadius: '8px', border: '1px solid #dde1e7', boxShadow: 'none' }}
                   />
                   {showRegConfirmPassword ? (
                     <EyeOff
                       size={20}
-                      className="position-absolute end-0 top-50 translate-middle-y me-2 cursor-pointer"
+                      className="position-absolute end-0 top-50 translate-middle-y me-3 cursor-pointer"
                       onClick={() => setShowRegConfirmPassword(false)}
+                      style={{ color: '#6b7280', cursor: 'pointer' }}
                     />
                   ) : (
                     <Eye
                       size={20}
-                      className="position-absolute end-0 top-50 translate-middle-y me-2 cursor-pointer"
+                      className="position-absolute end-0 top-50 translate-middle-y me-3 cursor-pointer"
                       onClick={() => setShowRegConfirmPassword(true)}
+                      style={{ color: '#6b7280', cursor: 'pointer' }}
                     />
                   )}
                 </div>
                 {errors.confirmPassword && (
                   <Form.Text
                     className="text-danger"
-                    style={{ marginTop: "1.5rem" }}
+                    style={{ marginTop: "0.5rem" }}
                   >
                     {errors.confirmPassword.message}
                   </Form.Text>
                 )}
               </Form.Group>
 
-              <div className="d-grid gap-2 mb-3">
+              <div className="d-grid gap-3 mt-4 mb-3">
                 <Button type="submit" className={styles.customBtn}>
                   Register
                 </Button>
-                <Button
-                  variant="outline-danger"
-                  className="d-flex align-items-center justify-content-center"
-                >
-                  <FaGoogle size={20} className="me-2" /> Sign in with Google
-                </Button>
+                <GoogleOAuthProvider clientId={CLIENT_ID}>
+                  <GoogleLogin
+                    clientId={CLIENT_ID}
+                    onSuccess={responseGoogle}
+                    onFailure={responseGoogle}
+                    cookiePolicy={"single_host_origin"}
+                    render={(renderProps) => (
+                      <button
+                        type="button"
+                        onClick={renderProps.onClick}
+                        disabled={renderProps.disabled}
+                        className="d-flex align-items-center justify-content-center btn btn-outline-secondary"
+                        style={{ borderRadius: '8px', padding: '10px', fontWeight: '500' }}
+                      >
+                        <FaGoogle size={18} className="me-2" /> Sign in with Google
+                      </button>
+                    )}
+                  />
+                </GoogleOAuthProvider>
               </div>
             </Form>
           )}
 
-          <div className="text-center mt-3">
+          <div className="text-center mt-4">
             <Button
               variant="link"
               className={styles.registerLink}
@@ -642,15 +723,23 @@ const LoginRegistration = () => {
           contentClassName={styles.customModalContent}
         >
           <Modal.Body className={styles.modalBody}>
+            <h4 className="text-center mb-4" style={{ fontWeight: '600', color: '#333' }}>Choose Your Account Type</h4>
             <div className="d-grid gap-3">
               <Button
                 variant="outline-primary"
                 className="text-start p-3 d-flex align-items-center"
                 onClick={() => handleRoleSelect("User")}
+                style={{ 
+                  borderRadius: '10px', 
+                  border: '1px solid #e2e8f0', 
+                  transition: 'all 0.2s ease',
+                  color: '#6b7280',
+                  backgroundColor: 'transparent'
+                }}
               >
-                <User size={24} className="me-3" />
+                <User size={24} className="me-3" style={{ color: '#9333ea' }} />
                 <div>
-                  <h5>User</h5>
+                  <h5 style={{ fontWeight: '600', marginBottom: '0.5rem', color: '#333' }}>User</h5>
                   <p className="mb-0 text-muted">
                     Discover events, purchase tickets, and manage your bookings
                   </p>
@@ -661,10 +750,17 @@ const LoginRegistration = () => {
                 variant="outline-success"
                 className="text-start p-3 d-flex align-items-center"
                 onClick={() => handleRoleSelect("Event Coordinator")}
+                style={{ 
+                  borderRadius: '10px', 
+                  border: '1px solid #e2e8f0', 
+                  transition: 'all 0.2s ease',
+                  color: '#6b7280',
+                  backgroundColor: 'transparent'
+                }}
               >
-                <Calendar size={24} className="me-3" />
+                <Calendar size={24} className="me-3" style={{ color: '#ec4899' }} />
                 <div>
-                  <h5>Event Coordinator</h5>
+                  <h5 style={{ fontWeight: '600', marginBottom: '0.5rem', color: '#333' }}>Event Coordinator</h5>
                   <p className="mb-0 text-muted">
                     Create and manage events, track attendance, and sell tickets
                   </p>

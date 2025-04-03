@@ -1,5 +1,7 @@
 from django.db import models
 from django.conf import settings
+from django.utils import timezone
+from django.db.models import Q
 
 class CoordinatorRequest(models.Model):
     STATUS_CHOICES = [
@@ -20,6 +22,24 @@ class EventTag(models.Model):
     
     def __str__(self):
         return self.name
+
+# New Venue model to support the frontend
+class Venue(models.Model):
+    name = models.CharField(max_length=255)
+    address = models.CharField(max_length=255)
+    capacity = models.IntegerField()
+    price_per_hour = models.DecimalField(max_digits=10, decimal_places=2)
+    description = models.TextField()
+    image_url = models.URLField(max_length=1000)
+    features = models.JSONField(default=list)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    
+    def __str__(self):
+        return self.name
+        
+    class Meta:
+        ordering = ['name']
 
 class Event(models.Model):
     STATUS_CHOICES = [
@@ -55,6 +75,37 @@ class Event(models.Model):
 
     def __str__(self):
         return self.event_name
+        
+    def update_status_based_on_time(self):
+        """
+        Check if event time has passed and update status to 'completed'
+        if the event was 'upcoming'
+        """
+        now = timezone.now()
+        
+        if self.status == 'upcoming' and self.event_time < now:
+            self.status = 'completed'
+            self.save(update_fields=['status'])
+            return True
+        return False
+        
+    @classmethod
+    def update_all_past_events(cls):
+        """
+        Update status for all upcoming events that have passed
+        """
+        now = timezone.now()
+        past_events = cls.objects.filter(
+            Q(status='upcoming') & Q(event_time__lt=now)
+        )
+        
+        updated_count = 0
+        for event in past_events:
+            event.status = 'completed'
+            event.save(update_fields=['status'])
+            updated_count += 1
+            
+        return updated_count
 
     class Meta:
         ordering = ['-created_at']

@@ -4,7 +4,9 @@ from .views import (
     RegisterView, LoginView, GoogleAuthView, CheckEmailView, 
     ResetPasswordView, ForgotPasswordView, CheckUsernameView, 
     UserStatsView, UserViewSet, ProfileView, ChangePasswordView,
-    CoordinatorRequestView, CoordinatorRequestsListView
+    CoordinatorRequestView, CoordinatorRequestsListView,
+    SendEmailView,
+    CheckAuthView
 )
 
 
@@ -47,8 +49,13 @@ urlpatterns = [
     path('coordinator-requests/', CoordinatorRequestsListView.as_view(), name='list-coordinator-requests'),
     path('coordinator-requests/<int:user_id>/', CoordinatorRequestsListView.as_view(), name='process-coordinator-request'),
     
+    # Add the new email endpoint
+    path('send-email/', SendEmailView.as_view(), name='send-email'),
+    
     # Keep this regular path for the UserStatsView 
     path('stats/', UserStatsView.as_view(), name='user-stats'),
+    
+    path('check-auth/', CheckAuthView.as_view(), name='check-auth'),
     
     path('', include(router.urls)),
 ]

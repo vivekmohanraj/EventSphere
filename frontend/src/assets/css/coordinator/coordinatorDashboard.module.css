@@ -1,0 +1,640 @@
+/* Main Layout */
+.dashboardContainer {
+  display: flex;
+  min-height: 100vh;
+  background-color: #f8f9fa;
+  color: #333;
+  font-family: 'Roboto', 'Segoe UI', sans-serif;
+}
+
+.sidebar {
+  width: 260px;
+  background-color: #fff;
+  box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+  display: flex;
+  flex-direction: column;
+  position: fixed;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  z-index: 100;
+  transition: all 0.3s ease;
+}
+
+.sidebarHeader {
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  border-bottom: 1px solid #eee;
+}
+
+.sidebarHeader h2 {
+  margin-top: 10px;
+  font-weight: 700;
+  color: #333;
+  font-size: 1.5rem;
+}
+
+.userAvatar {
+  width: 80px;
+  height: 80px;
+  border-radius: 50%;
+  object-fit: cover;
+  border: 3px solid #ff4a17;
+}
+
+.userAvatarPlaceholder {
+  width: 80px;
+  height: 80px;
+  border-radius: 50%;
+  background-color: #ff4a17;
+  color: white;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.5rem;
+  font-weight: bold;
+}
+
+.nav {
+  display: flex;
+  flex-direction: column;
+  padding: 20px 0;
+  flex-grow: 1;
+}
+
+.navButton {
+  display: flex;
+  align-items: center;
+  padding: 15px 25px;
+  background: none;
+  border: none;
+  color: #555;
+  font-size: 1rem;
+  text-align: left;
+  transition: all 0.2s ease;
+  cursor: pointer;
+}
+
+.navButton:hover {
+  background-color: #f5f5f5;
+  color: #ff4a17;
+}
+
+.navButton.active {
+  background-color: rgba(255, 74, 23, 0.1);
+  color: #ff4a17;
+  border-left: 4px solid #ff4a17;
+  font-weight: 600;
+}
+
+.navButton svg {
+  margin-right: 10px;
+  font-size: 1.2rem;
+}
+
+.logoutButton {
+  display: flex;
+  align-items: center;
+  padding: 15px 25px;
+  margin-top: auto;
+  border: none;
+  background: none;
+  color: #555;
+  font-size: 1rem;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.logoutButton:hover {
+  color: #ff4a17;
+}
+
+.logoutButton svg {
+  margin-right: 10px;
+  font-size: 1.2rem;
+}
+
+.main {
+  flex: 1;
+  padding: 30px;
+  margin-left: 260px;
+  transition: all 0.3s ease;
+}
+
+.main h1 {
+  font-size: 1.8rem;
+  margin-bottom: 30px;
+  font-weight: 700;
+  color: #333;
+  position: relative;
+  padding-bottom: 10px;
+}
+
+.main h1:after {
+  content: '';
+  position: absolute;
+  left: 0;
+  bottom: 0;
+  width: 50px;
+  height: 4px;
+  background-color: #ff4a17;
+}
+
+/* Welcome Message */
+.welcomeMessage {
+  background-color: #fff;
+  border-radius: 8px;
+  padding: 25px;
+  margin-bottom: 25px;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
+  border-left: 4px solid #ff4a17;
+}
+
+.welcomeMessage h2 {
+  font-size: 1.4rem;
+  color: #333;
+  margin-top: 0;
+  margin-bottom: 10px;
+}
+
+.welcomeMessage p {
+  color: #666;
+  margin: 0;
+  line-height: 1.5;
+}
+
+/* Message Box */
+.messageBox {
+  display: flex;
+  align-items: flex-start;
+  background-color: rgba(255, 74, 23, 0.05);
+  border-radius: 6px;
+  padding: 12px 15px;
+  margin-bottom: 15px;
+  border-left: 3px solid rgba(255, 74, 23, 0.7);
+}
+
+.messageIcon {
+  font-size: 1.1rem;
+  color: #ff4a17;
+  margin-right: 10px;
+  flex-shrink: 0;
+  margin-top: 3px;
+}
+
+.messageBox p {
+  margin: 0;
+  color: #555;
+  font-size: 0.9rem;
+  line-height: 1.4;
+}
+
+/* Empty State */
+.emptyState {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 40px 20px;
+  text-align: center;
+  background-color: #f8f9fa;
+  border-radius: 8px;
+  margin-bottom: 20px;
+}
+
+.emptyIcon {
+  font-size: 2.5rem;
+  color: #ccc;
+  margin-bottom: 15px;
+}
+
+.emptyState p {
+  color: #777;
+  margin: 0;
+  max-width: 250px;
+  font-size: 0.95rem;
+}
+
+/* No Events */
+.noEvents {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 40px 20px;
+  text-align: center;
+}
+
+.noEventsIcon {
+  font-size: 2.5rem;
+  color: #ccc;
+  margin-bottom: 15px;
+}
+
+.noEvents p {
+  color: #777;
+  margin-bottom: 20px;
+}
+
+.createEventButton {
+  background-color: #ff4a17;
+  color: white;
+  border: none;
+  padding: 10px 20px;
+  border-radius: 5px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background-color 0.2s;
+}
+
+.createEventButton:hover {
+  background-color: #e63c0c;
+}
+
+/* Dashboard Stats & Analytics */
+.statsGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 25px;
+  margin-bottom: 30px;
+}
+
+.statCard {
+  background: #fff;
+  border-radius: 8px;
+  padding: 25px;
+  display: flex;
+  align-items: center;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
+  transition: transform 0.3s ease;
+}
+
+.statCard:hover {
+  transform: translateY(-5px);
+  box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
+}
+
+.statIcon {
+  width: 50px;
+  height: 50px;
+  border-radius: 12px;
+  background: rgba(255, 74, 23, 0.1);
+  color: #ff4a17;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.5rem;
+  margin-right: 20px;
+}
+
+.statCard h3 {
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: #555;
+  margin-bottom: 5px;
+}
+
+.statCard p {
+  font-size: 1.8rem;
+  font-weight: 700;
+  color: #333;
+  margin: 0;
+}
+
+/* Dashboard Sections */
+.dashboardSections {
+  display: grid;
+  grid-template-columns: 2fr 1fr;
+  gap: 25px;
+}
+
+.analyticsSection {
+  background: #fff;
+  border-radius: 8px;
+  padding: 25px;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
+  height: 100%;
+}
+
+.upcomingEvents {
+  background: #fff;
+  border-radius: 8px;
+  padding: 25px;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
+  grid-column: 1 / -1;
+}
+
+.recentActivity {
+  background: #fff;
+  border-radius: 8px;
+  padding: 25px;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
+}
+
+.sectionHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 20px;
+}
+
+.sectionTitle {
+  font-size: 1.2rem;
+  font-weight: 600;
+  color: #333;
+  margin: 0;
+}
+
+.viewAllLink {
+  color: #ff4a17;
+  text-decoration: none;
+  font-weight: 500;
+  transition: opacity 0.2s ease;
+}
+
+.viewAllLink:hover {
+  opacity: 0.8;
+}
+
+/* Event List */
+.eventList {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.eventItem {
+  display: flex;
+  padding: 15px 0;
+  border-bottom: 1px solid #eee;
+}
+
+.eventItem:last-child {
+  border-bottom: none;
+}
+
+.eventDate {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 10px;
+  min-width: 70px;
+  background-color: rgba(255, 74, 23, 0.1);
+  border-radius: 8px;
+  margin-right: 15px;
+}
+
+.eventDay {
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: #ff4a17;
+}
+
+.eventMonth {
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: #ff4a17;
+}
+
+.eventContent {
+  flex: 1;
+}
+
+.eventTitle {
+  margin: 0 0 5px 0;
+  font-size: 1.1rem;
+  font-weight: 600;
+  color: #333;
+}
+
+.eventInfo {
+  display: flex;
+  margin-top: 10px;
+  font-size: 0.85rem;
+  color: #777;
+}
+
+.eventInfo span {
+  display: flex;
+  align-items: center;
+  margin-right: 15px;
+}
+
+.eventInfo svg {
+  margin-right: 5px;
+  font-size: 0.9rem;
+}
+
+/* Analytics Charts */
+.analyticsChart {
+  height: 280px;
+  width: 100%;
+}
+
+.chartContainer {
+  margin-bottom: 20px;
+}
+
+.chartTitle {
+  font-size: 1rem;
+  font-weight: 600;
+  color: #555;
+  margin-bottom: 15px;
+}
+
+/* Metrics Grid */
+.metricsGrid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 15px;
+  margin-bottom: 20px;
+}
+
+.metricItem {
+  padding: 15px;
+  background-color: #f8f9fa;
+  border-radius: 8px;
+}
+
+.metricItem h4 {
+  font-size: 0.85rem;
+  color: #777;
+  margin: 0 0 5px 0;
+}
+
+.metricItem p {
+  font-size: 1.25rem;
+  font-weight: 700;
+  color: #333;
+  margin: 0;
+}
+
+/* Activity List */
+.activityList {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.activityItem {
+  display: flex;
+  align-items: flex-start;
+  padding: 12px 0;
+  border-bottom: 1px solid #eee;
+}
+
+.activityItem:last-child {
+  border-bottom: none;
+}
+
+.activityIcon {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background-color: rgba(255, 74, 23, 0.1);
+  color: #ff4a17;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-right: 12px;
+  flex-shrink: 0;
+}
+
+.activityContent {
+  flex: 1;
+}
+
+.activityText {
+  margin: 0 0 5px 0;
+  font-size: 0.9rem;
+  color: #333;
+}
+
+.activityTime {
+  font-size: 0.8rem;
+  color: #888;
+}
+
+/* Loader */
+.loader {
+  text-align: center;
+  padding: 50px 0;
+  color: #555;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+}
+
+.loaderSpinner {
+  border: 3px solid rgba(255, 74, 23, 0.1);
+  border-radius: 50%;
+  border-top: 3px solid #ff4a17;
+  width: 30px;
+  height: 30px;
+  animation: spin 1s linear infinite;
+  margin-bottom: 10px;
+}
+
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+/* Performance Indicators */
+.indicator {
+  display: flex;
+  align-items: center;
+  padding: 6px 0;
+}
+
+.indicatorLabel {
+  width: 120px;
+  font-size: 0.85rem;
+  color: #555;
+}
+
+.indicatorBar {
+  flex: 1;
+  height: 8px;
+  background-color: #eee;
+  border-radius: 4px;
+  position: relative;
+  overflow: hidden;
+}
+
+.indicatorValue {
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  background-color: #ff4a17;
+  border-radius: 4px;
+}
+
+.indicatorPercent {
+  width: 40px;
+  font-size: 0.85rem;
+  font-weight: 600;
+  text-align: right;
+  margin-left: 10px;
+}
+
+/* Responsive Design */
+@media (max-width: 1024px) {
+  .dashboardSections {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 768px) {
+  .sidebar {
+    width: 70px;
+    overflow: hidden;
+  }
+  
+  .sidebarHeader h2 {
+    display: none;
+  }
+  
+  .userAvatar, .userAvatarPlaceholder {
+    width: 40px;
+    height: 40px;
+  }
+  
+  .navButton span, .logoutButton span {
+    display: none;
+  }
+  
+  .navButton, .logoutButton {
+    justify-content: center;
+    padding: 15px;
+  }
+  
+  .navButton svg, .logoutButton svg {
+    margin-right: 0;
+    font-size: 1.3rem;
+  }
+  
+  .main {
+    margin-left: 70px;
+    padding: 20px;
+  }
+  
+  .statsGrid {
+    grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+  }
+}
+
+@media (max-width: 480px) {
+  .statsGrid {
+    grid-template-columns: 1fr;
+  }
+  
+  .metricsGrid {
+    grid-template-columns: 1fr;
+  }
+}

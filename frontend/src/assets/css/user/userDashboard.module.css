@@ -889,3 +889,19 @@
 }
 
 /* ... any other color usages */
+
+.errorMessage {
+  background-color: #fee2e2;
+  color: #b91c1c;
+  padding: 12px 16px;
+  border-radius: 4px;
+  margin-bottom: 16px;
+  display: flex;
+  align-items: center;
+  font-weight: 500;
+}
+
+.errorIcon {
+  margin-right: 10px;
+  flex-shrink: 0;
+}

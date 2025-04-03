@@ -9,6 +9,8 @@ import {
   FaClock,
   FaMapMarkerAlt,
   FaTicketAlt,
+  FaCheck,
+  FaUserCheck,
 } from "react-icons/fa";
 import { ACCESS_TOKEN } from "../utils/constants"; // Add this import
 
@@ -18,6 +20,9 @@ const EventList = () => {
   const [filter, setFilter] = useState("all");
   const [searchTerm, setSearchTerm] = useState("");
   const [showModal, setShowModal] = useState(false);
+  const [requestSubmitting, setRequestSubmitting] = useState(false);
+  const [requestSubmitted, setRequestSubmitted] = useState(false);
+  const [userParticipations, setUserParticipations] = useState([]);
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -27,6 +32,7 @@ const EventList = () => {
       return;
     }
     fetchEvents();
+    fetchUserParticipations();
   }, [navigate]);
 
   const fetchEvents = async () => {
@@ -35,7 +41,25 @@ const EventList = () => {
       const response = await api.get("/events/events/");
       // Ensure we're getting an array of events
       const eventsList = Array.isArray(response.data) ? response.data : [];
-      setEvents(eventsList);
+      
+      // Update event status client-side based on event date
+      const updatedEvents = eventsList.map(event => {
+        // If the event is 'upcoming' but its date has passed, mark it as 'completed'
+        if (event.status === 'upcoming') {
+          const eventDateTime = new Date(event.event_time);
+          const currentTime = new Date();
+          
+          if (eventDateTime < currentTime) {
+            return {
+              ...event,
+              clientSideStatus: 'completed'
+            };
+          }
+        }
+        return event;
+      });
+      
+      setEvents(updatedEvents);
     } catch (error) {
       console.error("Error fetching events:", error.response?.data);
       if (error.response?.status === 401) {
@@ -49,14 +73,77 @@ const EventList = () => {
     }
   };
 
+  const fetchUserParticipations = async () => {
+    try {
+      const response = await api.get("/events/participants/my_participations/");
+      setUserParticipations(response.data);
+    } catch (error) {
+      console.error("Error fetching user participations:", error);
+      // Don't show error toast as this is not critical
+    }
+  };
+
+  const isUserRegistered = (eventId) => {
+    return userParticipations.some(
+      participation => 
+        participation.event === eventId && 
+        ["registered", "attended"].includes(participation.status)
+    );
+  };
+
   const handleCoordinatorClick = () => {
-    const userData = localStorage.getItem("user"); // Assuming you store user type in session
-    const user = JSON.parse(userData);
-    console.log(user.role);
-    if (user.role === "coordinator" || user.role === "admin") {
-      navigate("/create-event");
-    } else {
+    try {
+      const userData = localStorage.getItem("user");
+      if (!userData) {
+        toast.error("Please login to continue");
+        navigate("/login_reg");
+        return;
+      }
+      
+      const user = JSON.parse(userData);
+      
+      if (user.role === "coordinator" || user.role === "admin") {
+        navigate("/create-event");
+      } else {
+        // Check if user has already submitted a request
+        checkCoordinatorRequestStatus();
+      }
+    } catch (error) {
+      console.error("Error accessing user data:", error);
+      toast.error("An error occurred. Please try again later.");
+    }
+  };
+
+  const checkCoordinatorRequestStatus = async () => {
+    try {
+      // Try to get the user profile to check coordinator_request status
+      const response = await api.get("/users/profile/");
+      
+      if (response.data.coordinator_request) {
+        // Request is already pending
+        setRequestSubmitted(true);
+      }
+      
+      // Show the modal regardless
       setShowModal(true);
+    } catch (error) {
+      console.error("Error checking coordinator request status:", error);
+      // If we can't check, just show the modal
+      setShowModal(true);
+    }
+  };
+
+  const submitCoordinatorRequest = async () => {
+    try {
+      setRequestSubmitting(true);
+      await api.post("/users/coordinator-request/");
+      setRequestSubmitted(true);
+      toast.success("Coordinator request submitted successfully!");
+    } catch (error) {
+      console.error("Error submitting coordinator request:", error);
+      toast.error("Failed to submit your request. Please try again later.");
+    } finally {
+      setRequestSubmitting(false);
     }
   };
 
@@ -66,6 +153,11 @@ const EventList = () => {
     const matchesSearch = event.event_name
       ?.toLowerCase()
       ?.includes(searchTerm.toLowerCase());
+
+    // New filter for registered events
+    if (filter === "registered") {
+      return matchesSearch && isUserRegistered(event.id);
+    }
 
     const matchesFilter =
       filter === "all" ||
@@ -100,7 +192,7 @@ const EventList = () => {
         </div>
       </div>
 
-      {/* Add Modal */}
+      {/* Coordinator Request Modal */}
       <Modal
         show={showModal}
         onHide={() => setShowModal(false)}
@@ -109,27 +201,65 @@ const EventList = () => {
       >
         <Modal.Body className={styles.modalBody}>
           <h4>Coordinator Access Required</h4>
-          <p>
-            Only event coordinators can create and manage events. Want to become
-            an event coordinator?
-          </p>
-          <div className={styles.modalActions}>
-            <button
-              onClick={() => {
-                setShowModal(false);
-                navigate("/dashboard");
-              }}
-              className={styles.primaryBtn}
-            >
-              Go to Dashboard
-            </button>
-            <button
-              onClick={() => setShowModal(false)}
-              className={styles.secondaryBtn}
-            >
-              Cancel
-            </button>
-          </div>
+          
+          {requestSubmitted ? (
+            <>
+              <p>
+                Your coordinator request has been submitted and is pending approval. 
+                You'll be notified once an admin reviews your request.
+              </p>
+              <div className={styles.modalActions}>
+                <button
+                  onClick={() => {
+                    setShowModal(false);
+                    navigate("/dashboard");
+                  }}
+                  className={styles.primaryBtn}
+                >
+                  Go to Dashboard
+                </button>
+                <button
+                  onClick={() => setShowModal(false)}
+                  className={styles.secondaryBtn}
+                >
+                  Close
+                </button>
+              </div>
+            </>
+          ) : (
+            <>
+              <p>
+                Only event coordinators can create and manage events. Would you like to 
+                request coordinator privileges?
+              </p>
+              <div className={styles.modalActions}>
+                <button
+                  onClick={submitCoordinatorRequest}
+                  className={styles.primaryBtn}
+                  disabled={requestSubmitting}
+                >
+                  {requestSubmitting ? "Submitting..." : "Request Coordinator Role"}
+                </button>
+                <div className={styles.secondaryActions}>
+                  <button
+                    onClick={() => {
+                      setShowModal(false);
+                      navigate("/dashboard");
+                    }}
+                    className={styles.secondaryBtn}
+                  >
+                    Go to Dashboard
+                  </button>
+                  <button
+                    onClick={() => setShowModal(false)}
+                    className={styles.secondaryBtn}
+                  >
+                    Cancel
+                  </button>
+                </div>
+              </div>
+            </>
+          )}
         </Modal.Body>
       </Modal>
 
@@ -168,6 +298,12 @@ const EventList = () => {
               >
                 Ongoing
               </button>
+              <button
+                className={filter === "registered" ? styles.active : ""}
+                onClick={() => setFilter("registered")}
+              >
+                My Events
+              </button>
             </div>
           </div>
 
@@ -186,10 +322,15 @@ const EventList = () => {
                       alt={event.event_name}
                     />
                     <div className={styles.eventStatus}>
-                      <span className={styles[event.status]}>
-                        {event.status}
+                      <span className={styles[event.clientSideStatus || event.status]}>
+                        {event.clientSideStatus || event.status}
                       </span>
                     </div>
+                    {isUserRegistered(event.id) && (
+                      <div className={styles.enrolledBadge}>
+                        <FaUserCheck /> Enrolled
+                      </div>
+                    )}
                   </div>
                   <div className={styles.eventContent}>
                     <h3>{event.event_name}</h3>

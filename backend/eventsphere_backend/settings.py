@@ -42,9 +42,51 @@ REST_FRAMEWORK = {
     ],
 }
 
+# CORS Configuration
+CORS_ALLOWED_ORIGINS = [
+    "http://localhost:5173",  # Vite dev server
+    "http://localhost:3000",
+    "http://127.0.0.1:5173",
+    "http://127.0.0.1:3000",
+]
+
+CORS_ALLOW_CREDENTIALS = True
+
+# For development only - allows all origins in development
+if DEBUG:
+    CORS_ALLOW_ALL_ORIGINS = True
+
+CORS_ALLOW_METHODS = [
+    "DELETE",
+    "GET",
+    "OPTIONS",
+    "PATCH",
+    "POST",
+    "PUT",
+]
+
+CORS_ALLOW_HEADERS = [
+    "accept",
+    "accept-encoding",
+    "authorization",
+    "content-type",
+    "dnt",
+    "origin",
+    "user-agent",
+    "x-csrftoken",
+    "x-requested-with",
+]
+
+# JWT settings
 SIMPLE_JWT = {
-    "ACCESS_TOKEN_LIFETIME": timedelta(minutes=30),
-    "REFRESH_TOKEN_LIFETIME": timedelta(days=1),
+    'ACCESS_TOKEN_LIFETIME': timedelta(hours=1),  # Extend token lifetime to 1 hour
+    'REFRESH_TOKEN_LIFETIME': timedelta(days=7),  # Allow refresh for 7 days
+    'ROTATE_REFRESH_TOKENS': True,
+    'BLACKLIST_AFTER_ROTATION': False,
+    'UPDATE_LAST_LOGIN': True,
+    'TOKEN_OBTAIN_SERIALIZER': 'rest_framework_simplejwt.serializers.TokenObtainPairSerializer',
+    'TOKEN_REFRESH_SERIALIZER': 'rest_framework_simplejwt.serializers.TokenRefreshSerializer',
+    'TOKEN_VERIFY_SERIALIZER': 'rest_framework_simplejwt.serializers.TokenVerifySerializer',
 }
 
 # Application definition
@@ -171,9 +213,6 @@ FILE_UPLOAD_MAX_MEMORY_SIZE = 10485760  # 10 MB
 
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 
-CORS_ALLOW_ALL_ORIGINS = True
-CORS_ALLOW_CREDENTIALS = True
-
 AUTH_USER_MODEL = "users.User"
 
 
@@ -202,7 +241,7 @@ EMAIL_HOST = "smtp.gmail.com"
 EMAIL_PORT = 587
 EMAIL_USE_TLS = True
 EMAIL_HOST_USER = "vivekmohanraj5@gmail.com"
-EMAIL_HOST_PASSWORD = "hzakyyoeasjkdcvf"
+EMAIL_HOST_PASSWORD = "jzvzvzbqeotqcsnx"
 DEFAULT_FROM_EMAIL = "vivekmohanraj5@gmail.com"
 
 
@@ -213,4 +252,12 @@ SESSION_ENGINE = "django.contrib.sessions.backends.db"
 SESSION_COOKIE_AGE = 86400  # 24 hours
 SESSION_EXPIRE_AT_BROWSER_CLOSE = False
 SESSION_SAVE_EVERY_REQUEST = True
+
+# Razorpay Settings
+RAZORPAY_KEY_ID = os.environ.get('RAZORPAY_API_ID', '')
+RAZORPAY_KEY_SECRET = os.environ.get('RAZORPAY_API_KEY', '')
+RAZORPAY_CURRENCY = 'INR'
+
+# If coordinator creates an event, they need to pay
+COORDINATOR_EVENT_PAYMENT_REQUIRED = True
 

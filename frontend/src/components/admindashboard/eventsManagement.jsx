@@ -18,6 +18,7 @@ import {
   FaClock,
   FaTimes
 } from "react-icons/fa";
+import { createClient } from '@renderize/lib';
 import api from "../../utils/api";
 import { ACCESS_TOKEN } from "../../utils/constants";
 import styles from "../../assets/css/eventsManagement.module.css";
@@ -55,6 +56,7 @@ const EventsManagement = () => {
   const [viewEvent, setViewEvent] = useState(null);
   const [statusFilter, setStatusFilter] = useState("all");
   const [typeFilter, setTypeFilter] = useState("all");
+  const [loadingPdf, setLoadingPdf] = useState(false);
   const [formData, setFormData] = useState({
     event_name: "",
     description: "",
@@ -311,6 +313,290 @@ const EventsManagement = () => {
   // Get unique event types for filter dropdown
   const eventTypes = ["all", ...new Set(events.map(event => event.event_type))];
 
+  // Function to export events as PDF
+  const exportEventsPdf = async () => {
+    try {
+      setLoadingPdf(true);
+      const apiKey = import.meta.env.VITE_RENDERIZE_API_KEY;
+      
+      if (!apiKey) {
+        throw new Error("Renderize API key is missing. Please check your environment variables.");
+      }
+      
+      const client = createClient({ 
+        apiKey,
+        baseApiUrl: '/renderize-api' // Use the proxy defined in vite.config.js
+      });
+      
+      // Create HTML content for the PDF with professional styling
+      const html = `
+        <!DOCTYPE html>
+        <html>
+          <head>
+            <style>
+              @import url('https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&display=swap');
+              
+              body { 
+                font-family: 'Roboto', 'Helvetica', 'Arial', sans-serif; 
+                margin: 40px; 
+                color: #333;
+                line-height: 1.6;
+              }
+              
+              h1 { 
+                color: #ff4a17; 
+                text-align: center; 
+                margin-bottom: 10px;
+                font-size: 28px;
+                font-weight: 700;
+              }
+              
+              .company-name {
+                text-align: center;
+                font-size: 16px;
+                color: #555;
+                margin-bottom: 30px;
+                font-weight: 500;
+              }
+              
+              .report-info {
+                text-align: center;
+                color: #666;
+                font-size: 14px;
+                margin-bottom: 30px;
+                padding-bottom: 15px;
+                border-bottom: 1px dashed #ddd;
+              }
+              
+              .filters-info {
+                background-color: #f8f9fa;
+                padding: 15px;
+                border-radius: 8px;
+                border-left: 4px solid #ff4a17;
+                margin-bottom: 30px;
+                font-size: 14px;
+                box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+              }
+              
+              .filters-info strong {
+                color: #444;
+              }
+              
+              .filter-label {
+                display: inline-block;
+                margin-right: 15px;
+                color: #666;
+              }
+              
+              .filter-value {
+                font-weight: 500;
+                color: #333;
+              }
+              
+              table {
+                width: 100%;
+                border-collapse: collapse;
+                margin-bottom: 30px;
+                font-size: 12px;
+                box-shadow: 0 4px 8px rgba(0,0,0,0.05);
+                border-radius: 8px;
+                overflow: hidden;
+              }
+              
+              th {
+                background-color: #ff4a17;
+                color: white;
+                text-align: left;
+                padding: 14px 10px;
+                font-weight: 500;
+                letter-spacing: 0.5px;
+                font-size: 13px;
+              }
+              
+              td {
+                padding: 12px 10px;
+                border-bottom: 1px solid #eee;
+              }
+              
+              tr:nth-child(even) {
+                background-color: #f9f9f9;
+              }
+              
+              tr:hover {
+                background-color: #f5f5f5;
+              }
+              
+              tr:last-child td {
+                border-bottom: none;
+              }
+              
+              .status-badge {
+                padding: 5px 10px;
+                border-radius: 20px;
+                font-size: 11px;
+                display: inline-block;
+                text-transform: capitalize;
+                font-weight: 500;
+              }
+              
+              .upcoming { 
+                background-color: #e3f2fd; 
+                color: #0d47a1; 
+                border: 1px solid #bbdefb;
+              }
+              
+              .completed { 
+                background-color: #e8f5e9; 
+                color: #1b5e20; 
+                border: 1px solid #c8e6c9;
+              }
+              
+              .canceled, .cancelled { 
+                background-color: #ffebee; 
+                color: #b71c1c; 
+                border: 1px solid #ffcdd2;
+              }
+              
+              .in_progress, .ongoing { 
+                background-color: #fff8e1; 
+                color: #f57f17; 
+                border: 1px solid #ffecb3;
+              }
+              
+              .postponed { 
+                background-color: #f3e5f5; 
+                color: #7b1fa2; 
+                border: 1px solid #e1bee7;
+              }
+              
+              .price-free {
+                color: #4caf50;
+                font-weight: 500;
+              }
+              
+              .price-paid {
+                color: #ff4a17;
+                font-weight: 500;
+              }
+              
+              .footer {
+                margin-top: 40px;
+                text-align: center;
+                color: #666;
+                font-size: 12px;
+                border-top: 1px solid #eee;
+                padding-top: 20px;
+              }
+              
+              .footer-logo {
+                font-size: 16px;
+                font-weight: 700;
+                color: #ff4a17;
+                margin-bottom: 5px;
+              }
+              
+              .page-number {
+                position: absolute;
+                bottom: 20px;
+                right: 20px;
+                font-size: 10px;
+                color: #999;
+              }
+              
+              .event-name {
+                font-weight: 500;
+                color: #333;
+              }
+            </style>
+          </head>
+          <body>
+            <h1>Events Report</h1>
+            <div class="company-name">EventSphere Management Platform</div>
+            
+            <div class="report-info">
+              <p>Generated on ${new Date().toLocaleDateString('en-US', {weekday: 'long', year: 'numeric', month: 'long', day: 'numeric'})} 
+              at ${new Date().toLocaleTimeString('en-US', {hour: '2-digit', minute: '2-digit'})}</p>
+            </div>
+            
+            <div class="filters-info">
+              <strong>Filters Applied:</strong><br>
+              <span class="filter-label">Status:</span> <span class="filter-value">${statusFilter === "all" ? "All" : statusFilter}</span>
+              <span class="filter-label">Type:</span> <span class="filter-value">${typeFilter === "all" ? "All" : typeFilter}</span>
+              <span class="filter-label">Search Term:</span> <span class="filter-value">${searchTerm ? `"${searchTerm}"` : "None"}</span>
+            </div>
+            
+            <table>
+              <thead>
+                <tr>
+                  <th>Event Name</th>
+                  <th>Date</th>
+                  <th>Location</th>
+                  <th>Type</th>
+                  <th>Status</th>
+                  <th>Price</th>
+                  <th>Capacity</th>
+                </tr>
+              </thead>
+              <tbody>
+                ${filteredEvents.map(event => `
+                  <tr>
+                    <td><span class="event-name">${event.event_name}</span></td>
+                    <td>${formatDate(event.event_date)}</td>
+                    <td>${event.location}</td>
+                    <td>${event.event_type}</td>
+                    <td>
+                      <span class="status-badge ${event.status}">
+                        ${event.status}
+                      </span>
+                    </td>
+                    <td>${event.price > 0 ? `<span class="price-paid">₹${event.price}</span>` : '<span class="price-free">Free</span>'}</td>
+                    <td>${event.capacity || 'Unlimited'}</td>
+                  </tr>
+                `).join('')}
+              </tbody>
+            </table>
+            
+            <div class="footer">
+              <div class="footer-logo">EventSphere</div>
+              <p>This report was generated from EventSphere Admin Dashboard</p>
+              <p>Showing ${filteredEvents.length} of ${events.length} total events</p>
+            </div>
+            
+            <div class="page-number">Page 1</div>
+          </body>
+        </html>
+      `;
+      
+      // Generate PDF
+      try {
+        const pdf = await client.renderPdf({ 
+          html, 
+          format: 'a4',
+          margin: { top: 20, bottom: 20, left: 20, right: 20 }
+        });
+        
+        // Create a blob and download
+        const blob = new Blob([pdf], { type: 'application/pdf' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `EventSphere_Events_${new Date().toLocaleDateString().replace(/\//g, '-')}.pdf`;
+        a.click();
+        URL.revokeObjectURL(url);
+        
+        toast.success("Events PDF has been generated");
+      } catch (renderError) {
+        console.error("PDF rendering error:", renderError);
+        toast.error(`PDF generation failed: ${renderError.message || "Unknown error"}`);
+      }
+    } catch (error) {
+      console.error("Error generating events PDF:", error);
+      toast.error(`Failed to generate PDF: ${error.message || "Unknown error"}`);
+    } finally {
+      setLoadingPdf(false);
+    }
+  };
+
   return (
     <div className={styles.contentSection}>
       <div className={styles.pageHeader}>
@@ -366,8 +652,12 @@ const EventsManagement = () => {
             </select>
           </div>
           
-          <button className={styles.exportButton}>
-            <FaDownload /> Export
+          <button 
+            className={styles.exportButton}
+            onClick={exportEventsPdf}
+            disabled={loadingPdf}
+          >
+            <FaDownload /> {loadingPdf ? 'Generating...' : 'Export'}
           </button>
         </div>
       </div>

@@ -44,7 +44,7 @@ class UserManager(BaseUserManager):
 
 class User(AbstractUser):
     USER_ROLE_CHOICES = [
-        ('normal', 'Normal User'),
+        ('user', 'Normal User'),
         ('coordinator', 'Event Coordinator'),
         ('admin', 'Admin')
     ]

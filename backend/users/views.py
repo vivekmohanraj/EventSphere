@@ -6,7 +6,7 @@ from django.conf import settings
 # Create your views here.
 from django.contrib.auth.hashers import check_password, make_password
 from django.contrib.auth.tokens import default_token_generator
-from django.core.mail import send_mail
+from django.core.mail import send_mail, EmailMessage
 from django.db.models import Q, Count, Sum
 from django.db.models.functions import TruncMonth
 from rest_framework.decorators import action
@@ -315,10 +315,18 @@ class RegisterView(generics.CreateAPIView):
             return Response(
                 {"error": "Passwords do not match"}, status=status.HTTP_400_BAD_REQUEST
             )
-
+                
+        # Explicitly set user to active
+        data["is_active"] = True
+        
         serializer = UserSerializer(data=data)
         if serializer.is_valid():
-            serializer.save()
+            user = serializer.save()
+            # Double-check to ensure user is active
+            if not user.is_active:
+                user.is_active = True
+                user.save()
+                
             return Response(
                 {"message": "User registered successfully"},
                 status=status.HTTP_201_CREATED,
@@ -489,6 +497,7 @@ class GoogleAuthView(APIView):
                 last_name=last_name,
                 google_id=google_id,
                 user_role=selected_role,
+                is_active=True  # Explicitly set user as active
             )
 
         # Generate JWT tokens
@@ -571,3 +580,68 @@ class CoordinatorRequestsListView(APIView):
                 
         except User.DoesNotExist:
             return Response({"error": "User not found"}, status=status.HTTP_404_NOT_FOUND)
+
+class SendEmailView(APIView):
+    """
+    View to send emails with HTML content.
+    Only admins can use this endpoint.
+    """
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request):
+        # Ensure only admins can send emails
+        if request.user.user_role != 'admin':
+            return Response({"error": "Permission denied"}, status=status.HTTP_403_FORBIDDEN)
+        
+        recipient_email = request.data.get('recipient_email')
+        subject = request.data.get('subject')
+        html_content = request.data.get('html_content')
+        
+        if not recipient_email or not subject or not html_content:
+            return Response({
+                "error": "Missing required fields: recipient_email, subject, and html_content are required"
+            }, status=status.HTTP_400_BAD_REQUEST)
+        
+        try:
+            # Create an EmailMessage object
+            email = EmailMessage(
+                subject=subject,
+                body=html_content,
+                from_email=settings.DEFAULT_FROM_EMAIL,
+                to=[recipient_email],
+            )
+            email.content_subtype = "html"  # Set content type to HTML
+            
+            # Send the email
+            email.send(fail_silently=False)
+            
+            return Response({
+                "success": True,
+                "message": f"Email sent successfully to {recipient_email}"
+            }, status=status.HTTP_200_OK)
+            
+        except Exception as e:
+            logger.error(f"Failed to send email: {e}")
+            return Response({
+                "success": False,
+                "error": str(e)
+            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+class CheckAuthView(APIView):
+    """
+    Simple endpoint to verify that a user's authentication is valid.
+    Returns basic user info if token is valid.
+    """
+    permission_classes = [IsAuthenticated]
+    authentication_classes = [JWTAuthentication]
+    
+    def get(self, request):
+        # If we reached this point, authentication was successful
+        user = request.user
+        return Response({
+            "authenticated": True,
+            "user_id": user.id,
+            "username": user.username,
+            "role": user.user_role,
+            "email": user.email,
+        })

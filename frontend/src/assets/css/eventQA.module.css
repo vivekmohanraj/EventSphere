@@ -217,4 +217,77 @@
   .answer {
     margin-left: 1rem;
   }
+}
+
+.organizerInfo {
+  color: var(--accent-color);
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.organizerIcon {
+  color: var(--accent-color);
+  font-size: 1.1rem;
+}
+
+.organizerBadge {
+  background-color: var(--accent-color);
+  color: white;
+  font-size: 0.75rem;
+  padding: 0.25rem 0.5rem;
+  border-radius: 2rem;
+  margin-left: 0.5rem;
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+  font-weight: bold;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.organizerBadge svg {
+  font-size: 0.7rem;
+}
+
+.organizerAnswer {
+  background-color: rgba(var(--accent-rgb), 0.05);
+  border-left: 3px solid var(--accent-color);
+}
+
+/* Adjust the answer section for organizer responses */
+.answer.organizerAnswer {
+  background-color: rgba(var(--accent-rgb), 0.05);
+  border-left: 3px solid var(--accent-color);
+}
+
+/* Style the loading state */
+.loading {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  padding: 2rem;
+  color: var(--text-secondary);
+  font-style: italic;
+}
+
+/* Add spinner animation */
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+:global(.spinner) {
+  animation: spin 1s linear infinite;
+  display: inline-block;
+  margin-right: 0.5rem;
+}
+
+.loginPrompt {
+  background-color: rgba(var(--accent-rgb), 0.05);
+  padding: 1rem;
+  margin-bottom: 1.5rem;
+  border-radius: 0.5rem;
+  text-align: center;
+  border: 1px dashed var(--accent-color);
 } 

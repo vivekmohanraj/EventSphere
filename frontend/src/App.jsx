@@ -91,20 +91,16 @@ function App() {
                 <Route path="/" element={<Home />} />
                 <Route path="/login_reg" element={<LoginRegistration />} />
                 
+                {/* Password reset routes - these should not be protected */}
+                <Route path="/forgot-password" element={<SendResetLink />} />
+                <Route path="/reset-password/:uid/:token" element={<ResetPassword />} />
+                
                 {/* Protected routes */}
                 <Route
                   path="/reset-link-sent"
                   element={
                     <ProtectedRoute>
                       <SendResetLink />
-                    </ProtectedRoute>
-                  }
-                />
-                <Route
-                  path="/reset-password/:uid/:token"
-                  element={
-                    <ProtectedRoute>
-                      <ResetPassword />
                     </ProtectedRoute>
                   }
                 />

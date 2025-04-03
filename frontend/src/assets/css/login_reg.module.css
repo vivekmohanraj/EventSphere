@@ -1,25 +1,38 @@
 .formContainer {
-  max-width: 500px !important;
+  max-width: 550px !important;
   width: 100%;
+  border-radius: 12px !important;
+  border: none !important;
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.08) !important;
+  background-color: #ffffff;
+  padding: 2.5rem !important;
 }
 
 .profileSection {
   display: flex;
   flex-direction: column;
   align-items: center;
-  margin-bottom: 2rem;
+  margin-bottom: 2.5rem;
 }
 
 .profilePreview {
-  width: 120px;
-  height: 120px;
+  width: 140px;
+  height: 140px;
   border-radius: 50%;
-  background-color: #f0f0f0;
+  background-color: #f7f9fc;
   display: flex;
   justify-content: center;
   align-items: center;
-  margin-bottom: 1rem;
+  margin-bottom: 1.25rem;
   overflow: hidden;
+  border: 3px solid #f0f4f8;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+  transition: all 0.3s ease;
+}
+
+.profilePreview:hover {
+  border-color: #ff4a17;
+  box-shadow: 0 6px 16px rgba(255, 74, 23, 0.15);
 }
 
 .profileImage {
@@ -68,35 +81,57 @@
 .customBtn {
   background-color: #ff4a17;
   border: none;
+  padding: 0.8rem 1.5rem;
+  font-weight: 600;
+  letter-spacing: 0.3px;
+  box-shadow: 0 4px 12px rgba(255, 74, 23, 0.2);
+  transition: all 0.3s ease;
 }
 
 .customBtn:hover {
   background-color: #e53e00;
+  transform: translateY(-2px);
+  box-shadow: 0 6px 16px rgba(255, 74, 23, 0.3);
+}
+
+.customBtn:active {
+  transform: translateY(0);
 }
 
 .forgotPassword {
-  font-size: 0.875rem;
-  color: #ff4a17;
+  font-size: 0.9rem;
+  color: #5a6777;
   text-decoration: none;
+  text-align: center;
+  display: block;
+  margin-top: 1.25rem;
+  transition: color 0.2s ease;
 }
 
 .forgotPassword:hover {
   text-decoration: none;
+  color: #ff4a17;
 }
 
 .registerLink {
-  color: #ff4a17;
+  color: #5a6777;
   text-decoration: none;
+  font-weight: 500;
+  transition: color 0.2s ease;
 }
 
 .registerLink:hover {
   text-decoration: none;
+  color: #ff4a17;
 }
 
 /* New modal content style with gradient */
 .customModalContent {
-  background: linear-gradient(135deg, #ff7a45, #ff4a17);
+  background: linear-gradient(135deg, #9333ea, #ec4899);
   border: none;
+  border-radius: 12px !important;
+  overflow: hidden;
+  box-shadow: 0 15px 30px rgba(147, 51, 234, 0.2);
 }
 
 .modalBody {
@@ -114,7 +149,7 @@
   border: none;
   padding: 2rem 2rem 1rem;
   text-align: center;
-  background-color: #ff4a17;
+  background-color: #9333ea;
   color: white;
   border-radius: 12px 12px 0 0;
 }
@@ -159,9 +194,9 @@
 }
 
 .roleCard:hover {
-  border-color: #ff4a17;
+  border-color: #9333ea;
   transform: translateY(-2px);
-  box-shadow: 0 4px 20px rgba(255, 74, 23, 0.1);
+  box-shadow: 0 4px 20px rgba(147, 51, 234, 0.1);
 }
 
 .roleCard:active {
@@ -170,7 +205,7 @@
 
 .roleCard:hover .roleInfo h5,
 .roleCard:hover .roleInfo p {
-  color: #ff4a17;
+  color: #9333ea;
 }
 
 .roleIcon {
@@ -183,15 +218,15 @@
   margin-right: 1.5rem;
   background: #fff;
   border: 2px solid #e2e8f0;
-  color: #ff4a17;
+  color: #9333ea;
   position: relative;
   z-index: 1;
   transition: all 0.2s ease;
 }
 
 .roleCard:hover .roleIcon {
-  border-color: #ff4a17;
-  background: #fff1ee;
+  border-color: #9333ea;
+  background: #f5f0ff;
 }
 
 .roleInfo {

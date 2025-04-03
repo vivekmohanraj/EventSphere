@@ -442,12 +442,32 @@
     line-height: 0;
     margin-right: 10px;
     cursor: pointer;
-    transition: color 0.3s;
+    transition: color 0.3s, transform 0.3s;
+    position: relative;
+    z-index: 9999;
+  }
+
+  .header-css .mobile-nav-toggle:hover {
+    color: var(--accent-color);
+  }
+
+  .header-css .mobile-nav-toggle.bi-x {
+    color: #fff;
   }
 
   .header-css .navmenu {
     padding: 0;
     z-index: 9997;
+    display: none;
+  }
+
+  .header-css .navmenu.mobile-nav-active {
+    display: block;
+    position: fixed;
+    overflow: hidden;
+    inset: 0;
+    background: rgba(33, 37, 41, 0.9);
+    transition: all 0.3s ease-in-out;
   }
 
   .header-css .navmenu ul {
@@ -460,90 +480,20 @@
     border-radius: 6px;
     background-color: var(--nav-mobile-background-color);
     border: 1px solid color-mix(in srgb, var(--default-color), transparent 90%);
-    box-shadow: none;
+    box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
     overflow-y: auto;
     transition: 0.3s;
     z-index: 9998;
   }
 
-  .header-css .navmenu a,
-  .header-css .navmenu a:focus {
-    color: var(--nav-dropdown-color);
-    padding: 10px 20px;
-    font-family: var(--nav-font);
-    font-size: 17px;
-    font-weight: 500;
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    white-space: nowrap;
-    transition: 0.3s;
-  }
-
-  .header-css .navmenu a i,
-  .header-css .navmenu a:focus i {
-    font-size: 12px;
-    line-height: 0;
-    margin-left: 5px;
-    width: 30px;
-    height: 30px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    border-radius: 50%;
-    transition: 0.3s;
-    background-color: color-mix(in srgb, var(--accent-color), transparent 90%);
-  }
-
-  .header-css .navmenu a i:hover,
-  .header-css .navmenu a:focus i:hover {
-    background-color: var(--accent-color);
-    color: var(--contrast-color);
-  }
-
-  .header-css .navmenu a:hover,
-  .header-css .navmenu .active,
-  .header-css .navmenu .active:focus {
-    color: var(--nav-dropdown-hover-color);
-  }
-
-  .header-css .navmenu .active i,
-  .header-css .navmenu .active:focus i {
-    background-color: var(--accent-color);
-    color: var(--contrast-color);
-    transform: rotate(180deg);
-  }
-
-  .header-css .navmenu .dropdown ul {
-    position: static;
-    display: none;
-    z-index: 99;
-    padding: 10px 0;
-    margin: 10px 20px;
-    background-color: var(--nav-dropdown-background-color);
-    transition: all 0.5s ease-in-out;
-  }
-
-  .header-css .navmenu .dropdown ul ul {
-    background-color: rgba(33, 37, 41, 0.1);
-  }
-
-  .header-css .navmenu .dropdown > .dropdown-active {
+  .header-css .navmenu.mobile-nav-active > ul {
     display: block;
-    background-color: rgba(33, 37, 41, 0.03);
-  }
-
-  .header-css .mobile-nav-active {
-    overflow: hidden;
   }
 
   .mobile-nav-active .header-css .mobile-nav-toggle {
-    color: #fff;
-    position: absolute;
-    font-size: 32px;
-    top: 15px;
+    position: fixed;
     right: 15px;
-    margin-right: 0;
+    top: 15px;
     z-index: 9999;
   }
 
@@ -553,10 +503,88 @@
     inset: 0;
     background: rgba(33, 37, 41, 0.8);
     transition: 0.3s;
+    display: block;
   }
 
   .mobile-nav-active .header-css .navmenu > ul {
     display: block;
+  }
+  
+  /* Fix for user dropdown in mobile menu */
+  .header-css .navmenu .user-dropdown ul {
+    position: static;
+    display: none;
+    padding: 10px 0;
+    margin: 10px 20px;
+    background-color: rgba(255, 255, 255, 0.05);
+  }
+  
+  .header-css .navmenu .user-dropdown.active ul {
+    display: block;
+  }
+  
+  /* Make sure both navigation and user menus are shown */
+  .header-css .header .navmenu {
+    order: 3;
+  }
+
+  /* User dropdown styles for mobile */
+  .header-css .navmenu .user-dropdown {
+    position: relative;
+  }
+
+  .header-css .navmenu .user-dropdown.active > a {
+    color: var(--accent-color);
+  }
+
+  .header-css .navmenu .user-dropdown a {
+    padding: 10px 20px;
+    font-family: var(--nav-font);
+    font-size: 17px;
+    font-weight: 500;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    white-space: nowrap;
+    transition: 0.3s;
+    color: var(--nav-dropdown-color);
+  }
+
+  .header-css .navmenu .user-dropdown a i.toggle-dropdown {
+    transition: transform 0.3s;
+  }
+
+  .header-css .navmenu .user-dropdown.active a i.toggle-dropdown {
+    transform: rotate(-180deg);
+  }
+
+  .header-css .navmenu .user-dropdown ul {
+    background-color: rgba(255, 255, 255, 0.05);
+    border: none;
+    box-shadow: none;
+    position: static;
+    width: 100%;
+    margin: 0;
+    padding: 5px 0;
+  }
+
+  /* Make sure mobile menu items align properly */
+  .header-css .navmenu ul li a,
+  .header-css .navmenu ul li a:focus {
+    color: var(--nav-dropdown-color);
+    padding: 10px 20px;
+    font-family: var(--nav-font);
+    font-size: 17px;
+    font-weight: 500;
+    display: flex;
+    align-items: center;
+    white-space: nowrap;
+    transition: 0.3s;
+  }
+
+  .header-css .navmenu ul li a:hover,
+  .header-css .navmenu ul li a.active {
+    color: var(--accent-color);
   }
 }
 
