@@ -254,8 +254,8 @@ SESSION_EXPIRE_AT_BROWSER_CLOSE = False
 SESSION_SAVE_EVERY_REQUEST = True
 
 # Razorpay Settings
-RAZORPAY_KEY_ID = os.environ.get('RAZORPAY_API_ID', '')
-RAZORPAY_KEY_SECRET = os.environ.get('RAZORPAY_API_KEY', '')
+RAZORPAY_KEY_ID = os.environ.get('VITE_RAZORPAY_API_ID', 'rzp_test_2JkHRpx30VIAHs')
+RAZORPAY_KEY_SECRET = os.environ.get('VITE_RAZORPAY_API_KEY', '6ufhlzyBzVjzL8hAvxqiH1hx')
 RAZORPAY_CURRENCY = 'INR'
 
 # If coordinator creates an event, they need to pay

@@ -40,6 +40,12 @@
   background-color: var(--accent-color);
 }
 
+/* Header Actions */
+.headerActions {
+  display: flex;
+  gap: 12px;
+}
+
 .createEventButton {
   background-color: var(--accent-color);
   color: white;
@@ -60,6 +66,285 @@
 
 .createEventButton svg {
   font-size: 1rem;
+}
+
+.filterToggleButton {
+  background-color: #f5f5f5;
+  color: #555;
+  border: 1px solid #ddd;
+  padding: 10px 16px;
+  border-radius: 5px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.filterToggleButton:hover {
+  background-color: #e5e5e5;
+}
+
+/* Event Stats Styles */
+.eventStatsContainer {
+  margin-bottom: 25px;
+  background-color: #f9f9f9;
+  border-radius: 8px;
+  padding: 15px;
+  box-shadow: 0 1px 5px rgba(0,0,0,0.03);
+}
+
+.statCards {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: 15px;
+  margin-bottom: 15px;
+}
+
+.statCard {
+  display: flex;
+  align-items: center;
+  background-color: white;
+  padding: 15px;
+  border-radius: 8px;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.03);
+}
+
+.statIcon {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-right: 15px;
+  font-size: 1.1rem;
+}
+
+.statInfo h4 {
+  margin: 0 0 5px 0;
+  font-size: 0.9rem;
+  color: #666;
+  font-weight: 500;
+}
+
+.statInfo p {
+  margin: 0;
+  font-size: 1.3rem;
+  font-weight: 600;
+  color: #333;
+}
+
+.popularEventCard {
+  background-color: white;
+  border-radius: 8px;
+  padding: 15px;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.03);
+}
+
+.popularEventCard h4 {
+  margin: 0 0 12px 0;
+  font-size: 1rem;
+  color: #555;
+  font-weight: 500;
+}
+
+.popularEventContent {
+  display: flex;
+  align-items: center;
+}
+
+.popularEventIcon {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background-color: rgba(255, 193, 7, 0.1);
+  color: #FFC107;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-right: 12px;
+  font-size: 1rem;
+}
+
+.popularEventInfo h5 {
+  margin: 0 0 5px 0;
+  font-size: 1rem;
+  color: #333;
+  font-weight: 600;
+}
+
+.popularEventInfo p {
+  margin: 0;
+  font-size: 0.9rem;
+  color: #666;
+  display: flex;
+  align-items: center;
+  gap: 15px;
+}
+
+.eventDate {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+
+/* Filters Section */
+.filtersContainer {
+  background-color: #f5f5f5;
+  border-radius: 8px;
+  padding: 15px;
+  margin-bottom: 20px;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+}
+
+.filterRow {
+  display: flex;
+  gap: 15px;
+  margin-bottom: 15px;
+  flex-wrap: wrap;
+}
+
+.filterGroup {
+  display: flex;
+  flex-direction: column;
+  min-width: 200px;
+  flex: 1;
+}
+
+.filterGroup label {
+  font-size: 0.85rem;
+  margin-bottom: 5px;
+  color: #666;
+  font-weight: 500;
+}
+
+.filterSelect, .filterInput {
+  padding: 8px 12px;
+  border-radius: 5px;
+  border: 1px solid #ddd;
+  background-color: white;
+  font-size: 0.9rem;
+}
+
+.filterSelect:focus, .filterInput:focus {
+  outline: none;
+  border-color: var(--accent-color);
+}
+
+.dateRangeInputs {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.dateRangeInputs span {
+  color: #666;
+  font-size: 0.9rem;
+}
+
+.searchBox {
+  position: relative;
+  margin-bottom: 15px;
+}
+
+.searchInput {
+  width: 100%;
+  padding: 10px 40px 10px 15px;
+  border-radius: 5px;
+  border: 1px solid #ddd;
+  font-size: 0.9rem;
+  background-color: white;
+}
+
+.searchIcon {
+  position: absolute;
+  top: 12px;
+  right: 15px;
+  color: #999;
+}
+
+.activeFilters {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding-top: 10px;
+  border-top: 1px solid #e5e5e5;
+}
+
+.resultsCount {
+  font-size: 0.9rem;
+  color: #666;
+}
+
+.clearFiltersBtn {
+  background-color: transparent;
+  color: #666;
+  border: 1px solid #ddd;
+  padding: 6px 12px;
+  border-radius: 5px;
+  font-size: 0.85rem;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.clearFiltersBtn:hover {
+  background-color: #f0f0f0;
+  border-color: #ccc;
+}
+
+/* Batch Actions Bar */
+.batchActionsBar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background-color: #fef8f6;
+  border: 1px solid #ffe1d8;
+  border-radius: 8px;
+  padding: 12px 15px;
+  margin-bottom: 20px;
+}
+
+.selectedCount {
+  font-size: 0.9rem;
+  font-weight: 500;
+  color: var(--accent-color);
+}
+
+.batchButtons {
+  display: flex;
+  gap: 10px;
+}
+
+.batchActionBtn {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  border-radius: 5px;
+  font-size: 0.85rem;
+  font-weight: 500;
+  cursor: pointer;
+  border: none;
+  background-color: white;
+  color: #555;
+  border: 1px solid #ddd;
+  transition: all 0.2s;
+}
+
+.batchActionBtn:hover {
+  background-color: #f5f5f5;
+}
+
+.batchActionBtn:first-child {
+  background-color: #fde2e2;
+  color: #d32f2f;
+  border-color: #fad1d1;
+}
+
+.batchActionBtn:first-child:hover {
+  background-color: #fcd0d0;
 }
 
 /* Events List */
@@ -112,6 +397,63 @@
 .eventVenue {
   font-size: 0.85rem;
   color: #777;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.venueIcon {
+  font-size: 0.75rem;
+  color: #999;
+}
+
+.eventDateTime {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  margin-bottom: 4px;
+  font-size: 0.9rem;
+  color: #555;
+}
+
+.eventTime {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 0.85rem;
+  color: #777;
+}
+
+.dateIcon, .timeIcon {
+  font-size: 0.75rem;
+  color: #999;
+}
+
+.attendeeCount {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  margin-bottom: 4px;
+  font-size: 0.9rem;
+  color: #555;
+}
+
+.attendeeIcon {
+  font-size: 0.75rem;
+  color: #999;
+}
+
+.capacityBar {
+  height: 5px;
+  width: 100%;
+  background-color: #eee;
+  border-radius: 2px;
+  overflow: hidden;
+}
+
+.capacityFill {
+  height: 100%;
+  border-radius: 2px;
 }
 
 /* Status badges */
@@ -122,6 +464,7 @@
   font-size: 0.8rem;
   font-weight: 600;
   text-transform: capitalize;
+  margin-bottom: 5px;
 }
 
 .upcoming {
@@ -144,10 +487,24 @@
   color: #f57f17;
 }
 
+.statusActions {
+  width: 100%;
+}
+
+.statusSelect {
+  width: 100%;
+  padding: 4px 6px;
+  border-radius: 4px;
+  border: 1px solid #ddd;
+  font-size: 0.8rem;
+  background-color: #f9f9f9;
+}
+
 /* Action buttons */
 .actionButtons {
   display: flex;
   gap: 8px;
+  flex-wrap: wrap;
 }
 
 .actionButton {
@@ -212,4 +569,40 @@
 .noEvents p {
   color: #777;
   margin-bottom: 20px;
+}
+
+/* Responsive styles */
+@media (max-width: 768px) {
+  .statCards {
+    grid-template-columns: repeat(2, 1fr);
+  }
+  
+  .filterRow {
+    flex-direction: column;
+    gap: 10px;
+  }
+  
+  .batchActionsBar {
+    flex-direction: column;
+    gap: 10px;
+  }
+  
+  .batchButtons {
+    flex-wrap: wrap;
+    justify-content: center;
+  }
+  
+  .eventsListHeader {
+    display: none;
+  }
+  
+  .eventRow {
+    flex-direction: column;
+    padding: 15px;
+  }
+  
+  .eventCell {
+    width: 100% !important;
+    margin-bottom: 10px;
+  }
 } 

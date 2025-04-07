@@ -1248,20 +1248,20 @@ const EventsManagement = () => {
                   borderBottom: '1px solid #e5e5e5'
                 }}>Basic Information</h3>
                 
-                <div className={styles.formGroup}>
+              <div className={styles.formGroup}>
                   <label className={styles.formLabel} style={{
                     fontWeight: '500',
                     marginBottom: '6px',
                     display: 'block',
                     color: '#444'
                   }}>Event Name</label>
-                  <input
-                    type="text"
-                    name="event_name"
-                    className={styles.formControl}
-                    value={formData.event_name}
-                    onChange={handleInputChange}
-                    required
+                <input
+                  type="text"
+                  name="event_name"
+                  className={styles.formControl}
+                  value={formData.event_name}
+                  onChange={handleInputChange}
+                  required
                     style={{
                       padding: '12px',
                       borderRadius: '6px',
@@ -1270,27 +1270,27 @@ const EventsManagement = () => {
                       transition: 'border 0.2s ease',
                       fontSize: '1rem'
                     }}
-                  />
-                </div>
+                />
+              </div>
                 
                 <div className={styles.formRow} style={{
                   display: 'grid',
                   gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
                   gap: '16px'
                 }}>
-                  <div className={styles.formGroup}>
+              <div className={styles.formGroup}>
                     <label className={styles.formLabel} style={{
                       fontWeight: '500',
                       marginBottom: '6px',
                       display: 'block',
                       color: '#444'
                     }}>Event Type</label>
-                    <select
-                      name="event_type"
-                      className={styles.formControl}
-                      value={formData.event_type}
-                      onChange={handleInputChange}
-                      required
+                  <select
+                    name="event_type"
+                    className={styles.formControl}
+                    value={formData.event_type}
+                    onChange={handleInputChange}
+                    required
                       style={{
                         padding: '12px',
                         borderRadius: '6px',
@@ -1301,31 +1301,31 @@ const EventsManagement = () => {
                         fontSize: '1rem',
                         appearance: 'none'
                       }}
-                    >
-                      {PREDEFINED_EVENT_TYPES.map(type => (
-                        <option key={type.value} value={type.value}>
-                          {type.label}
-                        </option>
-                      ))}
-                      {!PREDEFINED_EVENT_TYPES.some(type => type.value === "other") && (
-                        <option value="other">Other</option>
-                      )}
-                    </select>
-                  </div>
+                  >
+                    {PREDEFINED_EVENT_TYPES.map(type => (
+                      <option key={type.value} value={type.value}>
+                        {type.label}
+                      </option>
+                    ))}
+                    {!PREDEFINED_EVENT_TYPES.some(type => type.value === "other") && (
+                      <option value="other">Other</option>
+                    )}
+                  </select>
+                </div>
                   
-                  <div className={styles.formGroup}>
+                <div className={styles.formGroup}>
                     <label className={styles.formLabel} style={{
                       fontWeight: '500',
                       marginBottom: '6px',
                       display: 'block',
                       color: '#444'
                     }}>Status</label>
-                    <select
-                      name="status"
-                      className={styles.formControl}
-                      value={formData.status}
-                      onChange={handleInputChange}
-                      required
+                  <select
+                    name="status"
+                    className={styles.formControl}
+                    value={formData.status}
+                    onChange={handleInputChange}
+                    required
                       style={{
                         padding: '12px',
                         borderRadius: '6px',
@@ -1336,32 +1336,32 @@ const EventsManagement = () => {
                         fontSize: '1rem',
                         appearance: 'none'
                       }}
-                    >
-                      {STATUS_OPTIONS.map(status => (
-                        <option key={status.value} value={status.value}>
-                          {status.label}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
+                  >
+                    {STATUS_OPTIONS.map(status => (
+                      <option key={status.value} value={status.value}>
+                        {status.label}
+                      </option>
+                    ))}
+                  </select>
                 </div>
+              </div>
                 
-                {showCustomType && (
-                  <div className={styles.formGroup}>
+              {showCustomType && (
+                <div className={styles.formGroup}>
                     <label className={styles.formLabel} style={{
                       fontWeight: '500',
                       marginBottom: '6px',
                       display: 'block',
                       color: '#444'
                     }}>Custom Event Type</label>
-                    <input
-                      type="text"
-                      name="custom_event_type"
-                      className={styles.formControl}
-                      value={formData.custom_event_type}
-                      onChange={handleInputChange}
-                      placeholder="Enter custom event type"
-                      required
+                  <input
+                    type="text"
+                    name="custom_event_type"
+                    className={styles.formControl}
+                    value={formData.custom_event_type}
+                    onChange={handleInputChange}
+                    placeholder="Enter custom event type"
+                    required
                       style={{
                         padding: '12px',
                         borderRadius: '6px',
@@ -1369,9 +1369,9 @@ const EventsManagement = () => {
                         width: '100%',
                         fontSize: '1rem'
                       }}
-                    />
-                  </div>
-                )}
+                  />
+                </div>
+              )}
                 
                 <div className={styles.formGroup}>
                   <label className={styles.formLabel} style={{
@@ -1428,12 +1428,12 @@ const EventsManagement = () => {
                       display: 'block',
                       color: '#444'
                     }}>Event Date</label>
-                    <input
+                  <input
                       type="date"
                       name="event_date"
-                      className={styles.formControl}
+                    className={styles.formControl}
                       value={formData.event_date ? formData.event_date.split('T')[0] : ''}
-                      onChange={handleInputChange}
+                    onChange={handleInputChange}
                       required
                       style={{
                         padding: '12px',
@@ -1442,10 +1442,10 @@ const EventsManagement = () => {
                         width: '100%',
                         fontSize: '1rem'
                       }}
-                    />
-                  </div>
+                  />
+                </div>
                   
-                  <div className={styles.formGroup}>
+                <div className={styles.formGroup}>
                     <label className={styles.formLabel} style={{
                       fontWeight: '500',
                       marginBottom: '6px',
@@ -1585,13 +1585,13 @@ const EventsManagement = () => {
                         display: 'block',
                         color: '#444'
                       }}>Price (₹)</label>
-                      <input
-                        type="number"
-                        name="price"
-                        className={styles.formControl}
-                        value={formData.price}
-                        onChange={handleInputChange}
-                        min="0"
+                  <input
+                    type="number"
+                    name="price"
+                    className={styles.formControl}
+                    value={formData.price}
+                    onChange={handleInputChange}
+                    min="0"
                         step="0.01"
                         required={formData.is_paid}
                         style={{
@@ -1601,8 +1601,8 @@ const EventsManagement = () => {
                           width: '100%',
                           fontSize: '1rem'
                         }}
-                      />
-                    </div>
+                  />
+                </div>
                   )}
                   
                   {formData.limited_capacity && (
@@ -1629,7 +1629,7 @@ const EventsManagement = () => {
                           fontSize: '1rem'
                         }}
                       />
-                    </div>
+              </div>
                   )}
                 </div>
               </div>

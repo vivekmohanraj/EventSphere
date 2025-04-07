@@ -3,7 +3,7 @@ import { ACCESS_TOKEN, REFRESH_TOKEN } from "./constants";
 
 // Create a base API instance
 const api = axios.create({
-  baseURL: import.meta.env.VITE_API_URL || "http://localhost:8000",
+  baseURL: (import.meta.env.VITE_API_URL || "http://localhost:8000").replace(/\/$/, ''),
   headers: {
     "Content-Type": "application/json",
   },
@@ -14,7 +14,11 @@ api.interceptors.request.use(
   (config) => {
     const token = localStorage.getItem(ACCESS_TOKEN);
     console.log("API Request URL:", config.url);
-    console.log("API Full URL:", config.baseURL + (config.url.startsWith('/') ? config.url : '/' + config.url));
+    
+    // Ensure we don't have double slashes when logging the full URL
+    const baseWithoutTrailingSlash = config.baseURL.replace(/\/$/, '');
+    const urlWithLeadingSlash = config.url.startsWith('/') ? config.url : `/${config.url}`;
+    console.log("API Full URL:", `${baseWithoutTrailingSlash}${urlWithLeadingSlash}`);
 
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;

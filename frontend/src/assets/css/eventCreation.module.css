@@ -969,99 +969,207 @@
 }
 
 /* Payment Modal Styles */
-.paymentModal :global(.modal-content) {
-  border-radius: var(--border-radius);
-  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+.paymentModal {
+  max-width: 600px;
 }
 
 .paymentDetails {
-  padding: var(--spacing-md);
+  padding: 1rem;
 }
 
-.paymentDetails h4 {
-  color: var(--primary-color);
-  margin-bottom: var(--spacing-md);
+.paymentHeader {
+  margin-bottom: 1.5rem;
+  text-align: center;
+  border-bottom: 1px solid var(--border-color);
+  padding-bottom: 1rem;
+}
+
+.paymentHeader h4 {
+  color: var(--accent-color);
+  font-weight: 600;
+  margin-bottom: 0.5rem;
+}
+
+.paymentInstructions {
+  color: var(--text-secondary);
+  font-size: 0.95rem;
 }
 
 .paymentSummary {
   background-color: var(--bg-light);
   border-radius: var(--border-radius);
-  padding: var(--spacing-md);
-  margin: var(--spacing-md) 0;
+  padding: 1.25rem;
+  margin-bottom: 1.5rem;
 }
 
 .paymentItem {
   display: flex;
   justify-content: space-between;
-  margin-bottom: var(--spacing-sm);
-  padding-bottom: var(--spacing-xs);
+  align-items: center;
+  margin-bottom: 0.75rem;
+  padding-bottom: 0.75rem;
   border-bottom: 1px solid var(--border-color);
-}
-
-.paymentItem:last-child {
-  border-bottom: none;
 }
 
 .bookingHoursControl {
   display: flex;
   align-items: center;
-  gap: var(--spacing-sm);
+  gap: 0.75rem;
 }
 
 .hourButton {
   width: 30px;
   height: 30px;
   border-radius: 50%;
-  background-color: var(--bg-light);
+  background-color: var(--bg-white);
   border: 1px solid var(--border-color);
   display: flex;
   align-items: center;
   justify-content: center;
   cursor: pointer;
   font-weight: bold;
+  color: var(--text-primary);
+}
+
+.hourButton:hover {
+  background-color: var(--accent-color);
+  color: white;
+}
+
+.paymentBreakdown {
+  margin-top: 1.5rem;
+  padding-top: 1rem;
+  border-top: 1px dashed var(--border-color);
+}
+
+.paymentBreakdown h5 {
+  font-weight: 600;
+  margin-bottom: 1rem;
+  color: var(--text-primary);
+}
+
+.breakdownItem {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 0.5rem;
+  font-size: 0.95rem;
 }
 
 .paymentTotal {
+  margin-top: 1rem;
+  padding-top: 1rem;
+  border-top: 1px solid var(--border-color);
   display: flex;
   justify-content: space-between;
-  margin-top: var(--spacing-md);
-  font-weight: bold;
+  font-weight: 600;
   font-size: 1.1rem;
-  color: var(--primary-color);
+}
+
+.totalAmount {
+  color: var(--accent-color);
+  font-size: 1.2rem;
+}
+
+.paymentMethods {
+  margin-top: 1.5rem;
+  padding-top: 1rem;
+  border-top: 1px dashed var(--border-color);
+}
+
+.paymentMethods h5 {
+  font-weight: 600;
+  margin-bottom: 0.5rem;
+  color: var(--text-primary);
+  font-size: 0.95rem;
+}
+
+.paymentMethods p {
+  font-size: 0.9rem;
+  color: var(--text-secondary);
+}
+
+.securityNote {
+  margin-top: 0.5rem;
+  display: flex;
+  align-items: center;
+  color: var(--text-secondary);
+}
+
+.securityNote small {
+  font-style: italic;
 }
 
 .paymentActions {
   display: flex;
-  gap: var(--spacing-md);
+  justify-content: center;
+  flex-wrap: wrap;
   margin-top: var(--spacing-lg);
+  gap: var(--spacing-md);
 }
 
 .payNowButton {
   background-color: var(--primary-color);
   color: white;
+  padding: 12px 24px;
   border: none;
   border-radius: var(--border-radius);
-  padding: var(--spacing-sm) var(--spacing-lg);
   font-weight: 600;
+  display: flex;
+  align-items: center;
+  gap: 8px;
   cursor: pointer;
-  flex: 1;
+  transition: all 0.3s ease;
+}
+
+.payButtonText {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+/* Test Button for debugging */
+.testButton {
+  background-color: #f0f0f0;
+  color: #333;
+  padding: 8px 16px;
+  border: 2px solid #333;
+  border-radius: var(--border-radius);
+  font-weight: 600;
+  font-size: 12px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.testButton:hover {
+  background-color: #ddd;
+}
+
+.payNowButton:hover {
+  background-color: var(--primary-color);
+  opacity: 0.9;
 }
 
 .payLaterButton {
-  background-color: var(--bg-light);
-  color: var(--text-color);
+  padding: 0.75rem 1rem;
+  background-color: transparent;
+  color: var(--text-secondary);
   border: 1px solid var(--border-color);
   border-radius: var(--border-radius);
-  padding: var(--spacing-sm) var(--spacing-lg);
   font-weight: 600;
   cursor: pointer;
-  flex: 1;
+  transition: all 0.2s;
+}
+
+.payLaterButton:hover {
+  background-color: var(--bg-light);
+  color: var(--text-primary);
 }
 
 .paymentNote {
-  margin-top: var(--spacing-md);
+  margin-top: 1.5rem;
+  padding-top: 1rem;
+  border-top: 1px solid var(--border-color);
   color: var(--text-secondary);
-  font-size: 0.9rem;
 }
 
 .spinnerSmall {
@@ -1072,4 +1180,42 @@
   border-top-color: #fff;
   animation: spin 1s ease-in-out infinite;
   margin-right: var(--spacing-xs);
+}
+
+/* Coordinator Payment Alert */
+.coordinatorAlert {
+  margin-top: 1.5rem;
+  padding: 1.25rem;
+  background-color: rgba(255, 74, 23, 0.1);
+  border-left: 4px solid var(--accent-color);
+  border-radius: var(--border-radius);
+  animation: fadeIn 0.5s ease;
+}
+
+.coordinatorAlert h3 {
+  color: var(--accent-color);
+  font-size: 1.1rem;
+  margin-bottom: 0.5rem;
+  font-weight: 600;
+}
+
+.coordinatorAlert p {
+  color: var(--text-secondary);
+  font-size: 0.95rem;
+  line-height: 1.5;
+  margin: 0;
+}
+
+@media (max-width: 768px) {
+  .coordinatorAlert {
+    padding: 1rem;
+  }
+  
+  .coordinatorAlert h3 {
+    font-size: 1rem;
+  }
+  
+  .coordinatorAlert p {
+    font-size: 0.9rem;
+  }
 }

@@ -1,17 +1,16 @@
 import React, { useState, useEffect } from 'react';
+import { Form, Button, Row, Col } from 'react-bootstrap';
 import {
   FaUser,
   FaEnvelope,
   FaPhone,
-  FaLock,
   FaCamera,
   FaCheck,
-  FaTimes,
-  FaInfoCircle,
   FaSpinner,
   FaUserCheck,
   FaCalendarAlt
 } from 'react-icons/fa';
+import { Eye, EyeOff } from 'lucide-react';
 import { toast } from 'react-toastify';
 import api from '../../utils/api';
 import styles from '../../assets/css/coordinator/profileComponent.module.css';
@@ -38,6 +37,9 @@ const ProfileComponent = ({ userProfile, onProfileUpdate }) => {
     new_password: '',
     confirm_password: ''
   });
+  const [showCurrentPassword, setShowCurrentPassword] = useState(false);
+  const [showNewPassword, setShowNewPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [passwordErrors, setPasswordErrors] = useState({});
   const [formErrors, setFormErrors] = useState({});
   const [successMessage, setSuccessMessage] = useState('');
@@ -81,7 +83,7 @@ const ProfileComponent = ({ userProfile, onProfileUpdate }) => {
       }
       
       api.defaults.headers.common['Authorization'] = `Bearer ${token}`;
-      const response = await api.get("users/profile/");
+      const response = await api.get("/users/profile/");
       
       if (response.data) {
         const profile = response.data;
@@ -244,7 +246,8 @@ const ProfileComponent = ({ userProfile, onProfileUpdate }) => {
         formData.append('profile_photo', photoFile);
       }
       
-      const response = await api.patch('users/profile/', formData, {
+      // Fixed URL with leading slash to prevent double slash issue
+      const response = await api.patch('/users/profile/', formData, {
         headers: {
           'Content-Type': 'multipart/form-data'
         }
@@ -296,7 +299,7 @@ const ProfileComponent = ({ userProfile, onProfileUpdate }) => {
     
     setIsLoading(true);
     try {
-      const response = await api.post('users/change-password/', {
+      const response = await api.post('/users/change-password/', {
         current_password: passwordData.current_password,
         new_password: passwordData.new_password
       });
@@ -396,159 +399,258 @@ const ProfileComponent = ({ userProfile, onProfileUpdate }) => {
         </div>
       )}
       
-      <div className={styles.profileActions}>
-        <button 
-          className={styles.buttonPrimary} 
+      <div className="d-grid gap-3 mt-4">
+        <Button 
+          variant="primary"
           onClick={() => setEditMode(true)}
+          className="py-2 px-4"
+          style={{ borderRadius: '8px', backgroundColor: '#ff4a17', border: 'none' }}
         >
           Edit Profile
-        </button>
-        <button 
-          className={styles.buttonSecondary} 
+        </Button>
+        <Button 
+          variant="outline-secondary"
           onClick={() => setShowPasswordForm(true)}
+          className="py-2 px-4"
+          style={{ borderRadius: '8px' }}
         >
           Change Password
-        </button>
+        </Button>
       </div>
     </div>
   );
 
   const renderEditForm = () => (
-    <div className={styles.profileForm}>
-      <div className={styles.formRow}>
-        <label className={styles.formLabel}>First Name</label>
-        <input
-          type="text"
-          name="first_name"
-          value={profileData.first_name}
-          onChange={handleInputChange}
-          className={formErrors.first_name ? `${styles.formInput} ${styles.errorInput}` : styles.formInput}
-        />
-        {formErrors.first_name && (
-          <div className={styles.errorText}>{formErrors.first_name}</div>
-        )}
-      </div>
-      
-      <div className={styles.formRow}>
-        <label className={styles.formLabel}>Last Name</label>
-        <input
-          type="text"
-          name="last_name"
-          value={profileData.last_name}
-          onChange={handleInputChange}
-          className={formErrors.last_name ? `${styles.formInput} ${styles.errorInput}` : styles.formInput}
-        />
-        {formErrors.last_name && (
-          <div className={styles.errorText}>{formErrors.last_name}</div>
-        )}
-      </div>
-      
-      <div className={styles.formRow}>
-        <label className={styles.formLabel}>Email</label>
-        <input
+    <Form>
+      <Row className="mb-3">
+        <Col md={6}>
+          <Form.Group className="mb-3">
+            <Form.Label style={{ fontWeight: '500', color: '#555' }}>First Name</Form.Label>
+            <Form.Control
+              type="text"
+              name="first_name"
+              value={profileData.first_name}
+              onChange={handleInputChange}
+              isInvalid={!!formErrors.first_name}
+              className="py-2 px-3"
+              style={{ borderRadius: '8px', border: '1px solid #dde1e7', boxShadow: 'none' }}
+            />
+            {formErrors.first_name && (
+              <Form.Text className="text-danger">
+                {formErrors.first_name}
+              </Form.Text>
+            )}
+          </Form.Group>
+        </Col>
+        <Col md={6}>
+          <Form.Group className="mb-3">
+            <Form.Label style={{ fontWeight: '500', color: '#555' }}>Last Name</Form.Label>
+            <Form.Control
+              type="text"
+              name="last_name"
+              value={profileData.last_name}
+              onChange={handleInputChange}
+              isInvalid={!!formErrors.last_name}
+              className="py-2 px-3"
+              style={{ borderRadius: '8px', border: '1px solid #dde1e7', boxShadow: 'none' }}
+            />
+            {formErrors.last_name && (
+              <Form.Text className="text-danger">
+                {formErrors.last_name}
+              </Form.Text>
+            )}
+          </Form.Group>
+        </Col>
+      </Row>
+
+      <Form.Group className="mb-3">
+        <Form.Label style={{ fontWeight: '500', color: '#555' }}>Email</Form.Label>
+        <Form.Control
           type="email"
           name="email"
           value={profileData.email}
           onChange={handleInputChange}
-          className={formErrors.email ? `${styles.formInput} ${styles.errorInput}` : styles.formInput}
+          isInvalid={!!formErrors.email}
+          className="py-2 px-3"
+          style={{ borderRadius: '8px', border: '1px solid #dde1e7', boxShadow: 'none' }}
         />
         {formErrors.email && (
-          <div className={styles.errorText}>{formErrors.email}</div>
+          <Form.Text className="text-danger">
+            {formErrors.email}
+          </Form.Text>
         )}
-      </div>
+      </Form.Group>
       
-      <div className={styles.formRow}>
-        <label className={styles.formLabel}>Phone</label>
-        <input
-          type="tel"
-          name="phone"
-          value={profileData.phone}
-          onChange={handleInputChange}
-          className={formErrors.phone ? `${styles.formInput} ${styles.errorInput}` : styles.formInput}
-        />
+      <Form.Group className="mb-3">
+        <Form.Label style={{ fontWeight: '500', color: '#555' }}>Phone Number</Form.Label>
+        <div className="input-group">
+          <span className="input-group-text" id="basic-addon1" style={{ borderRadius: '8px 0 0 8px', border: '1px solid #dde1e7', backgroundColor: '#f7f9fc' }}>
+            +91
+          </span>
+          <Form.Control
+            type="tel"
+            name="phone"
+            value={profileData.phone}
+            onChange={handleInputChange}
+            isInvalid={!!formErrors.phone}
+            placeholder="Enter your phone number"
+            className="py-2 px-3"
+            style={{ borderRadius: '0 8px 8px 0', border: '1px solid #dde1e7', boxShadow: 'none' }}
+          />
+        </div>
         {formErrors.phone && (
-          <div className={styles.errorText}>{formErrors.phone}</div>
+          <Form.Text className="text-danger">
+            {formErrors.phone}
+          </Form.Text>
         )}
-      </div>
+      </Form.Group>
       
-      <div className={styles.profileActions}>
-        <button 
-          className={styles.buttonPrimary} 
+      <div className="d-grid gap-3 mt-4">
+        <Button 
+          variant="primary"
           onClick={handleUpdateProfile}
           disabled={isLoading}
+          className="py-2 px-4"
+          style={{ borderRadius: '8px', backgroundColor: '#ff4a17', border: 'none' }}
         >
-          {isLoading ? <FaSpinner className={styles.spinnerIcon} /> : <FaCheck />}
+          {isLoading ? <FaSpinner className="fa-spin me-2" /> : <FaCheck className="me-2" />}
           Save Changes
-        </button>
-        <button 
-          className={styles.buttonSecondary} 
+        </Button>
+        <Button 
+          variant="outline-secondary"
           onClick={() => setEditMode(false)}
           disabled={isLoading}
+          className="py-2 px-4"
+          style={{ borderRadius: '8px' }}
         >
-          <FaTimes />
           Cancel
-        </button>
+        </Button>
       </div>
-    </div>
+    </Form>
   );
 
   const renderPasswordForm = () => (
-    <div className={styles.formSection}>
-      <h3>Change Password</h3>
+    <Form>
+      <h4 className="mb-4" style={{ fontWeight: '600', color: '#333' }}>Change Your Password</h4>
       
-      <div className={styles.formRow}>
-        <label className={styles.formLabel}>Current Password</label>
-        <input
-          type="password"
-          name="current_password"
-          value={passwordData.current_password}
-          onChange={handlePasswordChange}
-          className={passwordErrors.current_password ? `${styles.formInput} ${styles.errorInput}` : styles.formInput}
-        />
+      <Form.Group className="mb-3">
+        <Form.Label style={{ fontWeight: '500', color: '#555' }}>Current Password</Form.Label>
+        <div className="position-relative">
+          <Form.Control
+            type={showCurrentPassword ? "text" : "password"}
+            name="current_password"
+            value={passwordData.current_password}
+            onChange={handlePasswordChange}
+            isInvalid={!!passwordErrors.current_password}
+            className="py-2 px-3"
+            style={{ borderRadius: '8px', border: '1px solid #dde1e7', boxShadow: 'none' }}
+          />
+          {showCurrentPassword ? (
+            <EyeOff
+              size={20}
+              className="position-absolute end-0 top-50 translate-middle-y me-3 cursor-pointer"
+              onClick={() => setShowCurrentPassword(false)}
+              style={{ color: '#6b7280', cursor: 'pointer' }}
+            />
+          ) : (
+            <Eye
+              size={20}
+              className="position-absolute end-0 top-50 translate-middle-y me-3 cursor-pointer"
+              onClick={() => setShowCurrentPassword(true)}
+              style={{ color: '#6b7280', cursor: 'pointer' }}
+            />
+          )}
+        </div>
         {passwordErrors.current_password && (
-          <div className={styles.errorText}>{passwordErrors.current_password}</div>
+          <Form.Text className="text-danger">
+            {passwordErrors.current_password}
+          </Form.Text>
         )}
-      </div>
+      </Form.Group>
       
-      <div className={styles.formRow}>
-        <label className={styles.formLabel}>New Password</label>
-        <input
-          type="password"
-          name="new_password"
-          value={passwordData.new_password}
-          onChange={handlePasswordChange}
-          className={passwordErrors.new_password ? `${styles.formInput} ${styles.errorInput}` : styles.formInput}
-        />
+      <Form.Group className="mb-3">
+        <Form.Label style={{ fontWeight: '500', color: '#555' }}>New Password</Form.Label>
+        <div className="position-relative">
+          <Form.Control
+            type={showNewPassword ? "text" : "password"}
+            name="new_password"
+            value={passwordData.new_password}
+            onChange={handlePasswordChange}
+            isInvalid={!!passwordErrors.new_password}
+            className="py-2 px-3"
+            style={{ borderRadius: '8px', border: '1px solid #dde1e7', boxShadow: 'none' }}
+          />
+          {showNewPassword ? (
+            <EyeOff
+              size={20}
+              className="position-absolute end-0 top-50 translate-middle-y me-3 cursor-pointer"
+              onClick={() => setShowNewPassword(false)}
+              style={{ color: '#6b7280', cursor: 'pointer' }}
+            />
+          ) : (
+            <Eye
+              size={20}
+              className="position-absolute end-0 top-50 translate-middle-y me-3 cursor-pointer"
+              onClick={() => setShowNewPassword(true)}
+              style={{ color: '#6b7280', cursor: 'pointer' }}
+            />
+          )}
+        </div>
         {passwordErrors.new_password && (
-          <div className={styles.errorText}>{passwordErrors.new_password}</div>
+          <Form.Text className="text-danger">
+            {passwordErrors.new_password}
+          </Form.Text>
         )}
-      </div>
+      </Form.Group>
       
-      <div className={styles.formRow}>
-        <label className={styles.formLabel}>Confirm New Password</label>
-        <input
-          type="password"
-          name="confirm_password"
-          value={passwordData.confirm_password}
-          onChange={handlePasswordChange}
-          className={passwordErrors.confirm_password ? `${styles.formInput} ${styles.errorInput}` : styles.formInput}
-        />
+      <Form.Group className="mb-3">
+        <Form.Label style={{ fontWeight: '500', color: '#555' }}>Confirm New Password</Form.Label>
+        <div className="position-relative">
+          <Form.Control
+            type={showConfirmPassword ? "text" : "password"}
+            name="confirm_password"
+            value={passwordData.confirm_password}
+            onChange={handlePasswordChange}
+            isInvalid={!!passwordErrors.confirm_password}
+            className="py-2 px-3"
+            style={{ borderRadius: '8px', border: '1px solid #dde1e7', boxShadow: 'none' }}
+          />
+          {showConfirmPassword ? (
+            <EyeOff
+              size={20}
+              className="position-absolute end-0 top-50 translate-middle-y me-3 cursor-pointer"
+              onClick={() => setShowConfirmPassword(false)}
+              style={{ color: '#6b7280', cursor: 'pointer' }}
+            />
+          ) : (
+            <Eye
+              size={20}
+              className="position-absolute end-0 top-50 translate-middle-y me-3 cursor-pointer"
+              onClick={() => setShowConfirmPassword(true)}
+              style={{ color: '#6b7280', cursor: 'pointer' }}
+            />
+          )}
+        </div>
         {passwordErrors.confirm_password && (
-          <div className={styles.errorText}>{passwordErrors.confirm_password}</div>
+          <Form.Text className="text-danger">
+            {passwordErrors.confirm_password}
+          </Form.Text>
         )}
-      </div>
+      </Form.Group>
       
-      <div className={styles.profileActions}>
-        <button 
-          className={styles.buttonPrimary} 
+      <div className="d-grid gap-3 mt-4">
+        <Button 
+          variant="primary"
           onClick={handleChangePassword}
           disabled={isLoading}
+          className="py-2 px-4"
+          style={{ borderRadius: '8px', backgroundColor: '#ff4a17', border: 'none' }}
         >
-          {isLoading ? <FaSpinner className={styles.spinnerIcon} /> : <FaCheck />}
+          {isLoading ? <FaSpinner className="fa-spin me-2" /> : <FaCheck className="me-2" />}
           Change Password
-        </button>
-        <button 
-          className={styles.buttonSecondary} 
+        </Button>
+        <Button 
+          variant="outline-secondary"
           onClick={() => {
             setShowPasswordForm(false);
             setPasswordData({
@@ -559,74 +661,98 @@ const ProfileComponent = ({ userProfile, onProfileUpdate }) => {
             setPasswordErrors({});
           }}
           disabled={isLoading}
+          className="py-2 px-4"
+          style={{ borderRadius: '8px' }}
         >
-          <FaTimes />
           Cancel
-        </button>
+        </Button>
       </div>
-    </div>
+    </Form>
   );
 
   return (
-    <div className={styles.profileContainer}>
-      {isLoading && !editMode && !showPasswordForm && (
-        <div className={styles.loader}>
-          <FaSpinner className={styles.spinnerIcon} />
-          <p>Loading profile information...</p>
-        </div>
-      )}
-      
-      {successMessage && (
-        <div className={styles.success}>
-          <FaCheck /> {successMessage}
-        </div>
-      )}
-      
-      <div className={styles.profileHeader}>
-        <h2>My Profile</h2>
-        <p>Manage your account information and preferences</p>
-      </div>
-      
-      <div className={styles.profileContent}>
-        <div className={styles.profilePhoto}>
-          {photoPreview ? (
-            <img 
-              src={photoPreview} 
-              alt="Profile" 
-              className={styles.profileImage}
-              onError={(e) => {
-                e.target.onerror = null;
-                e.target.src = 'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="100" height="100" viewBox="0 0 100 100"><rect fill="%23f5f5f5" width="100" height="100"/><text fill="%23888" font-family="Arial" font-size="30" text-anchor="middle" x="50" y="60">?</text></svg>';
-              }}
-            />
-          ) : (
-            <div className={styles.photoPlaceholder}>
-              {profileData.first_name && profileData.last_name ? (
-                `${profileData.first_name.charAt(0)}${profileData.last_name.charAt(0)}`
-              ) : 'U'}
-            </div>
-          )}
-          
-          {editMode && (
-            <div className={styles.photoUpload}>
-              <label htmlFor="photo-upload" className={styles.uploadLabel}>
-                <FaCamera />
-                <span> {photoPreview ? 'Change Photo' : 'Add Photo'}</span>
-              </label>
-              <input
-                id="photo-upload"
-                type="file"
-                accept="image/*"
-                onChange={handlePhotoChange}
-              />
-            </div>
-          )}
+    <div className="mx-auto" style={{ maxWidth: '800px' }}>
+      <div className="card shadow p-4 mb-5">
+        {isLoading && !editMode && !showPasswordForm && (
+          <div className="text-center py-5">
+            <FaSpinner className="fa-spin mb-3" style={{ fontSize: '2rem', color: '#ff4a17' }} />
+            <p className="text-muted">Loading profile information...</p>
+          </div>
+        )}
+        
+        {successMessage && (
+          <div className="alert alert-success d-flex align-items-center">
+            <FaCheck className="me-2" /> {successMessage}
+          </div>
+        )}
+        
+        <div className="text-center mb-4">
+          <h3 style={{ fontWeight: '600', color: '#333', fontSize: '1.8rem' }}>
+            My Profile
+          </h3>
+          <p className="text-muted">Manage your account information and preferences</p>
         </div>
         
-        <div className={styles.profileDetails}>
-          {!editMode && !showPasswordForm && renderProfileInfo()}
-          {editMode && !showPasswordForm && renderEditForm()}
-          {showPasswordForm && renderPasswordForm()}
+        <div className="row">
+          <div className="col-md-4 text-center mb-4">
+            <div className="position-relative mx-auto" style={{ width: '150px', height: '150px' }}>
+              {photoPreview ? (
+                <img 
+                  src={photoPreview} 
+                  alt="Profile" 
+                  className="rounded-circle img-thumbnail"
+                  style={{ width: '150px', height: '150px', objectFit: 'cover' }}
+                  onError={(e) => {
+                    e.target.onerror = null;
+                    e.target.src = 'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="100" height="100" viewBox="0 0 100 100"><rect fill="%23f5f5f5" width="100" height="100"/><text fill="%23888" font-family="Arial" font-size="30" text-anchor="middle" x="50" y="60">?</text></svg>';
+                  }}
+                />
+              ) : (
+                <div 
+                  className="rounded-circle d-flex align-items-center justify-content-center"
+                  style={{ 
+                    width: '150px', 
+                    height: '150px', 
+                    backgroundColor: '#f5f5f5', 
+                    fontSize: '3rem',
+                    color: '#ff4a17'
+                  }}
+                >
+                  {profileData.first_name && profileData.last_name ? (
+                    `${profileData.first_name.charAt(0)}${profileData.last_name.charAt(0)}`
+                  ) : 'U'}
+                </div>
+              )}
+              
+              {editMode && (
+                <div className="position-absolute bottom-0 end-0">
+                  <label 
+                    htmlFor="photo-upload" 
+                    className="btn btn-sm btn-light rounded-circle p-2 shadow-sm"
+                    style={{ cursor: 'pointer' }}
+                  >
+                    <FaCamera style={{ color: '#555' }} />
+                    <input
+                      id="photo-upload"
+                      type="file"
+                      accept="image/*"
+                      onChange={handlePhotoChange}
+                      style={{ display: 'none' }}
+                    />
+                  </label>
+                </div>
+              )}
+            </div>
+            {editMode && (
+              <p className="small text-muted mt-2">Click the camera icon to change your profile photo</p>
+            )}
+          </div>
+          
+          <div className="col-md-8">
+            {!editMode && !showPasswordForm && renderProfileInfo()}
+            {editMode && !showPasswordForm && renderEditForm()}
+            {showPasswordForm && renderPasswordForm()}
+          </div>
         </div>
       </div>
     </div>

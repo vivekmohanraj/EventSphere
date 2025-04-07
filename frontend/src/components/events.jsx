@@ -11,6 +11,7 @@ import {
   FaTicketAlt,
   FaCheck,
   FaUserCheck,
+  FaSync,
 } from "react-icons/fa";
 import { ACCESS_TOKEN } from "../utils/constants"; // Add this import
 
@@ -23,54 +24,112 @@ const EventList = () => {
   const [requestSubmitting, setRequestSubmitting] = useState(false);
   const [requestSubmitted, setRequestSubmitted] = useState(false);
   const [userParticipations, setUserParticipations] = useState([]);
+  const [refreshing, setRefreshing] = useState(false);
   const navigate = useNavigate();
 
+  // Setup a regular refresh interval for events
   useEffect(() => {
     const token = localStorage.getItem(ACCESS_TOKEN);
     if (!token) {
       navigate("/login_reg");
       return;
     }
+    
+    // Initial fetch
     fetchEvents();
     fetchUserParticipations();
+    
+    // Set up refresh interval - fetch events every 60 seconds
+    const intervalId = setInterval(() => {
+      fetchEvents(false); // The false parameter indicates a background refresh
+    }, 60000);
+    
+    // Clean up interval on component unmount
+    return () => clearInterval(intervalId);
   }, [navigate]);
 
-  const fetchEvents = async () => {
+  const fetchEvents = async (showLoadingState = true) => {
     try {
-      setLoading(true);
+      if (showLoadingState) {
+        setLoading(true);
+      } else {
+        setRefreshing(true);
+      }
+      
       const response = await api.get("/events/events/");
       // Ensure we're getting an array of events
       const eventsList = Array.isArray(response.data) ? response.data : [];
       
+      // Remove duplicate events by ID
+      const uniqueEventsMap = new Map();
+      eventsList.forEach(event => {
+        if (event && event.id) {
+          // Only keep the first occurrence of each event ID
+          if (!uniqueEventsMap.has(event.id)) {
+            uniqueEventsMap.set(event.id, event);
+          }
+        }
+      });
+      
+      // Convert back to array
+      const uniqueEvents = Array.from(uniqueEventsMap.values());
+      console.log(`Filtered ${eventsList.length - uniqueEvents.length} duplicate events`);
+      
       // Update event status client-side based on event date
-      const updatedEvents = eventsList.map(event => {
+      const updatedEvents = uniqueEvents.map(event => {
+        // Normalize status - handle both 'canceled' and 'cancelled' spellings
+        let normalizedStatus = event.status;
+        if (normalizedStatus === 'cancelled') {
+          normalizedStatus = 'canceled';
+        }
+        
         // If the event is 'upcoming' but its date has passed, mark it as 'completed'
-        if (event.status === 'upcoming') {
+        if (normalizedStatus === 'upcoming') {
           const eventDateTime = new Date(event.event_time);
           const currentTime = new Date();
           
           if (eventDateTime < currentTime) {
             return {
               ...event,
+              status: 'completed',
               clientSideStatus: 'completed'
             };
           }
         }
-        return event;
+        
+        return {
+          ...event,
+          status: normalizedStatus,
+          clientSideStatus: normalizedStatus
+        };
       });
       
       setEvents(updatedEvents);
+      
+      if (!showLoadingState && !refreshing) {
+        toast.info("Events refreshed", { autoClose: 1000 });
+      }
     } catch (error) {
       console.error("Error fetching events:", error.response?.data);
       if (error.response?.status === 401) {
         toast.error("Session expired. Please login again.");
         navigate("/login_reg");
-      } else {
+      } else if (showLoadingState) {
+        // Only show error toast if this is an initial load, not a background refresh
         toast.error("Failed to fetch events. Please try again.");
       }
     } finally {
-      setLoading(false);
+      if (showLoadingState) {
+        setLoading(false);
+      }
+      setRefreshing(false);
     }
+  };
+
+  // Manual refresh function
+  const handleRefresh = () => {
+    fetchEvents(false);
+    fetchUserParticipations();
   };
 
   const fetchUserParticipations = async () => {
@@ -89,6 +148,20 @@ const EventList = () => {
         participation.event === eventId && 
         ["registered", "attended"].includes(participation.status)
     );
+  };
+
+  // Map event status to CSS class and display text
+  const getStatusInfo = (status) => {
+    const statusMap = {
+      'upcoming': { class: 'upcoming', text: 'Upcoming' },
+      'completed': { class: 'completed', text: 'Completed' },
+      'canceled': { class: 'canceled', text: 'Canceled' },
+      'cancelled': { class: 'canceled', text: 'Canceled' },
+      'postponed': { class: 'postponed', text: 'Postponed' },
+      'ongoing': { class: 'ongoing', text: 'Ongoing' }
+    };
+
+    return statusMap[status] || { class: 'upcoming', text: 'Upcoming' };
   };
 
   const handleCoordinatorClick = () => {
@@ -278,6 +351,14 @@ const EventList = () => {
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
               />
+              <button
+                onClick={handleRefresh}
+                className={styles.refreshButton}
+                disabled={refreshing}
+                title="Refresh Events"
+              >
+                <FaSync className={refreshing ? styles.spinning : ''} />
+              </button>
             </div>
             <div className={styles.filterButtons}>
               <button
@@ -293,10 +374,16 @@ const EventList = () => {
                 Upcoming
               </button>
               <button
-                className={filter === "ongoing" ? styles.active : ""}
-                onClick={() => setFilter("ongoing")}
+                className={filter === "completed" ? styles.active : ""}
+                onClick={() => setFilter("completed")}
               >
-                Ongoing
+                Completed
+              </button>
+              <button
+                className={filter === "canceled" ? styles.active : ""}
+                onClick={() => setFilter("canceled")}
+              >
+                Canceled
               </button>
               <button
                 className={filter === "registered" ? styles.active : ""}
@@ -309,57 +396,61 @@ const EventList = () => {
 
           <div className={styles.eventsGrid}>
             {filteredEvents.length > 0 ? (
-              filteredEvents.map((event) => (
-                <div
-                  key={event.id}
-                  className={styles.eventCard}
-                  data-aos="fade-up"
-                  data-aos-delay="100"
-                >
-                  <div className={styles.eventImage}>
-                    <img
-                      src={event.photos[0]?.photo_url || "/default-event.jpg"}
-                      alt={event.event_name}
-                    />
-                    <div className={styles.eventStatus}>
-                      <span className={styles[event.clientSideStatus || event.status]}>
-                        {event.clientSideStatus || event.status}
-                      </span>
-                    </div>
-                    {isUserRegistered(event.id) && (
-                      <div className={styles.enrolledBadge}>
-                        <FaUserCheck /> Enrolled
+              filteredEvents.map((event) => {
+                const statusInfo = getStatusInfo(event.clientSideStatus || event.status);
+                
+                return (
+                  <div
+                    key={event.id}
+                    className={styles.eventCard}
+                    data-aos="fade-up"
+                    data-aos-delay="100"
+                  >
+                    <div className={styles.eventImage}>
+                      <img
+                        src={event.photos?.[0]?.photo_url || "/default-event.jpg"}
+                        alt={event.event_name}
+                      />
+                      <div className={styles.eventStatus}>
+                        <span className={styles[statusInfo.class]}>
+                          {statusInfo.text}
+                        </span>
                       </div>
-                    )}
-                  </div>
-                  <div className={styles.eventContent}>
-                    <h3>{event.event_name}</h3>
-                    <div className={styles.eventDetails}>
-                      <p>
-                        <FaCalendar />
-                        {new Date(event.event_time).toLocaleDateString()}
-                      </p>
-                      <p>
-                        <FaClock />
-                        {new Date(event.event_time).toLocaleTimeString()}
-                      </p>
-                      <p>
-                        <FaTicketAlt />
-                        {event.is_paid ? `₹${event.price}` : "Free"}
-                      </p>
+                      {isUserRegistered(event.id) && (
+                        <div className={styles.enrolledBadge}>
+                          <FaUserCheck /> Enrolled
+                        </div>
+                      )}
                     </div>
-                    <p className={styles.eventDescription}>
-                      {event.description.slice(0, 100)}...
-                    </p>
-                    <Link
-                      to={`/events/${event.id}`}
-                      className={styles.viewDetails}
-                    >
-                      View Details
-                    </Link>
+                    <div className={styles.eventContent}>
+                      <h3>{event.event_name}</h3>
+                      <div className={styles.eventDetails}>
+                        <p>
+                          <FaCalendar />
+                          {new Date(event.event_time).toLocaleDateString()}
+                        </p>
+                        <p>
+                          <FaClock />
+                          {new Date(event.event_time).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}
+                        </p>
+                        <p>
+                          <FaTicketAlt />
+                          {event.is_paid ? `₹${event.price}` : "Free"}
+                        </p>
+                      </div>
+                      <p className={styles.eventDescription}>
+                        {event.description ? `${event.description.slice(0, 100)}...` : 'No description available'}
+                      </p>
+                      <Link
+                        to={`/events/${event.id}`}
+                        className={styles.viewDetails}
+                      >
+                        View Details
+                      </Link>
+                    </div>
                   </div>
-                </div>
-              ))
+                );
+              })
             ) : (
               <div className={styles.noEvents}>
                 <h3>No events found</h3>

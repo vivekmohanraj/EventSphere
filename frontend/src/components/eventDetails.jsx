@@ -155,10 +155,118 @@ const EventDetails = () => {
         minute: "2-digit",
       });
 
+      // If there's a venue, try to fetch venue details
+      let venueDetails = null;
+      if (eventData.venue_id) {
+        try {
+          const venueResponse = await api.get(`/events/venues/${eventData.venue_id}/`);
+          venueDetails = venueResponse.data;
+          console.log("Fetched venue details:", venueDetails);
+        } catch (venueError) {
+          console.error("Error fetching venue details:", venueError);
+          // If we can't fetch venue details, use the venue info from the event
+          venueDetails = {
+            name: eventData.venue,
+            address: "Address not available",
+            image_url: null
+          };
+        }
+      } 
+      
+      // If we don't have venue details or image URL, use the predefined venue data from sample list
+      if (!venueDetails || !venueDetails.image_url) {
+        // Sample venue data matching what's defined in eventCreation.jsx
+        const sampleVenues = [
+          {
+            id: 1,
+            name: 'Corporate Executive Center',
+            address: '123 Business Park, Financial District',
+            capacity: 300,
+            price_per_hour: 5000,
+            description: 'Professional venue with advanced presentation technology, perfect for conferences, seminars, and corporate meetings.',
+            image_url: 'https://images.unsplash.com/photo-1517457373958-b7bdd4587205?ixlib=rb-4.0.3&ixid=MnwxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8&auto=format&fit=crop&w=1469&q=80',
+            features: ['Conference Tables', 'Stage', 'Projectors', 'Microphones', 'Wi-Fi', 'Catering Available', 'Parking']
+          },
+          {
+            id: 2,
+            name: 'Workshop Studio',
+            address: '456 Creative Lane, Arts District',
+            capacity: 50,
+            price_per_hour: 2500,
+            description: 'Flexible space designed for interactive workshops and small seminars. Includes workstations and creative breakout areas.',
+            image_url: 'https://images.stockcake.com/public/b/5/f/b5fd8cec-afa5-4237-b1e7-f9569d27e14c/busy-tech-workshop-stockcake.jpg',
+            features: ['Workstations', 'Whiteboards', 'Materials Storage', 'Natural Lighting', 'Video Recording']
+          },
+          {
+            id: 3,
+            name: 'Grand Ballroom',
+            address: '789 Celebration Avenue, City Center',
+            capacity: 400,
+            price_per_hour: 7500,
+            description: 'Elegant ballroom with crystal chandeliers, perfect for weddings, large corporate events, and formal celebrations.',
+            image_url: 'https://images.unsplash.com/photo-1519167758481-83f550bb49b3?ixlib=rb-4.0.3&ixid=MnwxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8&auto=format&fit=crop&w=1674&q=80',
+            features: ['Dance Floor', 'Stage', 'Professional Lighting', 'Bridal Suite', 'Full-Service Bar', 'Catering Kitchen']
+          },
+          {
+            id: 4,
+            name: 'Rooftop Concert Space',
+            address: '101 Skyline Drive, Entertainment District',
+            capacity: 200,
+            price_per_hour: 6000,
+            description: 'Urban rooftop venue with state-of-the-art sound system and panoramic city views, ideal for concerts and music events.',
+            image_url: 'https://images.stockcake.com/public/0/3/0/030a274e-47e8-487e-9129-544289c369a3_large/sunset-rooftop-concert-stockcake.jpg',
+            features: ['Professional Sound System', 'Lighting Rig', 'Green Room', 'Bar Service', 'Weather Protection']
+          },
+          {
+            id: 5,
+            name: 'Kids Party Palace',
+            address: '222 Fun Street, Family Zone',
+            capacity: 80,
+            price_per_hour: 3000,
+            description: 'Colorful and safe space designed for children\'s birthday parties with entertainment options and themed decoration packages.',
+            image_url: 'https://images.unsplash.com/photo-1530103862676-de8c9debad1d?ixlib=rb-4.0.3&ixid=MnwxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8&auto=format&fit=crop&w=1470&q=80',
+            features: ['Play Area', 'Theme Decorations', 'Entertainment Options', 'Party Rooms', 'Catering for Kids']
+          },
+          {
+            id: 6,
+            name: 'Garden Terrace',
+            address: '333 Park Lane, Green Hills',
+            capacity: 150,
+            price_per_hour: 4000,
+            description: 'Beautiful outdoor venue with lush gardens and pergola, perfect for weddings, birthday celebrations, and garden parties.',
+            image_url: 'https://images.unsplash.com/photo-1464366400600-7168b8af9bc3?ixlib=rb-4.0.3&ixid=MnwxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8&auto=format&fit=crop&w=1469&q=80',
+            features: ['Outdoor Space', 'Wedding Arch', 'Garden Lighting', 'Weather Backup Plan', 'Scenic Photo Spots']
+          }
+        ];
+        
+        // Try to find a matching venue from our sample data
+        const matchingVenue = sampleVenues.find(venue => 
+          venue.name.toLowerCase() === (eventData.venue || '').toLowerCase() ||
+          venue.id === eventData.venue_id
+        );
+        
+        if (matchingVenue) {
+          // If we found a matching venue in our sample data, use those details
+          venueDetails = matchingVenue;
+          console.log("Using sample venue data:", venueDetails);
+        } else if (eventData.venue) {
+          // If no match but we have a venue name, create basic details with a random image
+          const randomIndex = Math.floor(Math.random() * sampleVenues.length);
+          venueDetails = {
+            name: eventData.venue,
+            address: "Address details not available",
+            image_url: sampleVenues[randomIndex].image_url,
+            features: ["Venue details not available"]
+          };
+          console.log("Using placeholder venue data with random image");
+        }
+      }
+
       setEvent({
         ...eventData,
         formatted_date: formattedDate,
         formatted_time: formattedTime,
+        venue_details: venueDetails
       });
 
       // Check if user is registered for this event
@@ -555,6 +663,56 @@ const EventDetails = () => {
       <div className={styles.description}>
         <h2><FaInfoCircle /> Description</h2>
         <p>{event.description}</p>
+      </div>
+      
+      {/* Venue Information Section */}
+      <div className={styles.venueSection}>
+        <h2><FaMapMarkerAlt /> Venue Details</h2>
+        {event.venue && (
+          <div className={styles.venueContainer}>
+            <div className={styles.venueImageContainer}>
+              {event.venue_details?.image_url ? (
+                <img 
+                  src={event.venue_details.image_url} 
+                  alt={`${event.venue} venue`} 
+                  className={styles.venueImage}
+                />
+              ) : (
+                <div className={styles.venuePlaceholder}>
+                  <FaMapMarkerAlt className={styles.venuePlaceholderIcon} />
+                  <span>No venue image available</span>
+                </div>
+              )}
+            </div>
+            <div className={styles.venueInfo}>
+              <h3>{event.venue}</h3>
+              {event.venue_details?.address && (
+                <p className={styles.venueAddress}>
+                  <FaMapMarkerAlt className={styles.venueInfoIcon} />
+                  {event.venue_details.address}
+                </p>
+              )}
+              {event.venue_details?.capacity && (
+                <p className={styles.venueCapacity}>
+                  <FaUsers className={styles.venueInfoIcon} />
+                  Capacity: {event.venue_details.capacity} people
+                </p>
+              )}
+              {event.venue_details?.features && event.venue_details.features.length > 0 && (
+                <div className={styles.venueFeatures}>
+                  <h4>Venue Features:</h4>
+                  <div className={styles.featuresList}>
+                    {event.venue_details.features.map((feature, index) => (
+                      <span key={index} className={styles.featureTag}>
+                        <FaCheck className={styles.featureIcon} /> {feature}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
       </div>
       
       {/* Social Sharing Section */}

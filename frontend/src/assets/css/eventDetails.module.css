@@ -1396,3 +1396,148 @@
   color: #2e7d32;
   font-size: 20px;
 }
+
+/* Venue Section */
+.venueSection {
+  margin-bottom: 3rem;
+  background-color: var(--bg-white);
+  padding: 1.5rem;
+  border-radius: var(--border-radius);
+  box-shadow: var(--shadow-sm);
+}
+
+.venueSection h2 {
+  font-size: 1.5rem;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin-bottom: 1rem;
+  padding-bottom: 0.5rem;
+  border-bottom: 2px solid var(--border-color);
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.venueSection h2::before {
+  content: '';
+  display: inline-block;
+  width: 4px;
+  height: 1.5rem;
+  background-color: var(--accent-color);
+  border-radius: 2px;
+}
+
+.venueContainer {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1.5rem;
+}
+
+.venueImageContainer {
+  background-color: var(--bg-light);
+  border-radius: var(--border-radius);
+  overflow: hidden;
+  height: 250px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid var(--border-color);
+}
+
+.venueImage {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  transition: transform 0.3s ease;
+}
+
+.venueImage:hover {
+  transform: scale(1.05);
+}
+
+.venuePlaceholder {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  width: 100%;
+  color: var(--text-secondary);
+  background-color: rgba(0, 0, 0, 0.05);
+}
+
+.venuePlaceholderIcon {
+  font-size: 3rem;
+  margin-bottom: 1rem;
+  opacity: 0.6;
+}
+
+.venueInfo {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.venueInfo h3 {
+  font-size: 1.5rem;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin-bottom: 0.5rem;
+}
+
+.venueAddress, .venueCapacity {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 1rem;
+  color: var(--text-secondary);
+}
+
+.venueInfoIcon {
+  color: var(--accent-color);
+  font-size: 1rem;
+}
+
+.venueFeatures {
+  margin-top: 1rem;
+}
+
+.venueFeatures h4 {
+  font-size: 1.1rem;
+  font-weight: 600;
+  margin-bottom: 0.75rem;
+  color: var(--text-primary);
+}
+
+.featuresList {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+}
+
+.featureTag {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+  background-color: var(--bg-light);
+  padding: 0.4rem 0.75rem;
+  border-radius: 2rem;
+  font-size: 0.875rem;
+  color: var(--text-primary);
+  border: 1px solid var(--border-color);
+}
+
+.featureIcon {
+  color: var(--secondary-color);
+  font-size: 0.875rem;
+}
+
+@media (max-width: 768px) {
+  .venueContainer {
+    grid-template-columns: 1fr;
+  }
+  
+  .venueImageContainer {
+    height: 200px;
+  }
+}

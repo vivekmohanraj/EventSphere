@@ -1,0 +1,25 @@
+.actionButton {
+  border: none;
+  background: none;
+  width: 35px;
+  height: 35px;
+  border-radius: 5px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  color: #555;
+  font-size: 16px;
+  transition: all 0.2s;
+}
+
+.actionButton:hover {
+  background-color: rgba(0,0,0,0.05);
+  color: #ff4a17;
+}
+
+/* Add delete button styling */
+.deleteButton:hover {
+  background-color: rgba(220, 53, 69, 0.1);
+  color: #dc3545;
+} 
