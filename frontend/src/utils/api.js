@@ -96,10 +96,16 @@ api.interceptors.response.use(
         
         console.log("Attempting token refresh");
         
+        // Construct the refresh URL properly
+        const baseURL = api.defaults.baseURL.replace(/\/$/, '');
+        const refreshURL = `${baseURL}/token/refresh/`;
+        
+        console.log("Attempting token refresh at URL:", refreshURL);
+        
         // Use a direct axios instance (not our api instance) to avoid interceptor loop
         const refreshResponse = await axios({
           method: 'post',
-          url: `${api.defaults.baseURL}token/refresh/`,
+          url: refreshURL,
           data: { refresh: refreshToken },
           headers: { 'Content-Type': 'application/json' }
         });
@@ -110,6 +116,9 @@ api.interceptors.response.use(
           localStorage.setItem(ACCESS_TOKEN, newToken);
           
           console.log("Token refreshed successfully");
+          
+          // Update the Authorization header in the api instance
+          api.defaults.headers.common['Authorization'] = `Bearer ${newToken}`;
           
           // Create a new request with the new token
           const newRequest = {

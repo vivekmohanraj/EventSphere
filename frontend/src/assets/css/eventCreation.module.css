@@ -970,47 +970,161 @@
 
 /* Payment Modal Styles */
 .paymentModal {
-  max-width: 600px;
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1050;
+}
+
+.paymentModalDialog {
+  max-width: 700px;
+  width: 95%;
+  margin: 0 auto;
+  max-height: 90vh;
+  display: flex;
+  flex-direction: column;
+}
+
+.paymentModalContent {
+  border: none;
+  border-radius: var(--border-radius-lg);
+  overflow: hidden;
+  box-shadow: var(--shadow-lg);
+  max-height: 90vh;
+  display: flex;
+  flex-direction: column;
+}
+
+.paymentModalHeader {
+  background: linear-gradient(to right, var(--primary-color), var(--primary-light));
+  border-bottom: none;
+  padding: 1.25rem 1.5rem;
+  flex-shrink: 0;
+}
+
+Modal.Body {
+  overflow-y: auto;
+  flex: 1;
 }
 
 .paymentDetails {
-  padding: 1rem;
+  padding: 1.5rem;
+  overflow-y: auto;
+  max-height: calc(90vh - 150px);
+}
+
+/* Payment Modal Header Theme */
+.paymentModalHeader {
+  background: linear-gradient(to right, var(--primary-color), var(--primary-light));
+  border-bottom: none;
+  padding: 1.25rem 1.5rem;
+}
+
+.modalTitleWrapper {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  color: white;
+  font-weight: 600;
+}
+
+.eventTypeIcon {
+  font-size: 1.25rem;
+}
+
+/* Payment Details Container */
+.paymentDetails {
+  padding: 1.5rem;
 }
 
 .paymentHeader {
-  margin-bottom: 1.5rem;
   text-align: center;
-  border-bottom: 1px solid var(--border-color);
-  padding-bottom: 1rem;
+  margin-bottom: 2rem;
+  position: relative;
 }
 
 .paymentHeader h4 {
-  color: var(--accent-color);
+  font-size: 1.4rem;
   font-weight: 600;
-  margin-bottom: 0.5rem;
+  margin-bottom: 0.75rem;
+  color: var(--primary-color);
+}
+
+.eventTypeBadge {
+  position: absolute;
+  top: -10px;
+  right: 0;
+  background-color: var(--accent-color);
+  color: white;
+  font-size: 0.75rem;
+  font-weight: 600;
+  padding: 0.25rem 0.5rem;
+  border-radius: var(--border-radius-sm);
+  letter-spacing: 0.05em;
 }
 
 .paymentInstructions {
   color: var(--text-secondary);
   font-size: 0.95rem;
+  max-width: 80%;
+  margin: 0 auto;
 }
 
+/* Payment Summary Sections */
 .paymentSummary {
-  background-color: var(--bg-light);
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 1.5rem;
+  margin-bottom: 2rem;
   border-radius: var(--border-radius);
+  background-color: var(--bg-light);
+  border: 1px solid var(--border-color);
+  overflow: hidden;
+}
+
+.paymentSummarySection, 
+.paymentBreakdownSection,
+.paymentMethodsSection {
   padding: 1.25rem;
-  margin-bottom: 1.5rem;
+  background: white;
+  border-radius: var(--border-radius);
+  box-shadow: var(--shadow-sm);
+}
+
+.paymentSummarySection h5,
+.paymentBreakdownSection h5,
+.paymentMethodsSection h5 {
+  font-size: 1.1rem;
+  font-weight: 600;
+  margin-bottom: 1rem;
+  color: var(--primary-color);
+  border-bottom: 1px solid var(--border-color);
+  padding-bottom: 0.5rem;
 }
 
 .paymentItem {
   display: flex;
   justify-content: space-between;
-  align-items: center;
   margin-bottom: 0.75rem;
   padding-bottom: 0.75rem;
-  border-bottom: 1px solid var(--border-color);
+  border-bottom: 1px dashed var(--border-color);
 }
 
+.paymentItem:last-child {
+  border-bottom: none;
+}
+
+.paymentItem span:first-child {
+  font-weight: 500;
+  color: var(--text-primary);
+}
+
+/* Booking Hours Control */
 .bookingHoursControl {
   display: flex;
   align-items: center;
@@ -1018,49 +1132,38 @@
 }
 
 .hourButton {
-  width: 30px;
-  height: 30px;
-  border-radius: 50%;
-  background-color: var(--bg-white);
-  border: 1px solid var(--border-color);
+  width: 2rem;
+  height: 2rem;
   display: flex;
   align-items: center;
   justify-content: center;
-  cursor: pointer;
+  border: 1px solid var(--border-color);
+  background-color: var(--bg-white);
+  border-radius: 50%;
   font-weight: bold;
-  color: var(--text-primary);
+  cursor: pointer;
+  transition: all 0.2s ease;
 }
 
 .hourButton:hover {
-  background-color: var(--accent-color);
+  background-color: var(--primary-light);
   color: white;
 }
 
-.paymentBreakdown {
-  margin-top: 1.5rem;
-  padding-top: 1rem;
-  border-top: 1px dashed var(--border-color);
-}
-
-.paymentBreakdown h5 {
-  font-weight: 600;
-  margin-bottom: 1rem;
-  color: var(--text-primary);
-}
-
+/* Payment Breakdown */
 .breakdownItem {
   display: flex;
   justify-content: space-between;
-  margin-bottom: 0.5rem;
-  font-size: 0.95rem;
+  margin-bottom: 0.75rem;
+  color: var(--text-secondary);
 }
 
 .paymentTotal {
-  margin-top: 1rem;
-  padding-top: 1rem;
-  border-top: 1px solid var(--border-color);
   display: flex;
   justify-content: space-between;
+  padding-top: 1rem;
+  margin-top: 1rem;
+  border-top: 2px solid var(--primary-color);
   font-weight: 600;
   font-size: 1.1rem;
 }
@@ -1070,116 +1173,270 @@
   font-size: 1.2rem;
 }
 
-.paymentMethods {
-  margin-top: 1.5rem;
-  padding-top: 1rem;
-  border-top: 1px dashed var(--border-color);
+/* Payment Methods */
+.paymentMethodIcons {
+  display: flex;
+  gap: 1rem;
+  margin-bottom: 1rem;
+  font-size: 1.5rem;
 }
 
-.paymentMethods h5 {
-  font-weight: 600;
-  margin-bottom: 0.5rem;
-  color: var(--text-primary);
-  font-size: 0.95rem;
-}
-
-.paymentMethods p {
-  font-size: 0.9rem;
-  color: var(--text-secondary);
+.paymentMethodIcon {
+  display: inline-block;
+  background-color: var(--bg-light);
+  border-radius: 50%;
+  width: 3rem;
+  height: 3rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: var(--shadow-sm);
 }
 
 .securityNote {
-  margin-top: 0.5rem;
-  display: flex;
-  align-items: center;
+  margin-top: 0.75rem;
   color: var(--text-secondary);
-}
-
-.securityNote small {
   font-style: italic;
 }
 
+/* Payment Actions */
 .paymentActions {
   display: flex;
   justify-content: center;
-  flex-wrap: wrap;
-  margin-top: var(--spacing-lg);
-  gap: var(--spacing-md);
+  gap: 1rem;
+  margin-top: 2rem;
+  margin-bottom: 1.5rem;
 }
 
 .payNowButton {
-  background-color: var(--primary-color);
+  padding: 0.75rem 2rem;
+  background-color: var(--accent-color);
   color: white;
-  padding: 12px 24px;
   border: none;
   border-radius: var(--border-radius);
   font-weight: 600;
-  display: flex;
-  align-items: center;
-  gap: 8px;
   cursor: pointer;
-  transition: all 0.3s ease;
-}
-
-.payButtonText {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-
-/* Test Button for debugging */
-.testButton {
-  background-color: #f0f0f0;
-  color: #333;
-  padding: 8px 16px;
-  border: 2px solid #333;
-  border-radius: var(--border-radius);
-  font-weight: 600;
-  font-size: 12px;
-  cursor: pointer;
-  transition: all 0.3s ease;
-}
-
-.testButton:hover {
-  background-color: #ddd;
+  transition: all 0.2s ease;
+  min-width: 10rem;
 }
 
 .payNowButton:hover {
-  background-color: var(--primary-color);
-  opacity: 0.9;
+  background-color: var(--accent-hover);
 }
 
-.payLaterButton {
-  padding: 0.75rem 1rem;
+.cancelButton {
+  padding: 0.75rem 2rem;
   background-color: transparent;
   color: var(--text-secondary);
   border: 1px solid var(--border-color);
   border-radius: var(--border-radius);
   font-weight: 600;
   cursor: pointer;
-  transition: all 0.2s;
+  transition: all 0.2s ease;
+  min-width: 10rem;
 }
 
-.payLaterButton:hover {
+.cancelButton:hover {
   background-color: var(--bg-light);
   color: var(--text-primary);
 }
 
+/* Payment Notes */
 .paymentNote {
-  margin-top: 1.5rem;
-  padding-top: 1rem;
-  border-top: 1px solid var(--border-color);
+  margin-top: 2rem;
+  background-color: var(--bg-light);
+  padding: 1rem;
+  border-radius: var(--border-radius);
+  border-left: 4px solid var(--primary-color);
+}
+
+.paymentNote p {
+  margin-bottom: 0.5rem;
   color: var(--text-secondary);
 }
 
-.spinnerSmall {
-  width: 16px;
-  height: 16px;
-  border: 2px solid rgba(255, 255, 255, 0.3);
-  border-radius: 50%;
-  border-top-color: #fff;
-  animation: spin 1s ease-in-out infinite;
-  margin-right: var(--spacing-xs);
+/* Event Type Themes */
+.theme-conference {
+  --theme-color: #3b82f6;
+  --theme-color-light: #93c5fd;
+  --theme-accent: #2563eb;
+}
+
+.theme-workshop {
+  --theme-color: #10b981;
+  --theme-color-light: #a7f3d0;
+  --theme-accent: #059669;
+}
+
+.theme-seminar {
+  --theme-color: #8b5cf6;
+  --theme-color-light: #c4b5fd;
+  --theme-accent: #7c3aed;
+}
+
+.theme-concert {
+  --theme-color: #f97316;
+  --theme-color-light: #fed7aa;
+  --theme-accent: #ea580c;
+}
+
+.theme-birthday {
+  --theme-color: #ec4899;
+  --theme-color-light: #fbcfe8;
+  --theme-accent: #db2777;
+}
+
+.theme-wedding {
+  --theme-color: #6366f1;
+  --theme-color-light: #c7d2fe;
+  --theme-accent: #4f46e5;
+}
+
+.theme-corporate {
+  --theme-color: #0f172a;
+  --theme-color-light: #64748b;
+  --theme-accent: #1e293b;
+}
+
+.theme-other, .theme-default {
+  --theme-color: var(--primary-color);
+  --theme-color-light: var(--primary-light);
+  --theme-accent: var(--accent-color);
+}
+
+/* Theme-based modal header */
+.theme-conference .paymentModalHeader,
+.theme-workshop .paymentModalHeader,
+.theme-seminar .paymentModalHeader,
+.theme-concert .paymentModalHeader,
+.theme-birthday .paymentModalHeader,
+.theme-wedding .paymentModalHeader,
+.theme-corporate .paymentModalHeader,
+.theme-default .paymentModalHeader,
+.theme-other .paymentModalHeader {
+  background: linear-gradient(to right, var(--theme-color), var(--theme-color-light));
+}
+
+/* Theme-based badges */
+.theme-conference .eventTypeBadge,
+.theme-workshop .eventTypeBadge,
+.theme-seminar .eventTypeBadge,
+.theme-concert .eventTypeBadge,
+.theme-birthday .eventTypeBadge,
+.theme-wedding .eventTypeBadge,
+.theme-corporate .eventTypeBadge,
+.theme-default .eventTypeBadge,
+.theme-other .eventTypeBadge {
+  background-color: var(--theme-color);
+}
+
+/* Theme-based section headings */
+.theme-conference .paymentSummarySection h5,
+.theme-conference .paymentBreakdownSection h5,
+.theme-conference .paymentMethodsSection h5,
+.theme-workshop .paymentSummarySection h5,
+.theme-workshop .paymentBreakdownSection h5,
+.theme-workshop .paymentMethodsSection h5,
+.theme-seminar .paymentSummarySection h5,
+.theme-seminar .paymentBreakdownSection h5,
+.theme-seminar .paymentMethodsSection h5,
+.theme-concert .paymentSummarySection h5,
+.theme-concert .paymentBreakdownSection h5,
+.theme-concert .paymentMethodsSection h5,
+.theme-birthday .paymentSummarySection h5,
+.theme-birthday .paymentBreakdownSection h5,
+.theme-birthday .paymentMethodsSection h5,
+.theme-wedding .paymentSummarySection h5,
+.theme-wedding .paymentBreakdownSection h5,
+.theme-wedding .paymentMethodsSection h5,
+.theme-corporate .paymentSummarySection h5,
+.theme-corporate .paymentBreakdownSection h5,
+.theme-corporate .paymentMethodsSection h5,
+.theme-default .paymentSummarySection h5,
+.theme-default .paymentBreakdownSection h5,
+.theme-default .paymentMethodsSection h5,
+.theme-other .paymentSummarySection h5,
+.theme-other .paymentBreakdownSection h5,
+.theme-other .paymentMethodsSection h5 {
+  color: var(--theme-color);
+}
+
+/* Theme-based buttons */
+.theme-btn-conference,
+.theme-btn-workshop,
+.theme-btn-seminar,
+.theme-btn-concert,
+.theme-btn-birthday,
+.theme-btn-wedding,
+.theme-btn-corporate,
+.theme-btn-default,
+.theme-btn-other {
+  background-color: var(--theme-accent);
+}
+
+.theme-btn-conference:hover,
+.theme-btn-workshop:hover,
+.theme-btn-seminar:hover,
+.theme-btn-concert:hover,
+.theme-btn-birthday:hover,
+.theme-btn-wedding:hover,
+.theme-btn-corporate:hover,
+.theme-btn-default:hover,
+.theme-btn-other:hover {
+  background-color: var(--theme-color);
+}
+
+/* Theme-based total amount */
+.theme-conference .totalAmount,
+.theme-workshop .totalAmount,
+.theme-seminar .totalAmount,
+.theme-concert .totalAmount,
+.theme-birthday .totalAmount,
+.theme-wedding .totalAmount,
+.theme-corporate .totalAmount,
+.theme-default .totalAmount,
+.theme-other .totalAmount {
+  color: var(--theme-accent);
+}
+
+/* Responsive styling for payment modal */
+@media (max-width: 768px) {
+  .paymentModalDialog {
+    max-width: 95%;
+    margin: 1rem auto;
+  }
+  
+  .paymentActions {
+    flex-direction: column;
+    gap: 0.75rem;
+  }
+  
+  .payNowButton, 
+  .cancelButton {
+    width: 100%;
+  }
+  
+  .paymentHeader h4 {
+    font-size: 1.2rem;
+  }
+  
+  .paymentInstructions {
+    max-width: 100%;
+  }
+  
+  .paymentSummary {
+    grid-template-columns: 1fr;
+  }
+  
+  .paymentItem,
+  .breakdownItem {
+    flex-direction: column;
+    gap: 0.25rem;
+  }
+  
+  .paymentTotal {
+    flex-direction: row;
+  }
 }
 
 /* Coordinator Payment Alert */

@@ -14,7 +14,6 @@ from .views import (
 
 router = DefaultRouter()
 router.register(r'coordinator-requests', CoordinatorRequestViewSet)
-router.register(r'events', EventViewSet)
 router.register(r'photos', EventPhotoViewSet)
 router.register(r'participants', EventParticipantViewSet)
 router.register(r'updates', EventUpdateViewSet)

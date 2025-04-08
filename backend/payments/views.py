@@ -42,6 +42,9 @@ class PaymentViewSet(viewsets.ModelViewSet):
         event_id = request.data.get("event")
         venue_id = request.data.get("venue")
         booking_hours = int(request.data.get("booking_hours", 3))
+        amount = request.data.get("amount")
+        
+        logger.info(f"Payment creation request - Amount: {amount}, Event: {event_id}, Venue: {venue_id}, Hours: {booking_hours}")
         
         # Validate input data
         if not event_id:
@@ -58,10 +61,17 @@ class PaymentViewSet(viewsets.ModelViewSet):
                 venue = Venue.objects.get(pk=venue_id)
                 
             # Calculate amount based on venue and booking hours
-            amount = Decimal('0.00')
+            calculated_amount = Decimal('0.00')
             if venue:
-                amount = self.razorpay_service.calculate_venue_price(venue, booking_hours)
+                calculated_amount = self.razorpay_service.calculate_venue_price(venue, booking_hours)
                 
+            logger.info(f"Amount comparison - Requested: {amount}, Calculated: {calculated_amount}")
+            
+            # Use the amount from the request if provided, otherwise use calculated amount
+            final_amount = Decimal(str(amount)) if amount else calculated_amount
+            
+            logger.info(f"Final amount for payment: {final_amount}")
+            
             # Check if user is admin or coordinator
             if request.user.user_role == 'admin':
                 # Admins don't need to pay
@@ -69,7 +79,7 @@ class PaymentViewSet(viewsets.ModelViewSet):
                     event=event,
                     coordinator=request.user,
                     venue=venue,
-                    amount=amount,
+                    amount=final_amount,
                     payment_status='completed',
                     payment_type='event_creation',
                     booking_hours=booking_hours,
@@ -84,7 +94,7 @@ class PaymentViewSet(viewsets.ModelViewSet):
                 event=event,
                 coordinator=request.user,
                 venue=venue,
-                amount=amount,
+                amount=final_amount,
                 payment_status='pending',
                 payment_type='event_creation',
                 booking_hours=booking_hours
@@ -100,7 +110,7 @@ class PaymentViewSet(viewsets.ModelViewSet):
             }
             
             order = self.razorpay_service.create_order(
-                amount=amount,
+                amount=final_amount,
                 receipt=f"payment_{payment.id}",
                 notes=notes
             )

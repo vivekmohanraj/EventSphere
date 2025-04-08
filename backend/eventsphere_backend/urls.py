@@ -38,7 +38,7 @@ urlpatterns = [
     path("payments/", include("payments.urls")),
     
     # Direct API endpoints at root level
-    path("", include(api_router.urls)),  # This adds users/ at root level
+    path("", include(api_router.urls)),
     
     # Authentication endpoints
     path("token/", TokenObtainPairView.as_view(), name="token_obtain_pair"),
@@ -46,7 +46,7 @@ urlpatterns = [
     path("auth/", include("rest_framework.urls")),
     
     # Additional compatibility endpoints for the profile feature
-    path("api/", include(api_router.urls)),  # This adds api/users/
+    path("api/", include(api_router.urls)),
     path("api/profile/", ProfileView.as_view(), name="root-api-profile"),
     path("api/users/me/", ProfileView.as_view(), name="root-api-me"),
     path("auth/users/me/", ProfileView.as_view(), name="root-auth-me"),

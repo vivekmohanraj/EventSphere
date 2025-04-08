@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { Modal, Button, Form, Row, Col } from "react-bootstrap";
 import { ToastContainer, toast } from "react-toastify";
 import { z } from "zod";
@@ -13,8 +13,12 @@ import { Link } from "react-router-dom";
 import styles from "../assets/css/login_reg.module.css";
 import api from "../utils/api"; // Adjust the path as needed
 import { ACCESS_TOKEN, REFRESH_TOKEN } from "../utils/constants"; // Import ACCESS_TOKEN if not already imported
+import { getEnv, logEnvironmentVariables } from '../utils/env';
 
-const CLIENT_ID = import.meta.env.VITE_CLIENT_ID;
+// Get Google Client ID directly from .env file
+const CLIENT_ID = import.meta.env.VITE_CLIENT_ID || "772220265946-cbl43ponl16viae3ar1vulo80vs6145k.apps.googleusercontent.com";
+console.log("Google Client ID:", CLIENT_ID); // For debugging
+
 // Dummy async functions to simulate username and email availability checks.
 const checkUsernameAvailability = async (username) => {
   try {
@@ -96,6 +100,24 @@ const LoginRegistration = () => {
   const [usernameAvailable, setUsernameAvailable] = useState(null); // null = not checked, true/false after check
   const [emailAvailable, setEmailAvailable] = useState(null);
 
+  // Check if environment variables are loaded properly
+  useEffect(() => {
+    // Log all available environment variables
+    const hasEnvVars = logEnvironmentVariables();
+    
+    // Validate Google Client ID
+    if (!CLIENT_ID) {
+      console.error("Google Client ID is missing. OAuth will not work.");
+      toast.error("Google Sign-In configuration is incomplete. Please contact support.");
+    } else {
+      console.log("Google Authentication is configured correctly");
+    }
+    
+    if (!hasEnvVars) {
+      console.warn("No environment variables detected. Check your .env file and Vite configuration.");
+    }
+  }, []);
+
   const {
     register: loginRegister,
     handleSubmit: handleLoginSubmit,
@@ -156,17 +178,22 @@ const LoginRegistration = () => {
       localStorage.setItem(REFRESH_TOKEN, response.data.refresh);
 
       // Extract and normalize role to ensure consistency
-      let userRole = response.data.role || response.data.user_role || 'normal';
+      let userRole = response.data.role || response.data.user_role || 'user';
+      if (userRole === 'normal') userRole = 'user';
       
       // Store user data with consistent field names
       const userData = {
         username: response.data.username,
         role: userRole,
-        email: response.data.email
+        email: response.data.email || '',
+        id: response.data.id || null
       };
       
       console.log("Storing user data:", userData);
       localStorage.setItem("user", JSON.stringify(userData));
+      
+      // Update the Authorization header in the api instance
+      api.defaults.headers.common['Authorization'] = `Bearer ${response.data.access}`;
       
       toast.success("Login successful!");
       
@@ -215,7 +242,7 @@ const LoginRegistration = () => {
 
       // Auto-login after registration
       const loginResponse = await api.post("users/login/", {
-        login: data.username, // Use "login" field for login
+        login: data.username,
         password: data.password,
       });
 
@@ -223,12 +250,17 @@ const LoginRegistration = () => {
       localStorage.setItem(ACCESS_TOKEN, loginResponse.data.access);
       localStorage.setItem(REFRESH_TOKEN, loginResponse.data.refresh);
 
-      // Store user data
+      // Store user data with consistent format
       const userData = {
         username: loginResponse.data.username,
-        role: loginResponse.data.role
+        role: loginResponse.data.role === 'normal' ? 'user' : loginResponse.data.role,
+        email: loginResponse.data.email || '',
+        id: loginResponse.data.id || null
       };
       localStorage.setItem("user", JSON.stringify(userData));
+
+      // Update the Authorization header in the api instance
+      api.defaults.headers.common['Authorization'] = `Bearer ${loginResponse.data.access}`;
 
       toast.success("Logged in successfully!");
       window.location.href = "/";
@@ -248,14 +280,26 @@ const LoginRegistration = () => {
   };
 
   const responseGoogle = async (response) => {
-    if (response.error) {
-      console.error("Google login error:", response.error);
+    console.log("Google response received:", response);
+    
+    if (!response || response.error) {
+      console.error("Google login error:", response?.error || "No response received");
+      toast.error("Google authentication failed");
       return;
     }
 
-    const googleToken = response.credential; // Corrected field
-    
     try {
+      // Ensure we have the correct credential field
+      const googleToken = response.credential;
+      
+      if (!googleToken) {
+        console.error("No Google token received in response:", response);
+        toast.error("Authentication failed: No valid token received");
+        return;
+      }
+      
+      console.log("Google token received successfully");
+      
       // Get role value, defaulting to 'user' if not set or if the value is 'normal'
       let roleValue = getValues("role") || "user";
       
@@ -271,30 +315,46 @@ const LoginRegistration = () => {
         role: roleValue
       });
 
-      console.log("Success:", res.data);
+      console.log("Login successful:", res.data);
+      
+      // Save the tokens and user data
       localStorage.setItem(ACCESS_TOKEN, res.data.access);
       localStorage.setItem(REFRESH_TOKEN, res.data.refresh);
 
-      // Store user data
       const userData = {
         username: res.data.username,
         role: res.data.role,
+        email: res.data.email || '',
       };
+      
       localStorage.setItem("user", JSON.stringify(userData));
 
       toast.success("Login successful!");
 
       // Redirect based on role
-      if (userData.role === 'admin') {
-        window.location.href = "/admin-dashboard";
-      } else if (userData.role === 'coordinator') {
-        window.location.href = "/coordinator-dashboard";
-      } else {
-        window.location.href = "/";
-      }
+      setTimeout(() => {
+        if (userData.role === 'admin') {
+          window.location.href = "/admin-dashboard";
+        } else if (userData.role === 'coordinator') {
+          window.location.href = "/coordinator-dashboard";
+        } else {
+          window.location.href = "/";
+        }
+      }, 1000); // Short delay to allow toast to be seen
     } catch (error) {
-      toast.error(error.response?.data?.error || "Login failed.");
-      console.error("Error:", error.response?.data || error.message);
+      console.error("API Error:", error);
+      
+      if (error.response) {
+        console.error("Response data:", error.response.data);
+        console.error("Response status:", error.response.status);
+        toast.error(error.response.data?.error || `Login failed (${error.response.status})`);
+      } else if (error.request) {
+        console.error("No response received:", error.request);
+        toast.error("Server did not respond. Please try again later.");
+      } else {
+        console.error("Error message:", error.message);
+        toast.error("Login failed: " + error.message);
+      }
     }
   };
 
@@ -430,26 +490,31 @@ const LoginRegistration = () => {
                 <Button type="submit" className={styles.customBtn}>
                   Login
                 </Button>
-                <GoogleOAuthProvider clientId={CLIENT_ID}>
-                  <GoogleLogin
-                    clientId={CLIENT_ID}
-                    onSuccess={responseGoogle}
-                    onFailure={responseGoogle}
-                    cookiePolicy={"single_host_origin"}
-                    render={(renderProps) => (
-                      <button
-                        type="button" // Prevents form submission
-                        onClick={renderProps.onClick}
-                        disabled={renderProps.disabled}
-                        className="d-flex align-items-center justify-content-center btn btn-outline-secondary"
-                        style={{ borderRadius: '8px', padding: '10px', fontWeight: '500' }}
-                      >
-                        <FaGoogle size={18} className="me-2" /> Sign in with
-                        Google
-                      </button>
-                    )}
-                  />
-                </GoogleOAuthProvider>
+                {CLIENT_ID ? (
+                  <GoogleOAuthProvider clientId={CLIENT_ID}>
+                    <GoogleLogin
+                      onSuccess={responseGoogle}
+                      onFailure={responseGoogle}
+                      cookiePolicy={"single_host_origin"}
+                      render={(renderProps) => (
+                        <button
+                          type="button" // Prevents form submission
+                          onClick={renderProps.onClick}
+                          disabled={renderProps.disabled}
+                          className="d-flex align-items-center justify-content-center btn btn-outline-secondary"
+                          style={{ borderRadius: '8px', padding: '10px', fontWeight: '500' }}
+                        >
+                          <FaGoogle size={18} className="me-2" /> Sign in with
+                          Google
+                        </button>
+                      )}
+                    />
+                  </GoogleOAuthProvider>
+                ) : (
+                  <div className="alert alert-warning">
+                    Google Sign-In is temporarily unavailable
+                  </div>
+                )}
                 <Link to="/forgot-password" className={styles.forgotPassword}>
                   Forgot Password?
                 </Link>
@@ -679,25 +744,30 @@ const LoginRegistration = () => {
                 <Button type="submit" className={styles.customBtn}>
                   Register
                 </Button>
-                <GoogleOAuthProvider clientId={CLIENT_ID}>
-                  <GoogleLogin
-                    clientId={CLIENT_ID}
-                    onSuccess={responseGoogle}
-                    onFailure={responseGoogle}
-                    cookiePolicy={"single_host_origin"}
-                    render={(renderProps) => (
-                      <button
-                        type="button"
-                        onClick={renderProps.onClick}
-                        disabled={renderProps.disabled}
-                        className="d-flex align-items-center justify-content-center btn btn-outline-secondary"
-                        style={{ borderRadius: '8px', padding: '10px', fontWeight: '500' }}
-                      >
-                        <FaGoogle size={18} className="me-2" /> Sign in with Google
-                      </button>
-                    )}
-                  />
-                </GoogleOAuthProvider>
+                {CLIENT_ID ? (
+                  <GoogleOAuthProvider clientId={CLIENT_ID}>
+                    <GoogleLogin
+                      onSuccess={responseGoogle}
+                      onFailure={responseGoogle}
+                      cookiePolicy={"single_host_origin"}
+                      render={(renderProps) => (
+                        <button
+                          type="button"
+                          onClick={renderProps.onClick}
+                          disabled={renderProps.disabled}
+                          className="d-flex align-items-center justify-content-center btn btn-outline-secondary"
+                          style={{ borderRadius: '8px', padding: '10px', fontWeight: '500' }}
+                        >
+                          <FaGoogle size={18} className="me-2" /> Sign in with Google
+                        </button>
+                      )}
+                    />
+                  </GoogleOAuthProvider>
+                ) : (
+                  <div className="alert alert-warning">
+                    Google Sign-In is temporarily unavailable
+                  </div>
+                )}
               </div>
             </Form>
           )}

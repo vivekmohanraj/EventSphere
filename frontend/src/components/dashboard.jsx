@@ -96,7 +96,26 @@ const Dashboard = () => {
       },
       modal: {
         ondismiss: function() {
-          toast.warning("Payment canceled. Your event remains in draft status.");
+          // Delete the temporary event when Razorpay modal is closed
+          try {
+            const tempEventId = selectedPayment?.event;
+            if (tempEventId) {
+              // Delete the temporary event if it's still in draft status
+              api.delete(`/api/events/${tempEventId}/`)
+                .then(() => {
+                  console.log("Temporary event deleted on payment modal close");
+                  // Remove the deleted event from draftEvents array
+                  setDraftEvents(prev => prev.filter(event => event.id !== tempEventId));
+                  // Also remove from pendingPayments
+                  setPendingPayments(prev => prev.filter(payment => payment.event !== tempEventId));
+                })
+                .catch(deleteError => console.error("Failed to delete temp event:", deleteError));
+            }
+          } catch (cleanupError) {
+            console.error("Error cleaning up after payment modal dismissed:", cleanupError);
+          }
+          
+          toast.warning("Payment canceled. The draft event has been removed.");
           setShowPaymentModal(false);
         }
       }

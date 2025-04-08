@@ -129,7 +129,7 @@ const EventCreation = () => {
   useEffect(() => {
     const fetchTags = async () => {
       try {
-        const tagsRes = await api.get('/events/tags/');
+        const tagsRes = await api.get('/api/events/tags/');
         if (tagsRes.data && tagsRes.data.length > 0) {
           // If we get valid data from API, use it
           setTags(tagsRes.data);
@@ -156,7 +156,7 @@ const EventCreation = () => {
     try {
       setLoadingVenues(true);
       // Try to fetch from actual venue endpoint
-      const response = await api.get('/events/venues/');
+      const response = await api.get('/api/events/venues/');
       setVenues(response.data);
     } catch (error) {
       // Only log error details in development mode, not for 404 errors
@@ -366,13 +366,118 @@ const EventCreation = () => {
     const baseFee = 1000; // Base fee for event creation
     const totalAmount = baseFee + venueFee + participantTotal;
     
+    console.log('Payment Calculation:', {
+      baseFee,
+      venueFee,
+      participantTotal,
+      totalAmount,
+      bookingHours,
+      venueHourlyRate: selectedVenue?.price_per_hour
+    });
+    
     setCalculatedPayment({
       baseFee,
       venueFee,
       participantFee: participantTotal,
       totalAmount
     });
-  }, [selectedVenue, bookingHours, getValues, participantFee, limitedCapacity]);
+    
+    // If payment data exists and we're showing the payment modal, we need to update the payment
+    if (paymentData && showPaymentModal) {
+      // Update payment order on backend with new amount
+      // This will happen when booking hours change in the payment modal
+      updatePaymentOrder();
+    }
+  }, [selectedVenue, bookingHours, getValues, participantFee, limitedCapacity, paymentData, showPaymentModal]);
+
+  // Add this function to manage payment order updates
+  const updatePaymentOrder = async () => {
+    console.log("%c UPDATING PAYMENT ORDER", "background: blue; color: white; font-size: 16px;");
+    console.log("Current payment calculation:", {
+      baseFee: calculatedPayment.baseFee,
+      venueFee: calculatedPayment.venueFee,
+      participantFee: calculatedPayment.participantFee,
+      totalAmount: calculatedPayment.totalAmount
+    });
+    
+    try {
+      // Delete previous payment if it exists
+      if (paymentData?.id) {
+        console.log("Attempting to delete previous payment:", paymentData.id);
+        try {
+          await api.delete(`/api/payments/${paymentData.id}/`);
+          console.log("Previous payment deleted successfully");
+        } catch (deleteError) {
+          // If payment doesn't exist (404) or other error, just log and continue
+          console.log("Could not delete previous payment, may not exist:", deleteError.message);
+          // Continue with creating a new payment
+        }
+      }
+      
+      // Get the venue ID from the selected venue
+      const venueId = selectedVenue ? selectedVenue.id : null;
+      
+      // Create a new payment request with updated amount
+      const paymentRequest = {
+        event: paymentData.event, // Use the same temporary event
+        venue: venueId,
+        booking_hours: bookingHours,
+        amount: calculatedPayment.totalAmount, // Updated amount
+        currency: "INR",
+        payment_method: "razorpay",
+        payment_status: "pending",
+        payment_details: {
+          breakdown: {
+            baseFee: calculatedPayment.baseFee,
+            venueFee: calculatedPayment.venueFee,
+            participantFee: calculatedPayment.participantFee,
+            totalAmount: calculatedPayment.totalAmount
+          }
+        }
+      };
+      
+      console.log("Creating new payment with updated amount:", paymentRequest);
+      const paymentResponse = await api.post(
+        `/api/payments/`,
+        paymentRequest
+      );
+      
+      console.log("%c NEW PAYMENT RESPONSE", "background: green; color: white;", paymentResponse.data);
+      
+      // Make sure we got a new Razorpay order ID
+      if (!paymentResponse.data.razorpay_order_id) {
+        throw new Error("Missing Razorpay order ID in payment response");
+      }
+      
+      // Check if the backend amount matches our frontend calculation
+      const backendAmount = paymentResponse.data.amount;
+      const backendOrderAmount = paymentResponse.data.payment_details?.order?.amount;
+      
+      console.log("%c AMOUNT CHECK", "background: orange; color: black;", {
+        frontendAmount: calculatedPayment.totalAmount,
+        backendAmount: backendAmount,
+        backendOrderAmount: backendOrderAmount,
+        match: calculatedPayment.totalAmount === backendAmount
+      });
+      
+      // Update the payment data in state
+      const updatedPaymentData = {
+        ...paymentResponse.data,
+        amount: calculatedPayment.totalAmount, // Ensure we're using our calculated amount
+        event: paymentData.event // Preserve the event reference
+      };
+      
+      setPaymentData(updatedPaymentData);
+      
+      toast.info(`Payment amount updated to ₹${calculatedPayment.totalAmount.toFixed(2)}`);
+      console.log("Payment order updated successfully with new Razorpay order ID:", updatedPaymentData.razorpay_order_id);
+      return updatedPaymentData;
+    } catch (error) {
+      console.error("Error updating payment order:", error);
+      toast.error("Failed to update payment amount. Please try again.");
+      return null;
+    }
+  };
 
   const onSubmit = async (data) => {
     try {
@@ -465,99 +570,85 @@ const EventCreation = () => {
         if (isCoordinator) {
           console.log("User is a coordinator - starting payment flow");
           try {
-            // Get calculated payment
-            const totalPayment = calculatedPayment.totalAmount;
+            // Store the event data locally to use after payment success
+            const eventData = {
+              event_name: data.event_name,
+              event_type: data.event_type,
+              formData: eventFormData,
+              venueId: venueId,
+              bookingHours: bookingHours
+            };
             
-            // Save event as draft first to get event ID
-            // Use axios directly to ensure proper content-type for FormData
-            const eventResponse = await axios.post(
-              `${API_URL}/api/events/`,
-              eventFormData,
-              {
-                headers: {
-                  'Authorization': `Bearer ${localStorage.getItem(ACCESS_TOKEN)}`,
-                  // Don't set Content-Type, it will be set automatically for FormData
-                }
-              }
+            // Save the event data for later creation
+            setEventData(eventData);
+            
+            // Create a temporary draft event first
+            console.log("Creating temporary draft event");
+            const tempEventResponse = await api.post(
+              `/api/events/`,
+              eventFormData
             );
             
-            console.log("Event created successfully as draft:", eventResponse.data);
+            const tempEventId = tempEventResponse.data.id;
+            console.log("Temporary draft event created with ID:", tempEventId);
             
-            // Store the event data for later use
-            setEventData(eventResponse.data);
+            // Now create the payment linked to the temporary event
+            console.log("Creating payment with amount:", calculatedPayment.totalAmount);
             
-            // Create a payment record
-            try {
-              const paymentResponse = await api.post(
-                `/api/payments/`,
-                {
-                  event: eventResponse.data.id,
-                  venue: venueId,  // Use the same venueId variable we defined earlier
-                  booking_hours: bookingHours,
-                  amount: totalPayment,
-                  payment_type: 'event_creation',
-                  payment_status: 'pending'
+            // Prepare the payment request with detailed payment breakdown
+            const paymentRequest = {
+              event: tempEventId, // Link to the temporary event
+              booking_hours: bookingHours,
+              venue: venueId,
+              amount: calculatedPayment.totalAmount,
+              payment_type: 'event_creation',
+              payment_status: 'pending',
+              payment_details: {
+                breakdown: {
+                  baseFee: calculatedPayment.baseFee,
+                  venueFee: calculatedPayment.venueFee,
+                  participantFee: calculatedPayment.participantFee,
+                  totalAmount: calculatedPayment.totalAmount
                 }
-              );
-              
-              console.log("Payment record created:", paymentResponse.data);
-              
-              // Store payment data for Razorpay
-              setPaymentData(paymentResponse.data);
-              
-              // Show payment modal
-              console.log("About to show payment modal...");
-              setShowPaymentModal(true);
-              
-              // Open Razorpay checkout after a brief delay to ensure modal is rendered
-              console.log("Setting timeout to open Razorpay");
-              setTimeout(() => {
-                console.log("Timeout triggered, calling openRazorpayCheckout");
-                openRazorpayCheckout();
-              }, 500);
-              
-              // FALLBACK check to make sure modal opens
-              setTimeout(() => {
-                console.log("FALLBACK CHECK: Verifying if payment flow was triggered");
-                if (!document.querySelector('.razorpay-container') && !document.querySelector('.razorpay-payment-button')) {
-                  console.log("No Razorpay elements found - manually triggering checkout");
-                  openRazorpayCheckout();
-                }
-              }, 2000);
-            } catch (paymentError) {
-              console.error("Error creating payment:", paymentError);
-              
-              // If it's a server error (500), we'll display a message but not block the flow
-              if (paymentError.response?.status === 500) {
-                toast.warning("Payment gateway is temporarily unavailable. Your event is saved as draft.");
-                
-                // Navigate to dashboard since we can't process payment
-                setTimeout(() => {
-                  navigate('/dashboard');
-                }, 2000);
-              } else {
-                // For other types of errors, show error message
-                toast.error("Error processing payment: " + (paymentError.response?.data?.error || paymentError.message));
-                setIsSubmitting(false);
               }
-            }
-          } catch (error) {
-            console.error("Error in payment flow:", error);
-            toast.error("Error processing payment: " + (error.response?.data?.detail || error.message));
+            };
+            
+            const paymentResponse = await api.post(
+              `/api/payments/`,
+              paymentRequest
+            );
+            
+            console.log("Payment record created:", paymentResponse.data);
+            
+            // Store payment data for Razorpay
+            // Force the amount to be exactly what we calculated
+            const paymentData = {
+              ...paymentResponse.data,
+              amount: calculatedPayment.totalAmount,
+              event: tempEventId // Store the temp event ID
+            };
+            
+            setPaymentData(paymentData);
+            
+            // Update event data with temp ID
+            setEventData({
+              ...eventData,
+              id: tempEventId
+            });
+            
+            // Show payment modal
+            setShowPaymentModal(true);
+          } catch (paymentError) {
+            console.error("Error creating payment:", paymentError);
+            toast.error("Failed to initialize payment: " + (paymentError.response?.data?.error || paymentError.message));
             setIsSubmitting(false);
           }
         } else {
           console.log("User is not a coordinator, creating event directly");
           // Non-coordinator: create event without payment
-          const response = await axios.post(
-            `${API_URL}/api/events/`,
-            eventFormData,
-            {
-              headers: {
-                'Authorization': `Bearer ${localStorage.getItem(ACCESS_TOKEN)}`,
-                // Don't set Content-Type, it will be set automatically for FormData
-              }
-            }
+          const response = await api.post(
+            `/api/events/`,
+            eventFormData
           );
 
           toast.success("Event created successfully!");
@@ -584,46 +675,114 @@ const EventCreation = () => {
       toast.info("Processing your payment...");
       
       // Verify payment with backend
-      const verificationResponse = await api.post(`/api/payments/verify/`, {
-        razorpay_payment_id: paymentId,
-        razorpay_order_id: orderId,
-        razorpay_signature: signature,
-        payment_id: paymentData.id
-      });
+      let verificationResponse;
+      try {
+        console.log("Trying payment verification");
+        verificationResponse = await api.post(
+          `/api/payments/verify/`,
+          {
+            razorpay_payment_id: paymentId,
+            razorpay_order_id: orderId,
+            razorpay_signature: signature,
+            payment_id: paymentData.id
+          }
+        );
+      } catch (verifyError) {
+        // Try alternative endpoint if first attempt fails
+        verificationResponse = await api.post(
+          `/api/payments/${paymentData.id}/verify_payment/`,
+          {
+            razorpay_payment_id: paymentId,
+            razorpay_order_id: orderId,
+            razorpay_signature: signature
+          }
+        );
+      }
       
       console.log("Payment verification response:", verificationResponse.data);
       
       // Check if the verification was successful
       if (verificationResponse.data.success) {
-        toast.success("Payment successful! Event created.");
-        setShowPaymentModal(false);
-        
-        // Navigate to event details page
-        navigate(`/events/${eventData.id}`);
+        try {
+          // Get the temporary event ID
+          const tempEventId = paymentData.event;
+          console.log("Activating event with ID:", tempEventId);
+          
+          // Update event status to 'upcoming'
+          const eventUpdateResponse = await api.patch(
+            `/api/events/${tempEventId}/`,
+            { 
+              status: 'upcoming',
+              payment_verified: true
+            },
+            {
+              headers: {
+                'Authorization': `Bearer ${localStorage.getItem(ACCESS_TOKEN)}`,
+                'Content-Type': 'application/json'
+              }
+            }
+          );
+          
+          console.log("Event activated successfully:", eventUpdateResponse.data);
+          
+          // Update payment record status to completed
+          await api.patch(
+            `/api/payments/${paymentData.id}/`,
+            {
+              payment_status: 'completed',
+              transaction_id: paymentId,
+              razorpay_payment_id: paymentId,
+              razorpay_signature: signature,
+              payment_details: {
+                ...paymentData.payment_details,
+                payment_completed_at: new Date().toISOString(),
+                payment_method: 'razorpay'
+              }
+            }
+          );
+          
+          console.log("Payment record updated successfully");
+          
+          // Refresh local storage data if needed for dashboard
+          const dashboardData = localStorage.getItem('coordinator_dashboard_data');
+          if (dashboardData) {
+            try {
+              const parsedData = JSON.parse(dashboardData);
+              // Remove outdated data to force refresh
+              localStorage.setItem('coordinator_dashboard_data', JSON.stringify({
+                ...parsedData,
+                events: null,
+                lastFetched: null
+              }));
+            } catch (e) {
+              console.log("Error updating dashboard cache:", e);
+            }
+          }
+          
+          toast.success("Payment successful! Your event has been created.");
+          setShowPaymentModal(false);
+          
+          // Navigate to event details page
+          navigate(`/events/${tempEventId}`);
+        } catch (eventError) {
+          console.error("Error updating event after payment:", eventError);
+          
+          // Even if there's an error updating the event, we should still navigate
+          // to the dashboard since the payment was successful
+          toast.warning("Payment was successful, but there was an issue activating your event. It may appear as a draft in your dashboard.");
+          setShowPaymentModal(false);
+          navigate("/dashboard");
+        }
       } else {
-        toast.error("Payment verification failed. Please contact support with reference ID: " + paymentId);
-        console.error("Payment verification returned unsuccessful status");
+        toast.error("Payment verification failed. Please contact support.");
+        setShowPaymentModal(false);
+        navigate("/dashboard");
       }
     } catch (error) {
       console.error("Payment verification error:", error);
-      console.error("Error response data:", error.response?.data);
       
-      // Handle specific error responses
-      if (error.response?.status === 400) {
-        toast.error(error.response.data?.error || "Payment verification failed. Please try again.");
-      } else if (error.response?.status === 404) {
-        toast.error("Payment record not found. Please contact support.");
-      } else {
-        toast.error("Payment verification failed. Please contact support.");
-      }
-      
-      // Store event ID for reference
-      localStorage.setItem('pendingEventId', eventData.id);
-      
-      // Even if verification fails, close the payment modal
+      toast.error("Payment verification failed. Please try again or contact support.");
       setShowPaymentModal(false);
-      
-      // Navigate to dashboard to see draft events
       navigate("/dashboard");
     }
   };
@@ -640,17 +799,12 @@ const EventCreation = () => {
     }
     
     // Display error message
-    toast.error(errorMessage + " Your event is saved as draft.");
+    toast.error(errorMessage + " Your event was not created.");
     
     // Close payment modal
     setShowPaymentModal(false);
     
-    // Store event ID for reference
-    if (eventData && eventData.id) {
-      localStorage.setItem('pendingEventId', eventData.id);
-    }
-    
-    // Navigate to dashboard to see draft events
+    // Return to dashboard
     navigate("/dashboard");
   };
   
@@ -685,28 +839,42 @@ const EventCreation = () => {
     });
   };
   
-  const openRazorpayCheckout = async () => {
+  const openRazorpayCheckout = async (paymentData) => {
     try {
       console.log("Opening Razorpay checkout...");
-      
-      // IMPORTANT DEBUG CHECK: Alert to see if we reach this point
-      alert("Attempting to open Razorpay checkout. Check console for details.");
       
       // Initialize Razorpay SDK
       await initializeRazorpay();
       
-      // Make sure we have valid payment data
+      // Use the provided payment data or fall back to the state variable
+      // But we shouldn't need the fallback since we always pass the payment data
+      
+      // Ensure we have valid payment data
       if (!paymentData || !paymentData.razorpay_order_id) {
         console.error("Missing payment data:", paymentData);
         toast.error("Payment information is missing. Please try again.");
+        setIsSubmitting(false);
         return;
       }
+      
+      // Ensure we're using the correct amount from our current calculation
+      const finalAmount = calculatedPayment.totalAmount;
       
       // Format the amount for display (the amount should already be in INR)
       const formattedAmount = new Intl.NumberFormat('en-IN', {
         style: 'currency',
         currency: 'INR'
-      }).format(paymentData.amount);
+      }).format(finalAmount);
+      
+      // Log all payment amounts for debugging
+      console.log("Payment amounts:", {
+        calculatedTotal: calculatedPayment.totalAmount,
+        paymentDataAmount: paymentData.amount,
+        finalAmount: finalAmount,
+        formattedForDisplay: formattedAmount,
+        amountInPaise: Math.round(finalAmount * 100),
+        razorpayOrderId: paymentData.razorpay_order_id
+      });
       
       // Prepare user info for prefill
       const userName = user?.name || `${user?.first_name || ''} ${user?.last_name || ''}`.trim();
@@ -716,22 +884,44 @@ const EventCreation = () => {
       // Log payment details for debugging
       console.log("Payment details:", {
         key: paymentData.payment_details.key_id,
-        amount: paymentData.amount * 100,
+        amount: Math.round(finalAmount * 100), // Ensure amount is an integer in paise
         currency: paymentData.payment_details.currency || "INR",
         orderId: paymentData.razorpay_order_id,
         userName, userEmail, userPhone
       });
     
+    // CRITICAL DEBUGGING - Check all amounts
+    console.log("%c PAYMENT AMOUNT DEBUGGING", "background: red; color: white; font-size: 20px;");
+    console.log({
+      calculatedPaymentTotal: calculatedPayment.totalAmount,
+      paymentDataAmount: paymentData.amount,
+      backendOrderAmount: paymentData.payment_details?.order?.amount,
+      amountInRazorpayOptions: calculatedPayment.totalAmount * 100,
+      amountBreakdown: {
+        baseFee: calculatedPayment.baseFee,
+        venueFee: calculatedPayment.venueFee,
+        participantFee: calculatedPayment.participantFee
+      },
+      paymentDetails: paymentData.payment_details
+    });
+        
+    // IMPORTANT: We must use the exact amount that was used to create the order on the backend
+    // Otherwise, Razorpay will reject the payment as the amounts don't match
+    const backendOrderAmount = paymentData.payment_details?.order?.amount;
+    
+    // For debugging the issue with amounts
+    console.log("ORDER AMOUNT FROM BACKEND:", backendOrderAmount);
+    
     const options = {
       key: paymentData.payment_details.key_id,
-      amount: paymentData.amount * 100, // Amount in paise
+      amount: backendOrderAmount, // Do not modify this amount - it's already in paise from the backend
       currency: paymentData.payment_details.currency || "INR",
       name: "EventSphere",
-        description: `Event Creation: ${eventData.event_name}`,
+      description: `Event Creation: ${eventData.event_name}`,
       order_id: paymentData.razorpay_order_id,
-        image: "https://www.example.com/your_logo.png", // Replace with your actual logo URL
+      image: "https://www.example.com/your_logo.png", // Replace with your actual logo URL
       handler: function (response) {
-          console.log("Payment successful, response:", response);
+        console.log("Payment successful, response:", response);
         handlePaymentSuccess(
           response.razorpay_payment_id,
           response.razorpay_order_id,
@@ -739,31 +929,65 @@ const EventCreation = () => {
         );
       },
       prefill: {
-          name: userName || "Event Coordinator",
-          email: userEmail || "",
-          contact: userPhone || ""
-        },
-        notes: {
-          event_id: eventData.id.toString(),
-          event_name: eventData.event_name,
-          event_type: eventData.event_type,
-          booking_hours: bookingHours.toString(),
-          amount_breakdown: JSON.stringify({
-            baseFee: calculatedPayment.baseFee,
-            venueFee: calculatedPayment.venueFee,
-            participantFee: calculatedPayment.participantFee
-          })
+        name: userName || "Event Coordinator",
+        email: userEmail || "",
+        contact: userPhone || ""
+      },
+      notes: {
+        event_id: eventData?.id?.toString() || '',
+        event_name: eventData?.event_name || '',
+        event_type: eventData?.event_type || '',
+        booking_hours: bookingHours.toString(),
+        amount_breakdown: JSON.stringify({
+          baseFee: calculatedPayment.baseFee,
+          venueFee: calculatedPayment.venueFee,
+          participantFee: calculatedPayment.participantFee,
+          totalAmount: calculatedPayment.totalAmount
+        })
       },
       theme: {
-          color: "#ff4a17" // Accent color from EventSphere CSS variables
+        color: "#ff4a17" // Accent color from EventSphere CSS variables
+      },
+      config: {
+        display: {
+          blocks: {
+            banks: {
+              name: 'Pay via Net Banking',
+            },
+            wallets: {
+              name: 'Pay via Wallets',
+            },
+            upi: {
+              name: 'Pay via UPI'
+            }
+          },
+          hide: [],
+          sequence: ["block.wallets", "block.upi", "block.netbanking"],
+        },
+        callbacks: {
+          notifyMerchant: function(data){
+            console.log("Payment started");
+          }
+        }
       },
       modal: {
-          confirm_close: true,
-          escape: false,
-        ondismiss: function() {
-            console.log("Payment modal dismissed");
-          toast.warning("Payment canceled. Your event is saved as draft.");
-          navigate("/dashboard");
+        ondismiss: async function() {
+          console.log("Payment modal closed without payment");
+          try {
+            // Get the temporary event ID from payment data
+            const tempEventId = paymentData?.event;
+            if (tempEventId) {
+              console.log("Deleting temporary event:", tempEventId);
+              await api.delete(`/api/events/${tempEventId}/`);
+              console.log("Temporary event deleted successfully");
+            }
+          } catch (cleanupError) {
+            console.error("Error cleaning up temporary event:", cleanupError);
+          }
+          
+          setIsSubmitting(false);
+          setShowPaymentModal(false);
+          toast.warning("Payment canceled. Your event has not been created.");
         }
       }
     };
@@ -773,7 +997,7 @@ const EventCreation = () => {
       // Check if window.Razorpay exists
       if (!window.Razorpay) {
         console.error("Razorpay not loaded on window object!");
-        alert("Error: Razorpay SDK not loaded. Check console for details.");
+        toast.error("Failed to load payment gateway. Please try again later.");
         return;
       }
     
@@ -781,7 +1005,6 @@ const EventCreation = () => {
       
       // Open the payment modal
       console.log("Opening Razorpay payment modal");
-      alert("About to call paymentObject.open()");
     paymentObject.open();
       console.log("Razorpay payment modal opened successfully");
       
@@ -801,7 +1024,6 @@ const EventCreation = () => {
       return paymentObject; // Return the payment object for potential later use
     } catch (error) {
       console.error("Error initializing Razorpay:", error);
-      alert("Error: " + (error.message || "Failed to initialize Razorpay"));
       toast.error("Failed to open payment gateway. Please try again or contact support.");
       // Keep modal open so user can try again
     }
@@ -1319,68 +1541,94 @@ const EventCreation = () => {
     <Modal
       show={showPaymentModal}
       onHide={() => {
+        // Close modal and reset state
         setShowPaymentModal(false);
-        navigate("/dashboard");
+        setIsSubmitting(false);
+        toast.info("Payment cancelled. Event not created.");
       }}
       centered
+      size="lg"
+      dialogClassName={`${styles.paymentModalDialog} ${styles[`theme-${getValues('event_type') || 'default'}`]}`}
+      contentClassName={styles.paymentModalContent}
       className={styles.paymentModal}
     >
-      <Modal.Header closeButton>
-        <Modal.Title>Complete Event Creation Payment</Modal.Title>
+      <Modal.Header closeButton className={styles.paymentModalHeader}>
+        <Modal.Title>
+          <div className={styles.modalTitleWrapper}>
+            {getValues('event_type') === 'conference' && <FaCalendar className={styles.eventTypeIcon} />}
+            {getValues('event_type') === 'workshop' && <FaFolder className={styles.eventTypeIcon} />}
+            {getValues('event_type') === 'concert' && <FaImage className={styles.eventTypeIcon} />}
+            {getValues('event_type') === 'seminar' && <FaInfoCircle className={styles.eventTypeIcon} />}
+            Complete Event Creation Payment
+          </div>
+        </Modal.Title>
       </Modal.Header>
       <Modal.Body>
         <div className={styles.paymentDetails}>
           <div className={styles.paymentHeader}>
-          <h4>Your event has been created as a draft</h4>
+            <h4>Complete Payment to Create Your Event</h4>
+            <div className={styles.eventTypeBadge}>
+              {getValues('event_type')?.toUpperCase() || 'EVENT'}
+            </div>
             <p className={styles.paymentInstructions}>
-              As a coordinator, you need to complete payment to publish your event.
-              Admins are exempt from this payment requirement.
+              As a coordinator, you need to complete payment to create and publish your event.
+              Your event will only be created after successful payment.
             </p>
           </div>
           
           <div className={styles.paymentSummary}>
-            <div className={styles.paymentItem}>
-              <span>Event Name:</span>
-              <span>{eventData?.event_name}</span>
-            </div>
-            <div className={styles.paymentItem}>
-              <span>Event Type:</span>
-              <span>{eventData?.event_type}</span>
-            </div>
-            {eventData?.max_participants && (
+            <div className={styles.paymentSummarySection}>
+              <h5>Event Details</h5>
               <div className={styles.paymentItem}>
-                <span>Maximum Participants:</span>
-                <span>{eventData?.max_participants}</span>
+                <span>Event Name:</span>
+                <span>{eventData?.event_name}</span>
               </div>
-            )}
-            {selectedVenue && (
               <div className={styles.paymentItem}>
-                <span>Venue:</span>
-                <span>{selectedVenue.name}</span>
+                <span>Event Type:</span>
+                <span>{getValues('event_type')?.charAt(0).toUpperCase() + getValues('event_type')?.slice(1) || '-'}</span>
               </div>
-            )}
-            <div className={styles.paymentItem}>
-              <span>Booking Duration:</span>
-              <div className={styles.bookingHoursControl}>
-                <button 
-                  type="button" 
-                  onClick={() => setBookingHours(Math.max(1, bookingHours - 1))}
-                  className={styles.hourButton}
-                >
-                  -
-                </button>
-                <span>{bookingHours} hour{bookingHours !== 1 ? 's' : ''}</span>
-                <button 
-                  type="button" 
-                  onClick={() => setBookingHours(bookingHours + 1)}
-                  className={styles.hourButton}
-                >
-                  +
-                </button>
+              {eventData?.max_participants && (
+                <div className={styles.paymentItem}>
+                  <span>Maximum Participants:</span>
+                  <span>{eventData?.max_participants}</span>
+                </div>
+              )}
+              {selectedVenue && (
+                <div className={styles.paymentItem}>
+                  <span>Venue:</span>
+                  <span>{selectedVenue.name}</span>
+                </div>
+              )}
+              <div className={styles.paymentItem}>
+                <span>Booking Duration:</span>
+                <div className={styles.bookingHoursControl}>
+                  <button 
+                    type="button" 
+                    onClick={async () => {
+                      if (bookingHours > 1) {
+                        setBookingHours(bookingHours - 1);
+                      }
+                    }}
+                    className={styles.hourButton}
+                    disabled={bookingHours <= 1}
+                  >
+                    -
+                  </button>
+                  <span>{bookingHours} hour{bookingHours !== 1 ? 's' : ''}</span>
+                  <button 
+                    type="button" 
+                    onClick={async () => {
+                      setBookingHours(bookingHours + 1);
+                    }}
+                    className={styles.hourButton}
+                  >
+                    +
+                  </button>
+                </div>
               </div>
             </div>
             
-            <div className={styles.paymentBreakdown}>
+            <div className={styles.paymentBreakdownSection}>
               <h5>Payment Breakdown</h5>
               <div className={styles.breakdownItem}>
                 <span>Base Fee:</span>
@@ -1398,15 +1646,21 @@ const EventCreation = () => {
                   <span>₹{calculatedPayment.participantFee.toFixed(2)}</span>
                 </div>
               )}
+              
+              <div className={styles.paymentTotal}>
+                <span>Total Amount:</span>
+                <span className={styles.totalAmount}>₹{calculatedPayment.totalAmount.toFixed(2)}</span>
+              </div>
             </div>
             
-            <div className={styles.paymentTotal}>
-              <span>Total Amount:</span>
-              <span className={styles.totalAmount}>₹{calculatedPayment.totalAmount.toFixed(2)}</span>
-            </div>
-            
-            <div className={styles.paymentMethods}>
+            <div className={styles.paymentMethodsSection}>
               <h5>Payment Methods Accepted</h5>
+              <div className={styles.paymentMethodIcons}>
+                <span className={styles.paymentMethodIcon}>💳</span>
+                <span className={styles.paymentMethodIcon}>🏦</span>
+                <span className={styles.paymentMethodIcon}>📱</span>
+                <span className={styles.paymentMethodIcon}>💰</span>
+              </div>
               <p>Credit/Debit Cards, UPI, Netbanking, Mobile Wallets</p>
               <div className={styles.securityNote}>
                 <small>All payments are processed securely via Razorpay</small>
@@ -1416,67 +1670,177 @@ const EventCreation = () => {
           
           <div className={styles.paymentActions}>
             <button 
-              className={styles.payNowButton}
-              onClick={openRazorpayCheckout}
-            >
-              <span className={styles.payButtonText}>Pay Now - ₹{calculatedPayment.totalAmount.toFixed(2)}</span>
-            </button>
-            <button 
-              className={styles.testButton}
-              onClick={() => {
-                alert("Manual payment test triggered");
-                const script = document.createElement("script");
-                script.src = "https://checkout.razorpay.com/v1/checkout.js";
-                script.onload = () => {
-                  alert("Razorpay script loaded successfully");
-                  try {
-                    if (!window.Razorpay) {
-                      alert("window.Razorpay is still undefined after script load!");
+              className={`${styles.payNowButton} ${styles[`theme-btn-${getValues('event_type') || 'default'}`]}`}
+              onClick={async () => {
+                setIsSubmitting(true);
+                try {
+                  // Create temporary draft event if it doesn't exist yet
+                  let tempEventId = paymentData?.event;
+                  
+                  if (!tempEventId) {
+                    // Create a temporary event with status "draft"
+                    console.log("Creating new temporary draft event");
+                    try {
+                      const tempEventResponse = await api.post(
+                        `/api/events/`,
+                        eventData.formData
+                      );
+                      
+                      tempEventId = tempEventResponse.data.id;
+                      console.log("Temporary draft event created with ID:", tempEventId);
+                      
+                      // Update event data
+                      setEventData({
+                        ...eventData,
+                        id: tempEventId
+                      });
+                    } catch (eventError) {
+                      console.error("Error creating temporary event:", eventError);
+                      toast.error("Failed to create temporary event: " + (eventError.response?.data?.error || eventError.message));
+                      setIsSubmitting(false);
                       return;
                     }
-                    const options = {
-                      key: paymentData.payment_details.key_id,
-                      amount: paymentData.amount * 100,
-                      currency: "INR",
-                      name: "EventSphere",
-                      description: "Manual Test Payment",
-                      order_id: paymentData.razorpay_order_id,
-                      handler: function(response) {
-                        alert("Payment successful: " + JSON.stringify(response));
-                      }
-                    };
-                    alert("Creating Razorpay instance with options: " + JSON.stringify(options));
-                    const razorpayObject = new window.Razorpay(options);
-                    razorpayObject.open();
-                  } catch (err) {
-                    alert("Error in manual payment: " + err.message);
                   }
-                };
-                script.onerror = () => {
-                  alert("Failed to load Razorpay script in manual test");
-                };
-                document.body.appendChild(script);
+                  
+                  // Calculate the final amount based on current values
+                  const finalAmount = calculatedPayment.totalAmount;
+                  console.log("Creating payment with final amount:", finalAmount);
+                  
+                  // Delete previous payment if it exists
+                  if (paymentData?.id) {
+                    console.log("Attempting to delete previous payment:", paymentData.id);
+                    try {
+                      await api.delete(`/api/payments/${paymentData.id}/`);
+                      console.log("Previous payment deleted successfully");
+                    } catch (deleteError) {
+                      // If payment doesn't exist (404) or other error, just log and continue
+                      console.log("Could not delete previous payment, may not exist:", deleteError.message);
+                    }
+                  }
+                  
+                  // Create new payment record with correct amount
+                  const paymentRequest = {
+                    event: tempEventId,
+                    venue: selectedVenue?.id,
+                    booking_hours: bookingHours,
+                    amount: finalAmount,
+                    currency: "INR",
+                    payment_method: "razorpay",
+                    payment_status: "pending",
+                    payment_details: {
+                      breakdown: {
+                        baseFee: calculatedPayment.baseFee,
+                        venueFee: calculatedPayment.venueFee,
+                        participantFee: calculatedPayment.participantFee,
+                        totalAmount: finalAmount
+                      }
+                    }
+                  };
+                  
+                  console.log("Creating payment with request:", paymentRequest);
+                  const paymentResponse = await api.post(
+                    `/api/payments/`,
+                    paymentRequest
+                  );
+                  
+                  console.log("New payment created:", paymentResponse.data);
+                  
+                  // Verify the amount from the response
+                  const responseAmount = paymentResponse.data.amount;
+                  const orderAmount = paymentResponse.data.payment_details?.order?.amount;
+                  
+                  console.log("Payment amounts:", {
+                    requestedAmount: calculatedPayment.totalAmount,
+                    responseAmount,
+                    orderAmount,
+                    orderAmountInRupees: orderAmount / 100
+                  });
+                  
+                  // Initialize Razorpay
+                  await initializeRazorpay();
+                  
+                  // Make sure we use the correct amount in Razorpay options
+                  const options = {
+                    key: paymentResponse.data.payment_details.key_id,
+                    amount: orderAmount, // This should be in paise
+                    currency: paymentResponse.data.payment_details.currency || "INR",
+                    name: "EventSphere",
+                    description: `Event Creation: ${eventData.event_name}`,
+                    order_id: paymentResponse.data.razorpay_order_id,
+                    handler: function(response) {
+                      console.log("Payment successful, response:", response);
+                      handlePaymentSuccess(
+                        response.razorpay_payment_id,
+                        response.razorpay_order_id,
+                        response.razorpay_signature
+                      );
+                    },
+                    prefill: {
+                      name: user?.name || `${user?.first_name || ''} ${user?.last_name || ''}`.trim(),
+                      email: user?.email || "",
+                      contact: user?.phone || ""
+                    },
+                    notes: {
+                      event_id: tempEventId.toString(),
+                      event_name: eventData.event_name || '',
+                      booking_hours: bookingHours.toString()
+                    },
+                    theme: {
+                      color: "#ff4a17"
+                    },
+                    modal: {
+                      ondismiss: async function() {
+                        console.log("Payment modal closed without payment");
+                        try {
+                          if (tempEventId) {
+                            console.log("Deleting temporary event:", tempEventId);
+                            await api.delete(`/api/events/${tempEventId}/`);
+                            console.log("Temporary event deleted successfully");
+                          }
+                        } catch (cleanupError) {
+                          console.error("Error cleaning up temporary event:", cleanupError);
+                        }
+                        
+                        setIsSubmitting(false);
+                        setShowPaymentModal(false);
+                        toast.warning("Payment canceled. Your event has not been created.");
+                      }
+                    }
+                  };
+                  
+                  console.log("Razorpay options:", options);
+                  
+                  // Open Razorpay checkout
+                  const paymentObject = new window.Razorpay(options);
+                  paymentObject.open();
+                } catch (error) {
+                  console.error("Payment initialization failed:", error);
+                  toast.error("Payment initialization failed: " + (error.response?.data?.error || error.message));
+                  setIsSubmitting(false);
+                }
               }}
+              disabled={isSubmitting}
             >
-              Test Payment (Debug)
+              {isSubmitting ? "Processing..." : "Pay Now"}
             </button>
             <button 
-              className={styles.payLaterButton}
+              className={styles.cancelButton}
               onClick={() => {
-                toast.info("Your event is saved as draft. You can complete payment later.");
+                // Close modal and reset state
                 setShowPaymentModal(false);
-                navigate("/dashboard");
+                setIsSubmitting(false);
+                toast.info("Payment cancelled. Event not created.");
               }}
             >
-              Pay Later
+              Cancel
             </button>
           </div>
           
           <div className={styles.paymentNote}>
             <p>
               <small>
-                Note: Your event will remain in draft status until payment is completed.
-                You can view your draft events in your dashboard.
+                Note: Your event will only be created after successful payment.
+                Canceling the payment will cancel the event creation process.
               </small>
             </p>
             <p>

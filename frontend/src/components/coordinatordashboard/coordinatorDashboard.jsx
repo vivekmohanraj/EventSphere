@@ -571,7 +571,7 @@ const CoordinatorDashboard = () => {
       // Try to fetch coordinator statistics
       try {
         console.log("Fetching coordinator stats...");
-        const statsResponse = await api.get("events/coordinator-stats");
+        const statsResponse = await api.get("/api/events/coordinator-stats/");
         console.log("Stats response:", statsResponse.status, statsResponse.data);
         
         if (statsResponse.data) {
@@ -610,7 +610,7 @@ const CoordinatorDashboard = () => {
       // Fetch upcoming events managed by this coordinator
       try {
         console.log("Fetching coordinator events...");
-        const eventsResponse = await api.get("events/coordinator-events");
+        const eventsResponse = await api.get("/api/events/coordinator-events/");
         console.log("Events response:", eventsResponse.status, eventsResponse.data);
         
         if (eventsResponse.data) {
@@ -633,7 +633,7 @@ const CoordinatorDashboard = () => {
       // Fetch event types data
       try {
         console.log("Fetching event types...");
-        const typesResponse = await api.get("events/coordinator-event-types");
+        const typesResponse = await api.get("/api/events/coordinator-event-types/");
         console.log("Event types response:", typesResponse.status, typesResponse.data);
         
         if (typesResponse.data) {
@@ -657,7 +657,7 @@ const CoordinatorDashboard = () => {
       // Fetch attendance data
       try {
         console.log("Fetching attendance data...");
-        const attendanceResponse = await api.get("events/coordinator-attendance");
+        const attendanceResponse = await api.get("/api/events/coordinator-attendance/");
         console.log("Attendance response:", attendanceResponse.status, attendanceResponse.data);
         
         if (attendanceResponse.data) {
@@ -684,7 +684,7 @@ const CoordinatorDashboard = () => {
       // Fetch revenue data
       try {
         console.log("Fetching revenue data...");
-        const revenueResponse = await api.get("events/coordinator-revenue");
+        const revenueResponse = await api.get("/api/events/coordinator-revenue/");
         console.log("Revenue response:", revenueResponse.status, revenueResponse.data);
         
         if (revenueResponse.data) {
@@ -711,7 +711,7 @@ const CoordinatorDashboard = () => {
       // Fetch recent activity
       try {
         console.log("Fetching activity data...");
-        const activityResponse = await api.get("events/coordinator-activity");
+        const activityResponse = await api.get("/api/events/coordinator-activity/");
         console.log("Activity response:", activityResponse.status, activityResponse.data);
         
         if (activityResponse.data) {
@@ -742,7 +742,7 @@ const CoordinatorDashboard = () => {
         
         // First get the coordinator's events to ensure we only show payments for their events
         // This will help us filter payments more accurately
-        const myEventsResponse = await api.get("events/events/?created_by=me");
+        const myEventsResponse = await api.get("/api/events/?created_by=me");
         console.log("My events response:", myEventsResponse.status, myEventsResponse.data);
         
         const myEventIds = myEventsResponse.data.map(event => event.id);
@@ -1971,8 +1971,8 @@ const CoordinatorDashboard = () => {
           setPaymentsLoading(true);
           
           // First get the coordinator's events to ensure we only show payments for their events
-          const myEventsResponse = await api.get("events/events/?created_by=me");
-          console.log("My events response:", myEventsResponse.data?.length || 0, "events");
+          const myEventsResponse = await api.get("/api/events/?created_by=me");
+          console.log("My events response:", myEventsResponse.status, myEventsResponse.data);
           
           if (!Array.isArray(myEventsResponse.data)) {
             console.error("Events response is not an array:", myEventsResponse.data);

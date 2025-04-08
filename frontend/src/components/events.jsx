@@ -56,7 +56,7 @@ const EventList = () => {
         setRefreshing(true);
       }
       
-      const response = await api.get("/events/events/");
+      const response = await api.get("/api/events/");
       // Ensure we're getting an array of events
       const eventsList = Array.isArray(response.data) ? response.data : [];
       
@@ -134,7 +134,7 @@ const EventList = () => {
 
   const fetchUserParticipations = async () => {
     try {
-      const response = await api.get("/events/participants/my_participations/");
+      const response = await api.get("/api/events/participants/my_participations/");
       setUserParticipations(response.data);
     } catch (error) {
       console.error("Error fetching user participations:", error);

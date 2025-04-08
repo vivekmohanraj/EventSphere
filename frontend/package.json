@@ -18,6 +18,7 @@
     "axios": "^1.8.3",
     "bootstrap": "^5.3.3",
     "bootstrap-icons": "^1.11.3",
+    "chakra": "^0.0.3",
     "chart.js": "^4.4.8",
     "glightbox": "^3.3.1",
     "imagesloaded": "^5.0.0",
