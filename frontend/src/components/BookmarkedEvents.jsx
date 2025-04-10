@@ -16,7 +16,7 @@ const BookmarkedEvents = () => {
 
   const fetchBookmarkedEvents = async () => {
     try {
-      const response = await api.get('/events/events/bookmarked/');
+      const response = await api.get('/events/bookmarked/');
       setEvents(response.data);
     } catch (error) {
       toast.error('Failed to load bookmarked events');

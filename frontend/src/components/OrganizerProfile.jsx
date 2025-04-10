@@ -37,10 +37,45 @@ const OrganizerProfile = ({ event }) => {
 
   const fetchOrganizerEvents = async () => {
     try {
-      const response = await api.get(`/events/events/?created_by=${event.created_by}`);
-      setOrganizerEvents(response.data.filter(e => e.id !== event.id).slice(0, 3));
+      // Try several variations of the endpoint to get events by creator
+      let eventsData = null;
+      let error = null;
+      
+      try {
+        // Try direct API endpoint first
+        const response = await api.get(`/events/?created_by=${event.created_by}`);
+        eventsData = response.data.results || response.data;
+      } catch (err) {
+        error = err;
+        try {
+          // Try nested endpoint format
+          const response = await api.get(`/events/events/?created_by=${event.created_by}`);
+          eventsData = response.data;
+        } catch (err2) {
+          error = err2;
+          try {
+            // Try direct API endpoint with filters
+            const response = await api.get(`/api/events/?created_by=${event.created_by}`);
+            eventsData = response.data.results || response.data;
+          } catch (err3) {
+            error = err3;
+          }
+        }
+      }
+      
+      if (eventsData) {
+        // Filter out current event and limit to max 3 events
+        eventsData = Array.isArray(eventsData) 
+          ? eventsData.filter(e => e.id !== event.id).slice(0, 3)
+          : [];
+        setOrganizerEvents(eventsData);
+      } else {
+        console.error("Error fetching organizer events:", error);
+        setOrganizerEvents([]);
+      }
     } catch (error) {
-      console.error('Error fetching organizer events:', error);
+      console.error("Error fetching organizer events:", error);
+      setOrganizerEvents([]);
     }
   };
 

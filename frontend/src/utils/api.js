@@ -1,173 +1,108 @@
 import axios from "axios";
 import { ACCESS_TOKEN, REFRESH_TOKEN } from "./constants";
 
-// Create a base API instance
+// Create API instance with default configuration
 const api = axios.create({
-  baseURL: (import.meta.env.VITE_API_URL || "http://localhost:8000").replace(/\/$/, ''),
+  baseURL: (import.meta.env.VITE_API_URL || window.location.origin).replace(/\/$/, ''),
+  timeout: 10000,
   headers: {
     "Content-Type": "application/json",
   },
 });
 
-// Add a request interceptor to add authorization headers
+// Add a request interceptor
 api.interceptors.request.use(
   (config) => {
+    // Get token from localStorage
     const token = localStorage.getItem(ACCESS_TOKEN);
-    console.log("API Request URL:", config.url);
     
-    // Ensure we don't have double slashes when logging the full URL
-    const baseWithoutTrailingSlash = config.baseURL.replace(/\/$/, '');
-    const urlWithLeadingSlash = config.url.startsWith('/') ? config.url : `/${config.url}`;
-    console.log("API Full URL:", `${baseWithoutTrailingSlash}${urlWithLeadingSlash}`);
-
-    if (token) {
-      config.headers.Authorization = `Bearer ${token}`;
+    // Log request details in development
+    if (import.meta.env.DEV) {
+      console.debug(`API Request: ${config.method.toUpperCase()} ${config.url}`);
     }
+    
+    // Set authorization header if token exists
+    if (token) {
+      config.headers["Authorization"] = `Bearer ${token}`;
+    }
+    
     return config;
   },
   (error) => {
-    console.error("Request interceptor error:", error);
+    console.error("API Request Error:", error);
     return Promise.reject(error);
   }
 );
 
-// Add a function to dispatch auth errors as events
-const dispatchAuthError = (error) => {
-  // TEMPORARILY DISABLED: Don't treat any 401 errors as auth errors to allow inactive users to use the dashboard
-  // This is a development-only fix
-  console.log("Auth check bypassed - allowing all users (including inactive) to access the dashboard");
-  return;
-
-  /* Original code - commented out for development
-  // Only dispatch if this is a legitimate auth error, not a network error
-  if (error.response && (error.response.status === 401 || error.response.status === 403)) {
-    // Check for user_inactive error code and don't trigger auth error for inactive users
-    if (error.response.data && error.response.data.code === 'user_inactive') {
-      console.log("User is inactive - not dispatching auth error event");
-      return; // Don't dispatch auth error for inactive users
-    }
-
-    console.log("Dispatching auth error event");
-    const event = new CustomEvent('auth-error', {
-      detail: {
-        isAuthError: true,
-        authErrorMessage: error.authErrorMessage || "Authentication failed",
-        status: error.response?.status,
-        originalError: error
-      }
-    });
-    window.dispatchEvent(event);
-  }
-  */
-};
-
-// Add a response interceptor to handle token refresh
+// Add a response interceptor
 api.interceptors.response.use(
   (response) => {
+    // Log response details in development
+    if (import.meta.env.DEV) {
+      console.debug(`API Response: ${response.status} ${response.config.url}`);
+    }
     return response;
   },
-  async (error) => {
+  (error) => {
     const originalRequest = error.config;
-    console.log("API Error Response:", error.response?.status, error.response?.data);
-
-    // Don't retry if we've already retried or there's no response
-    if (!error.response || originalRequest._retry) {
-      return Promise.reject(error);
+    
+    // Log errors in development
+    if (import.meta.env.DEV) {
+      console.error(`API Error: ${originalRequest.url}`, error.response?.status, error.message);
     }
-
-    // If the error is due to an expired token (401)
-    if (error.response.status === 401) {
-      // Check if this is the first attempt to check auth in dashboard
-      // Special handling for users/check-auth/ endpoint to avoid immediate logout
-      if (originalRequest.url.includes('users/check-auth/')) {
-        console.log("Initial auth check failed - continuing without event dispatch");
-        return Promise.reject(error);
-      }
-      
+    
+    // Handle 401 errors (unauthorized) - token might be expired
+    if (error.response && error.response.status === 401 && !originalRequest._retry) {
       originalRequest._retry = true;
       
-      try {
-        const refreshToken = localStorage.getItem(REFRESH_TOKEN);
+      // Check if on login or register page - don't redirect to login in this case
+      const path = window.location.pathname;
+      if (!path.includes('login') && !path.includes('register')) {
+        console.warn("Authentication failed. Redirecting to login.");
         
-        if (!refreshToken) {
-          console.warn("No refresh token available for automatic refresh");
-          return Promise.reject(error);
-        }
-        
-        console.log("Attempting token refresh");
-        
-        // Construct the refresh URL properly
-        const baseURL = api.defaults.baseURL.replace(/\/$/, '');
-        const refreshURL = `${baseURL}/token/refresh/`;
-        
-        console.log("Attempting token refresh at URL:", refreshURL);
-        
-        // Use a direct axios instance (not our api instance) to avoid interceptor loop
-        const refreshResponse = await axios({
-          method: 'post',
-          url: refreshURL,
-          data: { refresh: refreshToken },
-          headers: { 'Content-Type': 'application/json' }
-        });
-
-        if (refreshResponse.status === 200 && refreshResponse.data.access) {
-          // Update access token in localStorage
-          const newToken = refreshResponse.data.access;
-          localStorage.setItem(ACCESS_TOKEN, newToken);
-          
-          console.log("Token refreshed successfully");
-          
-          // Update the Authorization header in the api instance
-          api.defaults.headers.common['Authorization'] = `Bearer ${newToken}`;
-          
-          // Create a new request with the new token
-          const newRequest = {
-            ...originalRequest,
-            headers: {
-              ...originalRequest.headers,
-              Authorization: `Bearer ${newToken}`
-            },
-            _retry: true
-          };
-          
-          return axios(newRequest);
-        } else {
-          console.error("Token refresh succeeded but returned invalid data");
-          return Promise.reject(error);
-        }
-      } catch (refreshError) {
-        console.error("Token refresh failed:", refreshError);
-        
-        // Only redirect if refresh explicitly failed with auth error
-        // NOT on network errors or other temporary issues
-        const shouldRedirect = refreshError.response && 
-          (refreshError.response.status === 401 || refreshError.response.status === 403);
-          
-        if (shouldRedirect) {
-          console.warn("Invalid refresh token, redirecting to login");
-          // Only send the auth error event for non-check-auth endpoints
-          if (!originalRequest.url.includes('check-auth')) {
-            const authError = {
-              ...error,
-              isAuthError: true,
-              authErrorMessage: "Session expired. Please log in again."
-            };
-            
-            // Dispatch an auth error event
-            dispatchAuthError(authError);
-          }
-          
-          // Instead of rejecting with auth error, just reject with regular error
-          return Promise.reject(error);
-        }
-        
-        return Promise.reject(error);
+        // Clear localStorage and redirect to login
+        localStorage.removeItem(ACCESS_TOKEN);
+        window.location.href = "/login_reg";
       }
     }
     
     return Promise.reject(error);
   }
 );
+
+// Create a helper function to try multiple endpoints
+api.tryMultipleEndpoints = async (endpoints, method = 'get', data = null, config = {}) => {
+  let lastError = null;
+  
+  for (const endpoint of endpoints) {
+    try {
+      console.log(`Trying ${method.toUpperCase()} request to ${endpoint}`);
+      let response;
+      
+      if (method.toLowerCase() === 'get') {
+        response = await api.get(endpoint, config);
+      } else if (method.toLowerCase() === 'post') {
+        response = await api.post(endpoint, data, config);
+      } else if (method.toLowerCase() === 'put') {
+        response = await api.put(endpoint, data, config);
+      } else if (method.toLowerCase() === 'patch') {
+        response = await api.patch(endpoint, data, config);
+      } else if (method.toLowerCase() === 'delete') {
+        response = await api.delete(endpoint, config);
+      }
+      
+      console.log(`Success with ${endpoint}`);
+      return response;
+    } catch (error) {
+      console.log(`Failed to ${method} ${endpoint}: ${error.message}`);
+      lastError = error;
+      // Continue to next endpoint
+    }
+  }
+  
+  // If all endpoints failed, throw the last error
+  throw lastError || new Error(`All ${endpoints.length} endpoints failed`);
+};
 
 // Helper function to get correct media URL
 export const getMediaUrl = (relativeUrl) => {
@@ -231,7 +166,9 @@ export const checkEmailAvailability = async (email) => {
 };
 
 // Add this helper function for trying multiple endpoints
-export const tryMultipleEndpoints = async (endpoints, method = 'get', data = null) => {
+export const tryMultipleEndpoints = async (endpoints, method = 'get', data = null, config = {}) => {
+  let lastError = null;
+  
   for (const endpoint of endpoints) {
     try {
       console.log(`Trying ${method.toUpperCase()} request to ${endpoint}`);
@@ -239,19 +176,19 @@ export const tryMultipleEndpoints = async (endpoints, method = 'get', data = nul
       
       switch (method.toLowerCase()) {
         case 'get':
-          response = await api.get(endpoint);
+          response = await api.get(endpoint, config);
           break;
         case 'post':
-          response = await api.post(endpoint, data);
+          response = await api.post(endpoint, data, config);
           break;
         case 'put':
-          response = await api.put(endpoint, data);
+          response = await api.put(endpoint, data, config);
           break;
         case 'patch':
-          response = await api.patch(endpoint, data);
+          response = await api.patch(endpoint, data, config);
           break;
         case 'delete':
-          response = await api.delete(endpoint);
+          response = await api.delete(endpoint, config);
           break;
         default:
           throw new Error(`Unsupported method: ${method}`);
@@ -261,10 +198,11 @@ export const tryMultipleEndpoints = async (endpoints, method = 'get', data = nul
       return response.data;
     } catch (error) {
       console.warn(`Failed with ${endpoint}:`, error.response?.status || error.message);
+      lastError = error;
     }
   }
   
-  throw new Error(`All endpoints failed for ${method} request`);
+  throw lastError || new Error(`All endpoints failed for ${method} request`);
 };
 
 // Add this function for better direct fetch handling with CORS

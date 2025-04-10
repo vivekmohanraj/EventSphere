@@ -198,20 +198,51 @@ const CoordinatorDashboard = () => {
         try {
           // Try different endpoints to get coordinator events
           let eventsData = [];
-          try {
-            const response = await api.get("events/coordinator-events");
-            if (response.data?.events) {
-              eventsData = response.data.events;
-            }
-          } catch (error) {
-            console.warn("Could not fetch from coordinator-events endpoint:", error);
-            
-            // Try alternative endpoint
+          
+          // Define all possible endpoints for coordinator events
+          const endpoints = [
+            "events/coordinator-events",
+            "api/events/coordinator-events",
+            "events/events/",
+            "api/events/",
+            "events/"
+          ];
+          
+          // Try each endpoint until successful
+          let response = null;
+          for (const endpoint of endpoints) {
             try {
-              const altResponse = await api.get("events/events/");
-              eventsData = altResponse.data;
-            } catch (altError) {
-              console.error("Could not fetch events from alternate endpoint:", altError);
+              response = await api.get(endpoint);
+              
+              // Check if we got valid data
+              if (response.data) {
+                // Handle different response formats
+                if (Array.isArray(response.data)) {
+                  eventsData = response.data;
+                  break;
+                } else if (response.data.events && Array.isArray(response.data.events)) {
+              eventsData = response.data.events;
+                  break;
+                } else if (response.data.results && Array.isArray(response.data.results)) {
+                  eventsData = response.data.results;
+                  break;
+                } else if (typeof response.data === 'object') {
+                  // Look for any array property that might contain events
+                  for (const key in response.data) {
+                    if (Array.isArray(response.data[key])) {
+                      const firstItem = response.data[key][0];
+                      if (firstItem && (firstItem.event_name || firstItem.id)) {
+                        eventsData = response.data[key];
+                        break;
+                      }
+                    }
+                  }
+                  
+                  if (eventsData.length > 0) break;
+                }
+              }
+            } catch (error) {
+              // Continue to next endpoint
             }
           }
           
@@ -229,11 +260,31 @@ const CoordinatorDashboard = () => {
               mostPopular: [...eventsData].sort((a, b) => (b.attendee_count || 0) - (a.attendee_count || 0))[0]
             };
             setEventStats(stats);
+          } else {
+            // Set default stats if no events
+            setEventStats({
+              total: 0,
+              upcoming: 0,
+              completed: 0,
+              canceled: 0,
+              mostPopular: null
+            });
           }
           
         } catch (error) {
           console.error("Error fetching events:", error);
           toast.error("Failed to load events");
+          
+          // Reset events state on error
+          setEvents([]);
+          setFilteredEvents([]);
+          setEventStats({
+            total: 0,
+            upcoming: 0,
+            completed: 0,
+            canceled: 0,
+            mostPopular: null
+          });
         } finally {
           setIsLoadingEvents(false);
         }
@@ -1224,18 +1275,50 @@ const CoordinatorDashboard = () => {
           case 'cancel':
             // Confirm before canceling events
             if (window.confirm(`Are you sure you want to cancel ${selectedEvents.length} event(s)?`)) {
-              // Process each selected event
-              const cancelPromises = selectedEvents.map(eventId => 
-                api.patch(`events/events/${eventId}/`, { status: 'canceled' })
-              );
+              // Define possible API endpoint patterns
+              const endpointPatterns = [
+                id => `events/events/${id}/`,
+                id => `api/events/${id}/`,
+                id => `events/${id}/`
+              ];
               
-              try {
-                await Promise.all(cancelPromises);
-                toast.success(`${selectedEvents.length} event(s) marked as canceled`);
+              let successCount = 0;
+              let failureCount = 0;
+              
+              // Process each selected event
+              for (const eventId of selectedEvents) {
+                let eventUpdated = false;
                 
-                // Update local state for immediate UI feedback
+                // Try each endpoint pattern for this event
+                for (const getEndpoint of endpointPatterns) {
+                  const endpoint = getEndpoint(eventId);
+                  try {
+                    await api.patch(endpoint, { status: 'canceled' });
+                    eventUpdated = true;
+                    successCount++;
+                    break;
+                  } catch (err) {
+                    // Continue to next endpoint pattern
+                  }
+                }
+                
+                if (!eventUpdated) {
+                  failureCount++;
+                }
+              }
+              
+              // Show appropriate message based on results
+              if (successCount > 0 && failureCount === 0) {
+                toast.success(`${successCount} event(s) marked as canceled`);
+              } else if (successCount > 0 && failureCount > 0) {
+                toast.warning(`${successCount} event(s) marked as canceled, ${failureCount} failed`);
+              } else {
+                toast.error("Failed to cancel selected events");
+              }
+                
+              // Update local state for immediate UI feedback for the events we successfully updated
                 setEvents(prev => prev.map(event => 
-                  selectedEvents.includes(event.id) 
+                selectedEvents.includes(event.id) && successCount > 0
                     ? {...event, status: 'canceled'} 
                     : event
                 ));
@@ -1243,10 +1326,9 @@ const CoordinatorDashboard = () => {
                 // Clear selection after action
                 setSelectedEvents([]);
                 setShowBatchActions(false);
-              } catch (error) {
-                console.error("Error canceling events:", error);
-                toast.error("Some events could not be canceled");
-              }
+              
+              // Refresh events to ensure we have the latest data
+              fetchEvents();
             }
             break;
             
@@ -1293,10 +1375,31 @@ const CoordinatorDashboard = () => {
       try {
         setIsLoadingEvents(true);
         
-        // Make an actual API call to update the event in the backend
-        await api.patch(`events/events/${eventId}/`, { 
-          status: newStatus 
-        });
+        // Define possible endpoints for updating an event
+        const endpoints = [
+          `events/events/${eventId}/`,
+          `api/events/${eventId}/`,
+          `events/${eventId}/`
+        ];
+        
+        let success = false;
+        let error = null;
+        
+        // Try each endpoint until successful
+        for (const endpoint of endpoints) {
+          try {
+            await api.patch(endpoint, { status: newStatus });
+            success = true;
+            break;
+          } catch (err) {
+            error = err;
+            // Continue to next endpoint
+          }
+        }
+        
+        if (!success) {
+          throw error || new Error("Failed to update event status");
+        }
         
         // Update local state for immediate UI feedback
         setEvents(prev => prev.map(event => 
@@ -1320,8 +1423,31 @@ const CoordinatorDashboard = () => {
         try {
           setIsLoadingEvents(true);
           
-          // Make API call to delete the event
-          await api.delete(`events/events/${eventId}/`);
+          // Define possible endpoints for deleting an event
+          const endpoints = [
+            `events/events/${eventId}/`,
+            `api/events/${eventId}/`,
+            `events/${eventId}/`
+          ];
+          
+          let success = false;
+          let error = null;
+          
+          // Try each endpoint until successful
+          for (const endpoint of endpoints) {
+            try {
+              await api.delete(endpoint);
+              success = true;
+              break;
+            } catch (err) {
+              error = err;
+              // Continue to next endpoint
+            }
+          }
+          
+          if (!success) {
+            throw error || new Error("Failed to delete event");
+          }
           
           // Update local state by removing the deleted event
           setEvents(prev => prev.filter(event => event.id !== eventId));

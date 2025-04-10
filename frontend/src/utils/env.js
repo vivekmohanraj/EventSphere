@@ -4,7 +4,6 @@
 
 // Log all available VITE_ environment variables (without exposing values)
 export const logEnvironmentVariables = () => {
-  console.log('Available environment variables:');
   
   // Get all keys from import.meta.env
   const envKeys = Object.keys(import.meta.env);
@@ -15,7 +14,6 @@ export const logEnvironmentVariables = () => {
   // Log the keys and whether they have values
   viteEnvKeys.forEach(key => {
     const value = import.meta.env[key];
-    console.log(`${key}: ${value ? 'Value exists' : 'No value'}`);
   });
   
   return viteEnvKeys.length > 0;

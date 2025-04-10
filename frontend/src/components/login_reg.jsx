@@ -12,7 +12,7 @@ import "bootstrap/dist/css/bootstrap.min.css";
 import { Link } from "react-router-dom";
 import styles from "../assets/css/login_reg.module.css";
 import api from "../utils/api"; // Adjust the path as needed
-import { ACCESS_TOKEN, REFRESH_TOKEN } from "../utils/constants"; // Import ACCESS_TOKEN if not already imported
+import { ACCESS_TOKEN, REFRESH_TOKEN, USER_ID, USER_ROLE, USER_DATA } from "../utils/constants"; // Import all constants
 import { getEnv, logEnvironmentVariables } from '../utils/env';
 
 // Get Google Client ID directly from .env file
@@ -99,6 +99,7 @@ const LoginRegistration = () => {
   const [showRegConfirmPassword, setShowRegConfirmPassword] = useState(false);
   const [usernameAvailable, setUsernameAvailable] = useState(null); // null = not checked, true/false after check
   const [emailAvailable, setEmailAvailable] = useState(null);
+  const [formSubmitting, setFormSubmitting] = useState(false);
 
   // Check if environment variables are loaded properly
   useEffect(() => {
@@ -135,12 +136,20 @@ const LoginRegistration = () => {
   } = useForm({ resolver: zodResolver(registerSchema), mode: "onChange" });
 
   const handleToggle = () => {
-    if (isLogin) setShowRoleModal(true);
-    setIsLogin(!isLogin);
+    if (isLogin) {
+      console.log("Opening role selection modal");
+      setShowRoleModal(true);
+    } else {
+      setIsLogin(true);
+    }
   };
 
   const handleRoleSelect = (role) => {
-    setValue("role", role === "User" ? "user" : "coordinator");
+    console.log("Role selected:", role);
+    // Set a default role value (normal or coordinator)
+    const roleValue = role === "User" ? "normal" : "coordinator";
+    console.log("Setting role value:", roleValue);
+    setValue("role", roleValue);
     setShowRoleModal(false);
     setIsLogin(false);
     toast.success(
@@ -190,7 +199,9 @@ const LoginRegistration = () => {
       };
       
       console.log("Storing user data:", userData);
-      localStorage.setItem("user", JSON.stringify(userData));
+      localStorage.setItem(USER_DATA, JSON.stringify(userData));
+      localStorage.setItem(USER_ID, userData.id || '');
+      localStorage.setItem(USER_ROLE, userData.role || 'user');
       
       // Update the Authorization header in the api instance
       api.defaults.headers.common['Authorization'] = `Bearer ${response.data.access}`;
@@ -212,60 +223,136 @@ const LoginRegistration = () => {
   };
 
   const onSubmitRegister = async (data) => {
-    console.log("Register form submitted", data);
+    console.log("Register form submitted with data:", data);
     try {
       // Create FormData object to handle file uploads
       const formData = new FormData();
       formData.append("username", data.username);
       formData.append("email", data.email);
       formData.append("password", data.password);
-      formData.append("confirm_password", data.confirmPassword); // Match backend field name
-      formData.append("first_name", data.firstName); // Match backend field name
-      formData.append("last_name", data.lastName); // Match backend field name
-      formData.append("phone", data.phoneNumber); // Match backend field name
-      formData.append("user_type", data.role); // Match backend field name
+      formData.append("confirm_password", data.confirmPassword);
+      formData.append("first_name", data.firstName);
+      formData.append("last_name", data.lastName);
+      formData.append("phone", data.phoneNumber);
+      // Convert 'normal' to 'user' before sending to backend
+      formData.append("user_role", data.role === 'normal' ? 'user' : data.role);
 
       // Append profile picture if it exists
       if (data.profilePic) {
-        formData.append("profile_pic", data.profilePic); // Match backend field name
+        formData.append("profile_photo", data.profilePic);
       }
 
-      // Send registration request
-      const response = await api.post("users/register/", formData, {
-        headers: {
-          "Content-Type": "multipart/form-data", // Required for file uploads
-        },
-      });
+      console.log("Sending registration request...");
+      // Try multiple endpoints for registration
+      let response = null;
+      let error = null;
+      
+      try {
+        response = await api.post("users/register/", formData, {
+          headers: {
+            "Content-Type": "multipart/form-data", // Required for file uploads
+          },
+        });
+      } catch (e) {
+        error = e;
+        try {
+          response = await api.post("register/", formData, {
+            headers: {
+              "Content-Type": "multipart/form-data",
+            },
+          });
+        } catch (e2) {
+          error = e2;
+          try {
+            response = await api.post("api/users/register/", formData, {
+              headers: {
+                "Content-Type": "multipart/form-data",
+              },
+            });
+          } catch (e3) {
+            error = e3;
+          }
+        }
+      }
+      
+      if (!response) {
+        throw error || new Error("Registration failed. Please try again.");
+      }
 
-      toast.success("Registration successful!");
-      console.log("Registered user:", response.data.user);
-
+      console.log("Registration successful:", response.data);
+      toast.success("Registration successful! Please login.");
+      setIsLogin(true);
+      
       // Auto-login after registration
-      const loginResponse = await api.post("users/login/", {
-        login: data.username,
-        password: data.password,
-      });
-
-      // Save tokens to localStorage
-      localStorage.setItem(ACCESS_TOKEN, loginResponse.data.access);
-      localStorage.setItem(REFRESH_TOKEN, loginResponse.data.refresh);
-
-      // Store user data with consistent format
-      const userData = {
-        username: loginResponse.data.username,
-        role: loginResponse.data.role === 'normal' ? 'user' : loginResponse.data.role,
-        email: loginResponse.data.email || '',
-        id: loginResponse.data.id || null
-      };
-      localStorage.setItem("user", JSON.stringify(userData));
-
-      // Update the Authorization header in the api instance
-      api.defaults.headers.common['Authorization'] = `Bearer ${loginResponse.data.access}`;
-
-      toast.success("Logged in successfully!");
-      window.location.href = "/";
+      try {
+        // Try multiple endpoints for login
+        let loginResponse = null;
+        let loginError = null;
+        
+        const loginData = {
+          username: data.username,
+          password: data.password
+        };
+        
+        try {
+          loginResponse = await api.post("users/login/", loginData);
+        } catch (e) {
+          loginError = e;
+          try {
+            loginResponse = await api.post("login/", loginData);
+          } catch (e2) {
+            loginError = e2;
+            try {
+              loginResponse = await api.post("api/users/login/", loginData);
+            } catch (e3) {
+              loginError = e3;
+            }
+          }
+        }
+        
+        if (!loginResponse) {
+          throw loginError || new Error("Auto-login failed. Please log in manually.");
+        }
+        
+        // Store tokens and user data
+        localStorage.setItem(ACCESS_TOKEN, loginResponse.data.access || loginResponse.data.token);
+        localStorage.setItem(REFRESH_TOKEN, loginResponse.data.refresh || '');
+        
+        // Extract and normalize role
+        let userRole = loginResponse.data.role || loginResponse.data.user_role || 'user';
+        if (userRole === 'normal') userRole = 'user';
+        
+        // Store user data with consistent format
+        const userData = {
+          username: loginResponse.data.username,
+          role: userRole,
+          email: loginResponse.data.email || '',
+          id: loginResponse.data.id || loginResponse.data.user_id || null
+        };
+        
+        localStorage.setItem(USER_DATA, JSON.stringify(userData));
+        localStorage.setItem(USER_ID, userData.id || '');
+        localStorage.setItem(USER_ROLE, userData.role || 'user');
+        
+        // Update API authentication header
+        api.defaults.headers.common['Authorization'] = `Bearer ${loginResponse.data.access || loginResponse.data.token}`;
+        
+        toast.success("Logged in automatically!");
+        
+        // Redirect based on role
+        if (userData.role === 'admin') {
+          window.location.href = "/admin-dashboard";
+        } else if (userData.role === 'coordinator') {
+          window.location.href = "/coordinator-dashboard";
+        } else {
+          window.location.href = "/";
+        }
+      } catch (loginError) {
+        console.error("Auto-login error:", loginError);
+        toast.error("Auto-login failed. Please log in manually.");
+      }
     } catch (error) {
-      console.error("Registration Error:", error.response?.data);
+      console.error("Registration Error:", error.response?.data || error);
       if (error.response?.data) {
         // Display specific error messages from the backend
         toast.error(
@@ -412,6 +499,32 @@ const LoginRegistration = () => {
       setEmailAvailable(null);
     }
   };
+
+  const handleRegisterClick = async () => {
+    try {
+      console.log("Register button clicked directly");
+      // Check if form is valid
+      const isValid = await trigger();
+      console.log("Form validation result:", isValid);
+      console.log("Form errors:", errors);
+      console.log("Current form values:", getValues());
+      
+      if (isValid) {
+        setFormSubmitting(true);
+        const data = getValues();
+        console.log("Form data to be submitted:", data);
+        await onSubmitRegister(data);
+      } else {
+        toast.error("Please fix the form errors before submitting");
+      }
+    } catch (err) {
+      console.error("Error in manual submission:", err);
+      toast.error("Registration failed: " + (err.message || "Unknown error"));
+    } finally {
+      setFormSubmitting(false);
+    }
+  };
+
   return (
     <>
       <div
@@ -531,7 +644,6 @@ const LoginRegistration = () => {
                       className={styles.profileImage}
                     />
                   ) : (
-                    // Placeholder when no profile photo is uploaded
                     <Camera size={40} className="text-muted" />
                   )}
                 </div>
@@ -640,6 +752,7 @@ const LoginRegistration = () => {
                   </Form.Text>
                 )}
               </Form.Group>
+
               <Form.Group className="mb-3">
                 <Form.Label style={{ fontWeight: '500', color: '#555' }}>Phone Number</Form.Label>
                 <div className="input-group">
@@ -741,8 +854,13 @@ const LoginRegistration = () => {
               </Form.Group>
 
               <div className="d-grid gap-3 mt-4 mb-3">
-                <Button type="submit" className={styles.customBtn}>
-                  Register
+                <Button 
+                  type="button" 
+                  onClick={handleRegisterClick}
+                  className={styles.customBtn}
+                  disabled={formSubmitting}
+                >
+                  {formSubmitting ? "Registering..." : "Register"}
                 </Button>
                 {CLIENT_ID ? (
                   <GoogleOAuthProvider clientId={CLIENT_ID}>

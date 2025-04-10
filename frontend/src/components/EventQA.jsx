@@ -41,85 +41,59 @@ const EventQA = ({ event, isOrganizer }) => {
 
   const fetchQuestions = async () => {
     try {
-      console.log(`Fetching questions for event: ${event.id}`);
-      const response = await api.get(`/events/events/${event.id}/questions/`);
-      console.log('Questions response:', response.data);
+      console.log("Fetching questions for event:", event.id);
+      // The correct endpoint for questions in the backend
+      const response = await api.get(`/events/questions/?event=${event.id}`);
       setQuestions(response.data);
     } catch (error) {
-      console.error('Error fetching questions:', error);
+      console.error("Error fetching questions:", error);
+      // Set empty array on error to avoid undefined errors
+      setQuestions([]);
     } finally {
       setLoading(false);
     }
   };
 
-  const handleAskQuestion = async (e) => {
+  const handleSubmitQuestion = async (e) => {
     e.preventDefault();
-    if (!newQuestion.trim()) return;
-
     try {
-      await api.post(`/events/events/${event.id}/questions/`, {
+      const response = await api.post(`/events/questions/`, {
         question: newQuestion,
         event: event.id
       });
-      setNewQuestion('');
-      toast.success('Question posted successfully');
-      fetchQuestions();
+      setQuestions([...questions, response.data]);
+      setNewQuestion("");
+      toast.success("Question submitted successfully");
     } catch (error) {
-      console.error('Error posting question:', error);
-      toast.error('Failed to post question');
+      console.error("Error submitting question:", error);
+      toast.error("Failed to submit question");
     }
   };
 
-  const handleAnswer = async (questionId) => {
-    const answerText = replyingTo === questionId ? replyText : answers[questionId];
-    if (!answerText?.trim()) return;
-    
-    setAnswerSubmitting({...answerSubmitting, [questionId]: true});
-    
+  const handleSubmitAnswer = async (questionId) => {
     try {
-      console.log(`Posting answer to question ${questionId}:`, { answer: answerText });
       const response = await api.post(`/events/questions/${questionId}/answers/`, {
-        answer: answerText
+        answer: answers[questionId]
       });
       
-      console.log('Answer posted successfully:', response.data);
-      console.log('Current user data:', user);
-      console.log('Event data:', event);
-      
-      // Create the answer object with user data for official response check
-      const answerObj = {
-        id: response.data.id,
-        answer: answerText,
-        user: user,  // Current user (ensures we have full user data for proper check)
-        user_name: getDisplayName(user),
-        created_at: response.data.created_at || new Date().toISOString()
-      };
-      
-      // Check if this is an official response with our stricter check
-      answerObj.is_official = isOfficialResponse(answerObj);
-      console.log('Final answer object with official status:', answerObj);
-      
       // Update the questions list with the new answer
-      setQuestions(questions.map(q => 
-        q.id === questionId 
-          ? { 
+      const updatedQuestions = questions.map(q => {
+        if (q.id === questionId) {
+          return {
               ...q, 
-              is_answered: true, 
-              answers: [...(q.answers || []), answerObj]
-            } 
-          : q
-      ));
+            answers: [...(q.answers || []), response.data],
+            is_answered: true
+          };
+        }
+        return q;
+      });
       
-      // Clear the answer input and reset reply state
-      setReplyingTo(null);
-      setReplyText('');
-      setAnswers({...answers, [questionId]: ''});
-      toast.success('Answer posted successfully');
+      setQuestions(updatedQuestions);
+      setAnswers({ ...answers, [questionId]: "" });
+      toast.success("Answer submitted successfully");
     } catch (error) {
-      console.error('Error posting answer:', error);
-      toast.error(error.response?.data?.error || 'Failed to post answer');
-    } finally {
-      setAnswerSubmitting({...answerSubmitting, [questionId]: false});
+      console.error("Error submitting answer:", error);
+      toast.error("Failed to submit answer");
     }
   };
 
@@ -174,41 +148,58 @@ const EventQA = ({ event, isOrganizer }) => {
   // Determine if an answer is an official response
   const isOfficialResponse = (answer) => {
     if (!answer || !answer.user) {
-      console.log("Cannot determine official status: missing answer or user data", answer);
       return false;
     }
     
-    // Get user ID from the answer
-    const answerUserId = parseInt(answer.user.id || answer.user.user_id);
-    if (isNaN(answerUserId)) {
-      console.log("Cannot determine official status: invalid user ID", answer.user);
+    // Safety checks for user data
+    const answererUserData = answer.user;
+    if (!answererUserData) {
       return false;
     }
     
-    // Get event creator ID
-    const eventCreatorId = parseInt(event.created_by?.id || event.organizer?.id);
-    if (isNaN(eventCreatorId)) {
-      console.log("Cannot determine official status: invalid event creator ID", event);
-      return false;
+    // Check if user has a role that allows official responses
+    const isAdmin = 
+      answererUserData.user_role === 'admin' || 
+      answererUserData.role === 'admin';
+    
+    const isCoordinator = 
+      answererUserData.user_role === 'coordinator' || 
+      answererUserData.role === 'coordinator';
+      
+    // If no event data, can't determine if this is the event organizer
+    if (!event) {
+      return isAdmin; // Admin is always considered official
     }
     
-    // Check if this user is the event creator
-    const isCreator = answerUserId === eventCreatorId;
+    // Try to safely get IDs, with defensive programming
+    let answerUserId = null;
+    try {
+      if (typeof answererUserData.id !== 'undefined') {
+        answerUserId = parseInt(answererUserData.id);
+      } else if (typeof answererUserData.user_id !== 'undefined') {
+        answerUserId = parseInt(answererUserData.user_id);
+      }
+    } catch (e) {
+      // If ID parsing fails, this user can't be the event creator
+      return isAdmin; // Still consider admins as official
+    }
     
-    // Check if this user is an admin
-    const isAdmin = answer.user.user_role === 'admin' || answer.user.role === 'admin';
+    let eventCreatorId = null;
+    try {
+      if (event.created_by && typeof event.created_by.id !== 'undefined') {
+        eventCreatorId = parseInt(event.created_by.id);
+      } else if (event.created_by && typeof event.created_by !== 'object') {
+        eventCreatorId = parseInt(event.created_by);
+      }
+    } catch (e) {
+      // If creator ID parsing fails, can't compare
+      return isAdmin; // Still consider admins as official
+    }
     
-    console.log("Official response check:", {
-      answerUserId,
-      eventCreatorId,
-      isCreator,
-      isAdmin,
-      answerUser: answer.user,
-      eventCreator: event.created_by || event.organizer
-    });
+    // User is official if they're admin OR they're the event creator
+    const isCreator = !isNaN(answerUserId) && !isNaN(eventCreatorId) && answerUserId === eventCreatorId;
     
-    // Direct comparison - must be exact match
-    return isCreator || isAdmin;
+    return isAdmin || (isCoordinator && isCreator);
   };
 
   // Check if user is logged in
@@ -224,7 +215,7 @@ const EventQA = ({ event, isOrganizer }) => {
 
       {/* Ask Question Form */}
       {isLoggedIn ? (
-        <form onSubmit={handleAskQuestion} className={styles.questionForm}>
+        <form onSubmit={handleSubmitQuestion} className={styles.questionForm}>
           <textarea
             value={newQuestion}
             onChange={(e) => setNewQuestion(e.target.value)}
@@ -336,7 +327,7 @@ const EventQA = ({ event, isOrganizer }) => {
                     />
                     <div className={styles.replyActions}>
                       <button
-                        onClick={() => handleAnswer(question.id)}
+                        onClick={() => handleSubmitAnswer(question.id)}
                         disabled={!replyText.trim() || answerSubmitting[question.id]}
                       >
                         {answerSubmitting[question.id] ? (

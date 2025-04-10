@@ -61,6 +61,13 @@ const EventDetails = () => {
   const [isRegistered, setIsRegistered] = useState(false);
   const [isUserLoggedIn, setIsUserLoggedIn] = useState(false);
   const [userToken, setUserToken] = useState(null);
+  const [isRegistering, setIsRegistering] = useState(false);
+  const [isBookmarking, setIsBookmarking] = useState(false);
+  const [submittingFeedback, setSubmittingFeedback] = useState(false);
+  const [feedbackText, setFeedbackText] = useState("");
+  const [feedbackRating, setFeedbackRating] = useState(0);
+  const [isAnonymous, setIsAnonymous] = useState(false);
+  const [isCanceling, setIsCanceling] = useState(false);
 
   // Check if user is logged in from localStorage
   useEffect(() => {
@@ -127,178 +134,206 @@ const EventDetails = () => {
 
   const checkUserRole = async () => {
     try {
-      const response = await api.get("/users/profile/");
-      setUserRole(response.data.role);
-      setUserId(response.data.id);
+      // Try multiple possible profile endpoints - order matters
+      const endpoints = [
+        "/users/profile/",
+        "/api/users/me/",
+        "/auth/users/me/",
+        "/api/profile/",
+        "/users/me/",
+        "/users/check-auth/"
+      ];
+      
+      let response = null;
+      let lastError = null;
+      
+      // Try each endpoint sequentially
+      for (const endpoint of endpoints) {
+        try {
+          response = await api.get(endpoint);
+          if (response && response.data) {
+            break; // Exit the loop if successful
+          }
+        } catch (error) {
+          lastError = error;
+          // Continue to next endpoint
+        }
+      }
+      
+      if (response && response.data) {
+        // Handle different field names in response
+        const role = response.data.role || response.data.user_role;
+        const id = response.data.id || response.data.user_id;
+        
+        setUserRole(role);
+        setUserId(id);
+      } else {
+        // If all API calls fail, fall back to localStorage as a last resort
+        fallbackToLocalStorage();
+      }
     } catch (error) {
       console.error("Error checking user role:", error);
+      // Fall back to localStorage
+      fallbackToLocalStorage();
+    }
+  };
+  
+  // Helper function to extract user data from localStorage
+  const fallbackToLocalStorage = () => {
+    try {
+      const userData = JSON.parse(localStorage.getItem('user'));
+      const token = localStorage.getItem('access_token') || localStorage.getItem('ACCESS_TOKEN');
+      
+      if (userData && token) {
+        console.log("Using localStorage user data as fallback:", userData);
+        setUserRole(userData.role || userData.user_role || 'user');
+        setUserId(userData.id || userData.user_id);
+      } else {
+        // If no valid user data in localStorage, set default values
+        setUserRole('user');
+        setUserId(null);
+      }
+    } catch (e) {
+      console.error("Could not parse user data from localStorage:", e);
+      setUserRole('user');
+      setUserId(null);
     }
   };
 
   const fetchEventDetails = async () => {
     try {
-      setLoading(true); // Ensure loading is set to true at start
-      // Updated URL to match backend endpoint format
-      const response = await api.get(`/events/events/${id}/`);
-      const eventData = response.data;
-
-      // Format the date and time for display
-      const eventDate = new Date(eventData.event_time);
-      const formattedDate = eventDate.toLocaleDateString("en-US", {
-        weekday: "long",
-        year: "numeric",
-        month: "long",
-        day: "numeric",
-      });
-      const formattedTime = eventDate.toLocaleTimeString("en-US", {
-        hour: "2-digit",
-        minute: "2-digit",
-      });
-
-      // If there's a venue, try to fetch venue details
-      let venueDetails = null;
-      if (eventData.venue_id) {
+      setLoading(true);
+      const eventId = id;
+      console.log(`Fetching details for event ID: ${eventId}`);
+      
+      // Try multiple endpoints
+      const endpoints = [
+        `/events/${eventId}/`,
+        `/api/events/${eventId}/`,
+        `/events/events/${eventId}/`
+      ];
+      
+      let response = null;
+      let fetchError = null;
+      
+      // Try each endpoint until one works
+      for (const endpoint of endpoints) {
         try {
-          const venueResponse = await api.get(`/events/venues/${eventData.venue_id}/`);
-          venueDetails = venueResponse.data;
-          console.log("Fetched venue details:", venueDetails);
-        } catch (venueError) {
-          console.error("Error fetching venue details:", venueError);
-          // If we can't fetch venue details, use the venue info from the event
-          venueDetails = {
-            name: eventData.venue,
-            address: "Address not available",
-            image_url: null
-          };
-        }
-      } 
-      
-      // If we don't have venue details or image URL, use the predefined venue data from sample list
-      if (!venueDetails || !venueDetails.image_url) {
-        // Sample venue data matching what's defined in eventCreation.jsx
-        const sampleVenues = [
-          {
-            id: 1,
-            name: 'Corporate Executive Center',
-            address: '123 Business Park, Financial District',
-            capacity: 300,
-            price_per_hour: 5000,
-            description: 'Professional venue with advanced presentation technology, perfect for conferences, seminars, and corporate meetings.',
-            image_url: 'https://images.unsplash.com/photo-1517457373958-b7bdd4587205?ixlib=rb-4.0.3&ixid=MnwxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8&auto=format&fit=crop&w=1469&q=80',
-            features: ['Conference Tables', 'Stage', 'Projectors', 'Microphones', 'Wi-Fi', 'Catering Available', 'Parking']
-          },
-          {
-            id: 2,
-            name: 'Workshop Studio',
-            address: '456 Creative Lane, Arts District',
-            capacity: 50,
-            price_per_hour: 2500,
-            description: 'Flexible space designed for interactive workshops and small seminars. Includes workstations and creative breakout areas.',
-            image_url: 'https://images.stockcake.com/public/b/5/f/b5fd8cec-afa5-4237-b1e7-f9569d27e14c/busy-tech-workshop-stockcake.jpg',
-            features: ['Workstations', 'Whiteboards', 'Materials Storage', 'Natural Lighting', 'Video Recording']
-          },
-          {
-            id: 3,
-            name: 'Grand Ballroom',
-            address: '789 Celebration Avenue, City Center',
-            capacity: 400,
-            price_per_hour: 7500,
-            description: 'Elegant ballroom with crystal chandeliers, perfect for weddings, large corporate events, and formal celebrations.',
-            image_url: 'https://images.unsplash.com/photo-1519167758481-83f550bb49b3?ixlib=rb-4.0.3&ixid=MnwxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8&auto=format&fit=crop&w=1674&q=80',
-            features: ['Dance Floor', 'Stage', 'Professional Lighting', 'Bridal Suite', 'Full-Service Bar', 'Catering Kitchen']
-          },
-          {
-            id: 4,
-            name: 'Rooftop Concert Space',
-            address: '101 Skyline Drive, Entertainment District',
-            capacity: 200,
-            price_per_hour: 6000,
-            description: 'Urban rooftop venue with state-of-the-art sound system and panoramic city views, ideal for concerts and music events.',
-            image_url: 'https://images.stockcake.com/public/0/3/0/030a274e-47e8-487e-9129-544289c369a3_large/sunset-rooftop-concert-stockcake.jpg',
-            features: ['Professional Sound System', 'Lighting Rig', 'Green Room', 'Bar Service', 'Weather Protection']
-          },
-          {
-            id: 5,
-            name: 'Kids Party Palace',
-            address: '222 Fun Street, Family Zone',
-            capacity: 80,
-            price_per_hour: 3000,
-            description: 'Colorful and safe space designed for children\'s birthday parties with entertainment options and themed decoration packages.',
-            image_url: 'https://images.unsplash.com/photo-1530103862676-de8c9debad1d?ixlib=rb-4.0.3&ixid=MnwxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8&auto=format&fit=crop&w=1470&q=80',
-            features: ['Play Area', 'Theme Decorations', 'Entertainment Options', 'Party Rooms', 'Catering for Kids']
-          },
-          {
-            id: 6,
-            name: 'Garden Terrace',
-            address: '333 Park Lane, Green Hills',
-            capacity: 150,
-            price_per_hour: 4000,
-            description: 'Beautiful outdoor venue with lush gardens and pergola, perfect for weddings, birthday celebrations, and garden parties.',
-            image_url: 'https://images.unsplash.com/photo-1464366400600-7168b8af9bc3?ixlib=rb-4.0.3&ixid=MnwxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8&auto=format&fit=crop&w=1469&q=80',
-            features: ['Outdoor Space', 'Wedding Arch', 'Garden Lighting', 'Weather Backup Plan', 'Scenic Photo Spots']
+          console.log(`Trying to fetch event details using endpoint: ${endpoint}`);
+          response = await api.get(endpoint);
+          
+          if (response && response.status >= 200 && response.status < 300 && response.data) {
+            console.log(`Event details fetch successful with endpoint ${endpoint}`);
+            break; // Exit the loop if fetch is successful
           }
-        ];
-        
-        // Try to find a matching venue from our sample data
-        const matchingVenue = sampleVenues.find(venue => 
-          venue.name.toLowerCase() === (eventData.venue || '').toLowerCase() ||
-          venue.id === eventData.venue_id
-        );
-        
-        if (matchingVenue) {
-          // If we found a matching venue in our sample data, use those details
-          venueDetails = matchingVenue;
-          console.log("Using sample venue data:", venueDetails);
-        } else if (eventData.venue) {
-          // If no match but we have a venue name, create basic details with a random image
-          const randomIndex = Math.floor(Math.random() * sampleVenues.length);
-          venueDetails = {
-            name: eventData.venue,
-            address: "Address details not available",
-            image_url: sampleVenues[randomIndex].image_url,
-            features: ["Venue details not available"]
-          };
-          console.log("Using placeholder venue data with random image");
+        } catch (error) {
+          console.log(`Event details fetch failed with endpoint ${endpoint}:`, error);
+          fetchError = error;
+          // Continue to next endpoint
         }
       }
-
-      setEvent({
-        ...eventData,
-        formatted_date: formattedDate,
-        formatted_time: formattedTime,
-        venue_details: venueDetails
-      });
-
-      // Check if user is registered for this event
-      const token = localStorage.getItem(ACCESS_TOKEN);
-      const user = localStorage.getItem('user');
-      if (token && user) {
-        checkRegistrationStatus(eventData.id);
+      
+      // If no endpoint worked, throw the last error
+      if (!response || !response.data) {
+        throw fetchError || new Error("Failed to fetch event details with any endpoint");
       }
       
-      setLoading(false); // Set loading to false after data is fetched
+      console.log("Event details:", response.data);
+      
+      // Make sure we have all the required fields or set defaults
+      const eventData = {
+        ...response.data,
+        photos: response.data.photos || [],
+        venue: response.data.venue || "TBD",
+        price: response.data.price || 0,
+        max_participants: response.data.max_participants || 0,
+        description: response.data.description || "No description available",
+        formatted_date: new Date(response.data.event_time).toLocaleDateString(),
+        formatted_time: new Date(response.data.event_time).toLocaleTimeString()
+      };
+      
+      setEvent(eventData);
+      
+      // Add a delay to ensure the UI updates properly
+      setTimeout(() => {
+        // Check if user is registered
+        checkRegistrationStatus(eventId)
+          .catch(e => console.error("Error checking registration:", e))
+          .finally(() => {
+            // Check if event is bookmarked
+            checkBookmarkStatus(eventId)
+              .catch(e => console.error("Error checking bookmark:", e))
+              .finally(() => {
+                setLoading(false); // Set loading to false after all checks
+              });
+          });
+      }, 100);
+      
     } catch (error) {
       console.error("Error loading event details:", error);
       toast.error("Failed to load event details");
+      setEvent(null); // Reset event state on error
       setLoading(false); // Set loading to false on error
     }
   };
 
   const checkRegistrationStatus = async (eventId) => {
     try {
-      console.log("Checking registration status for event:", eventId);
-      // Updated URL to match backend endpoint format
-      const response = await api.get("/events/participants/my_participations/");
-      console.log("Participations response:", response.data);
+      const token = localStorage.getItem(ACCESS_TOKEN);
+      if (!token) {
+        console.log("No token found, user not logged in");
+        setIsRegistered(false);
+        return;
+      }
+
+      // Try multiple endpoints to check registration status
+      const endpoints = [
+        `/events/participants/my_participations/`,
+        `/participants/my_participations/`,
+        `/api/events/participants/my_participations/`
+      ];
       
-      // Check if the user is registered for this event
-      const isRegistered = response.data.some(
-        registration => registration.event === parseInt(eventId) && 
-        ["registered", "attended"].includes(registration.status)
+      let response = null;
+      let fetchError = null;
+      
+      // Try each endpoint until one works
+      for (const endpoint of endpoints) {
+        try {
+          console.log(`Trying to check registration status using endpoint: ${endpoint}`);
+          response = await api.get(endpoint);
+          
+          if (response && response.status >= 200 && response.status < 300) {
+            console.log(`Registration status check successful with endpoint ${endpoint}`);
+            break; // Exit the loop if fetch is successful
+          }
+        } catch (error) {
+          console.log(`Registration status check failed with endpoint ${endpoint}:`, error);
+          fetchError = error;
+          // Continue to next endpoint
+        }
+      }
+      
+      // If no endpoint worked, handle the error appropriately
+      if (!response) {
+        console.error("Failed to check registration status with any endpoint:", fetchError);
+        toast.error("Unable to verify your registration status. Please try again later.");
+        setIsRegistered(false);
+        return;
+      }
+      
+      const participations = response.data;
+      console.log("User participations:", participations);
+      
+      // Check if the user is registered for this specific event
+      const isUserRegistered = participations.some(
+        participation => participation.event_id === parseInt(eventId) || 
+                         participation.event === parseInt(eventId) ||
+                         participation.event_id === eventId ||
+                         participation.event === eventId
       );
       
-      console.log("User is registered:", isRegistered);
-      setIsRegistered(isRegistered);
+      console.log(`User registration status for event ${eventId}: ${isUserRegistered}`);
+      setIsRegistered(isUserRegistered);
     } catch (error) {
       console.error("Error checking registration status:", error);
       setIsRegistered(false);
@@ -307,20 +342,38 @@ const EventDetails = () => {
 
   // Fetch capacity information for the event
   const fetchCapacityInfo = async () => {
-    if (!event || !event.id) return;
-    
     try {
-      // Updated URL to match backend endpoint format
-      const response = await api.get(`/events/participants/event_capacity/?event_id=${event.id}`);
+      // Try multiple endpoints for capacity information
+      const capacityEndpoints = [
+        `/events/participants/event_capacity/?event_id=${id}`,
+        `/api/events/participants/event_capacity/?event_id=${id}`,
+        `/participants/event_capacity/?event_id=${id}`
+      ];
       
+      console.log("Fetching capacity info for event:", id);
+      
+      const response = await api.tryMultipleEndpoints(capacityEndpoints, 'get');
+      
+      if (response.data) {
+        console.log("Capacity info:", response.data);
+        
+        // Update event with capacity info
       setEvent(prev => ({
         ...prev,
-        registered_participants: response.data.current_participants,
-        is_full: response.data.is_full
+          registered_participants: response.data.current_participants || 0,
+          is_full: response.data.is_full || false,
+          remaining_spots: response.data.remaining_spots || 0
       }));
+      }
     } catch (error) {
       console.error("Error fetching capacity info:", error);
-      // Don't show error to user
+      // Don't show a toast for this error as it's not critical
+      // Just set some reasonable defaults
+      setEvent(prev => ({
+        ...prev,
+        is_full: prev.registered_participants >= prev.max_participants,
+        remaining_spots: Math.max(0, (prev.max_participants || 0) - (prev.registered_participants || 0))
+      }));
     }
   };
 
@@ -328,17 +381,18 @@ const EventDetails = () => {
     try {
       console.log(`Fetching feedback for event ${id}`);
       
-      // Get the feedback for this event
+      // First, try the correct endpoint pattern for feedback
       const response = await api.get(`/events/events/${id}/feedback/`);
       console.log("Feedback response:", response.data);
       
       // Set the feedback data
-      setFeedback(response.data);
+      const feedbackData = response.data.results || response.data;
+      setFeedback(Array.isArray(feedbackData) ? feedbackData : []);
       
       // Check if the current user has already left feedback
       if (isUserLoggedIn && userId) {
         console.log("Checking if user has already submitted feedback");
-        const userFeedbackItem = response.data.find(item => {
+        const userFeedbackItem = feedbackData.find(item => {
           return parseInt(item.user) === parseInt(userId);
         });
         
@@ -354,73 +408,104 @@ const EventDetails = () => {
       }
     } catch (error) {
       console.error("Error fetching feedback:", error);
-      // Log error but don't show to user as this is a non-critical feature
+      
+      // Try alternative endpoint
+      try {
+        const altResponse = await api.get(`/events/feedback/?event=${id}`);
+        const feedbackData = altResponse.data.results || altResponse.data;
+        setFeedback(Array.isArray(feedbackData) ? feedbackData : []);
+        
+        if (isUserLoggedIn && userId) {
+          const userFeedbackItem = feedbackData.find(item => 
+            parseInt(item.user) === parseInt(userId)
+          );
+          setUserFeedback(userFeedbackItem || null);
+          
+          setCanLeaveFeedback(
+            isRegistered && 
+            !userFeedbackItem && 
+            (event?.status === "completed" || event?.clientSideStatus === "completed")
+          );
+        }
+      } catch (altError) {
+        console.error("Error fetching feedback with alternate endpoint:", altError);
       setFeedback([]);
       setUserFeedback(null);
+      }
     }
   };
 
-  const handleRegister = async () => {
+  const registerForEvent = async () => {
     try {
-      console.log("Attempting to register for event:", event.id);
+      setIsRegistering(true);
       
-      // Verify authentication
-      const token = localStorage.getItem(ACCESS_TOKEN);
-      if (!token) {
-        console.error("Authentication token not found");
-        toast.error("Please log in to register for this event");
-        navigate("/login_reg");
-        return;
-      }
+      // List of possible endpoints for registration
+      const registrationEndpoints = [
+        `/events/participants/`,
+        `/api/events/participants/`,
+        `/participants/`
+      ];
       
-      // Skip profile fetch and directly try to register
-      // The backend should associate the user from the authentication token
-      const response = await api.post("/events/participants/", {
-        event: event.id,
-        status: "registered"
-      });
+      const registrationPayload = { event: Number(id) };
       
-      console.log("Registration successful, response:", response.data);
-      toast.success("Successfully registered for the event!");
+      console.log("Attempting to register for event with ID:", id);
+      
+      // Try each endpoint
+      try {
+        await api.tryMultipleEndpoints(registrationEndpoints, 'post', registrationPayload);
+        
       setIsRegistered(true);
       
-      // Update the participant count with the response data
-      if (response.data.event_capacity) {
-        setEvent(prev => ({
-          ...prev,
-          registered_participants: response.data.event_capacity.current_participants,
-          is_full: response.data.event_capacity.is_full
-        }));
-      }
-      
-      // Get updated event details
+        // Update capacity info after successful registration
+        fetchCapacityInfo().catch(e => console.error("Error updating capacity info:", e));
+        
+        toast.success("Registration successful!");
+        
+        // Get latest event info
       fetchEventDetails();
     } catch (error) {
-      console.error("Registration error:", error);
-      console.error("Error response:", error.response?.data);
-      
-      // Handle specific errors
-      if (error.response?.status === 401) {
-        toast.error("Your session has expired. Please log in again.");
+        console.error("Registration failed:", error);
+        
+        // Handle specific error cases
+        if (error.response) {
+          if (error.response.status === 400) {
+            // Check for specific error messages
+            const errorMessage = error.response.data.detail || 
+                               error.response.data.error || 
+                               "Registration failed due to validation errors";
+                               
+            if (errorMessage.includes("already registered")) {
+              toast.warning("You are already registered for this event");
+              setIsRegistered(true);
+              return;
+            } else if (errorMessage.includes("full") || errorMessage.includes("capacity")) {
+              toast.error("This event is full. No more registrations allowed.");
+              return;
+            }
+            
+            toast.error(errorMessage);
+          } else if (error.response.status === 401 || error.response.status === 403) {
+            toast.error("Please log in to register for this event");
         navigate("/login_reg");
-      } else if (error.response && error.response.data && error.response.data.error) {
-        toast.error(error.response.data.error);
-      } else if (error.response && error.response.data) {
-        // Show the specific validation error
-        const errorMessage = Object.entries(error.response.data)
-          .map(([key, value]) => `${key}: ${value}`)
-          .join(', ');
-        toast.error(`Registration failed: ${errorMessage}`);
       } else {
-        toast.error("Failed to register for the event. Please try again.");
+            toast.error("Registration failed. Please try again later.");
+          }
+        } else {
+          toast.error("Network error. Please check your connection and try again.");
+        }
       }
+    } catch (generalError) {
+      console.error("General registration error:", generalError);
+      toast.error("An unexpected error occurred. Please try again.");
+    } finally {
+      setIsRegistering(false);
     }
   };
 
   const handleDelete = async () => {
     if (window.confirm("Are you sure you want to delete this event?")) {
       try {
-        await api.delete(`/events/events/${id}/`);
+        await api.delete(`/events/${id}/`);
         toast.success("Event deleted successfully");
         navigate("/events");
       } catch (error) {
@@ -431,63 +516,73 @@ const EventDetails = () => {
   
   const handleFeedbackChange = (e) => {
     const { name, value, type, checked } = e.target;
-    setFeedbackForm({
-      ...feedbackForm,
-      [name]: type === 'checkbox' ? checked : value
-    });
+    if (type === 'checkbox') {
+      setIsAnonymous(checked);
+    } else {
+      setFeedbackText(value);
+    }
   };
   
   const handleRatingClick = (rating) => {
-    setFeedbackForm({
-      ...feedbackForm,
-      rating
-    });
+    setFeedbackRating(rating);
   };
   
   const handleFeedbackSubmit = async (e) => {
     e.preventDefault();
     try {
-      // Format the feedback data as expected by the backend
-      const feedbackData = {
-        rating: feedbackForm.rating,
-        comment: feedbackForm.comment,
-        is_anonymous: feedbackForm.is_anonymous
+      setSubmittingFeedback(true);
+      
+      if (!feedbackText.trim() || feedbackRating === 0) {
+        toast.warning("Please provide both a rating and comment");
+        return;
+      }
+      
+      const feedbackPayload = {
+        event: parseInt(id, 10),
+        rating: feedbackRating,
+        comment: feedbackText,
+        is_anonymous: isAnonymous
       };
       
-      console.log("Submitting feedback:", feedbackData);
+      console.log("Submitting feedback:", feedbackPayload);
       
-      // Send feedback to the backend using the correct URL format
-      const response = await api.post(`/events/events/${id}/feedback/`, feedbackData);
+      // Try multiple endpoints for feedback submission
+      const feedbackEndpoints = [
+        `/events/${id}/feedback/`,
+        `/api/events/${id}/feedback/`,
+        `/events/events/${id}/feedback/`
+      ];
       
-      console.log("Feedback submitted successfully:", response.data);
+      await api.tryMultipleEndpoints(feedbackEndpoints, 'post', feedbackPayload);
+      
       toast.success("Thank you for your feedback!");
-      
-      // Reset the form and UI state
       setShowFeedbackForm(false);
-      setFeedbackForm({
-        rating: 5,
-        comment: "",
-        is_anonymous: false,
-      });
+      setFeedbackText("");
+      setFeedbackRating(0);
+      setIsAnonymous(false);
       
-      // Refresh feedback list
+      // Refresh feedback
       fetchFeedback();
-      setCanLeaveFeedback(false);
+      
     } catch (error) {
       console.error("Error submitting feedback:", error);
-      if (error.response?.data?.detail) {
-        toast.error(error.response.data.detail);
-      } else if (error.response?.data?.message) {
-        toast.error(error.response.data.message);
-      } else if (error.response?.data) {
-        // Format validation errors nicely
-        const errors = Object.entries(error.response.data)
-          .map(([field, messages]) => `${field}: ${messages}`)
-          .join(', ');
-        toast.error(`Failed to submit feedback: ${errors}`);
+      
+      if (error.response?.status === 400) {
+        if (error.response.data.non_field_errors?.includes("already provided feedback")) {
+          toast.warning("You have already provided feedback for this event");
+        } else {
+          const errorMsg = error.response.data.detail || 
+                        error.response.data.error || 
+                        "Invalid feedback data";
+          toast.error(errorMsg);
+        }
+      } else if (error.response?.status === 401 || error.response?.status === 403) {
+        toast.error("Please log in to submit feedback");
       } else {
         toast.error("Failed to submit feedback. Please try again later.");
       }
+    } finally {
+      setSubmittingFeedback(false);
     }
   };
   
@@ -517,40 +612,177 @@ const EventDetails = () => {
 
   const fetchRelatedEvents = async () => {
     try {
-      const response = await api.get(`/events/events/${id}/related/`);
+      // Try multiple endpoints for related events
+      const relatedEndpoints = [
+        `/events/${id}/related/`,
+        `/api/events/${id}/related/`,
+        `/events/events/${id}/related/`
+      ];
+      
+      console.log("Fetching related events for:", id);
+      
+      const response = await api.tryMultipleEndpoints(relatedEndpoints, 'get');
+      
+      if (response.data) {
+        console.log("Related events:", response.data);
       setRelatedEvents(response.data);
+      }
     } catch (error) {
       console.error("Error fetching related events:", error);
-      // Silently set empty array on error
+      // If we can't get related events, just use empty array
       setRelatedEvents([]);
     }
   };
 
-  const checkBookmarkStatus = async () => {
+  const checkBookmarkStatus = async (eventId) => {
     try {
-      const response = await api.get(`/events/events/bookmarked/`);
-      // Look for the current event ID in the bookmarked events list
-      const isCurrentEventBookmarked = response.data.some(event => event.id === parseInt(id));
+      // Try the correct bookmarks endpoint
+      const response = await api.get(`/events/bookmarked/`);
+      
+      if (response && response.data) {
+        // If response is an array of bookmarked events
+        if (Array.isArray(response.data)) {
+          const isCurrentEventBookmarked = response.data.some(
+            bookmark => bookmark.id === parseInt(eventId || id)
+          );
       setIsBookmarked(isCurrentEventBookmarked);
+        } 
+        // If response is a different format, handle as needed
+        else if (typeof response.data === 'object') {
+          const bookmarks = response.data.results || [];
+          const isCurrentEventBookmarked = bookmarks.some(
+            bookmark => bookmark.id === parseInt(eventId || id)
+          );
+          setIsBookmarked(isCurrentEventBookmarked);
+        }
+      }
     } catch (error) {
+      // If the first endpoint fails, try an alternative
+      try {
+        const response = await api.get(`/api/events/bookmarked/`);
+        if (response && response.data) {
+          if (Array.isArray(response.data)) {
+            const isCurrentEventBookmarked = response.data.some(
+              bookmark => bookmark.id === parseInt(eventId || id)
+            );
+            setIsBookmarked(isCurrentEventBookmarked);
+          }
+        }
+      } catch (err) {
+        // Log error but don't let it break the component
       console.error("Error checking bookmark status:", error);
+        console.log("Defaulting bookmark status to false");
       setIsBookmarked(false);
     }
+    }
+    
+    // Explicitly return so Promise chaining works
+    return;
   };
 
   const toggleBookmark = async () => {
     try {
+      setIsBookmarking(true);
+      
+      // List of possible endpoints for bookmark actions
+      const bookmarkEndpoints = [
+        `/events/${id}/bookmark/`,
+        `/api/events/${id}/bookmark/`,
+        `/events/events/${id}/bookmark/`
+      ];
+      
       if (isBookmarked) {
-        await api.delete(`/events/events/${id}/bookmark/`);
+        // Try multiple endpoints for delete action
+        try {
+          await api.tryMultipleEndpoints(bookmarkEndpoints, 'delete');
         setIsBookmarked(false);
         toast.success("Event removed from bookmarks");
+        } catch (error) {
+          console.error("Failed to remove bookmark:", error);
+          toast.error("Failed to remove bookmark");
+        }
       } else {
-        await api.post(`/events/events/${id}/bookmark/`);
+        // Try multiple endpoints for post action
+        try {
+          await api.tryMultipleEndpoints(bookmarkEndpoints, 'post');
         setIsBookmarked(true);
-        toast.success("Event bookmarked successfully");
+          toast.success("Event added to bookmarks");
+        } catch (error) {
+          console.error("Failed to add bookmark:", error);
+          toast.error("Failed to add bookmark");
+        }
       }
     } catch (error) {
-      toast.error("Failed to update bookmark");
+      console.error("Toggle bookmark error:", error);
+      toast.error("Failed to update bookmark status");
+    } finally {
+      setIsBookmarking(false);
+    }
+  };
+
+  // Function to cancel event registration
+  const cancelRegistration = async () => {
+    if (!window.confirm("Are you sure you want to cancel your registration for this event?")) {
+      return;
+    }
+    
+    try {
+      setIsCanceling(true);
+      
+      // List of possible endpoints for canceling registration
+      const cancelEndpoints = [
+        `/events/participants/${id}/cancel/`,
+        `/api/events/participants/${id}/cancel/`,
+        `/events/participants/cancel/${id}/`,
+        `/api/events/participants/cancel/${id}/`
+      ];
+      
+      console.log("Attempting to cancel registration for event ID:", id);
+      
+      // Try each endpoint
+      try {
+        await api.tryMultipleEndpoints(cancelEndpoints, 'post');
+        setIsRegistered(false);
+        toast.success("Registration canceled successfully");
+        
+        // Update capacity info after successful cancellation
+        fetchCapacityInfo().catch(e => console.error("Error updating capacity info:", e));
+        
+        // Get latest event info
+        fetchEventDetails();
+        
+        // Dispatch event to update the dashboard if it's open
+        window.dispatchEvent(new CustomEvent('registration-canceled', { detail: { eventId: id } }));
+      } catch (error) {
+        console.error("Cancellation failed with POST method:", error);
+        
+        // Try with DELETE method as fallback
+        try {
+          const deleteEndpoints = [
+            `/events/participants/${id}/`,
+            `/api/events/participants/${id}/`, 
+            `/participants/${id}/`
+          ];
+          
+          await api.tryMultipleEndpoints(deleteEndpoints, 'delete');
+          
+          setIsRegistered(false);
+          toast.success("Registration canceled successfully");
+          fetchCapacityInfo();
+          fetchEventDetails();
+          
+          // Dispatch event to update the dashboard if it's open
+          window.dispatchEvent(new CustomEvent('registration-canceled', { detail: { eventId: id } }));
+        } catch (deleteError) {
+          console.error("Cancellation failed with DELETE method:", deleteError);
+          toast.error("Failed to cancel registration. Please try again later.");
+        }
+      }
+    } catch (error) {
+      console.error("Error canceling registration:", error);
+      toast.error("Failed to cancel registration. Please try again.");
+    } finally {
+      setIsCanceling(false);
     }
   };
 
@@ -562,6 +794,17 @@ const EventDetails = () => {
     return <div className={styles.error}>Event not found</div>;
   }
 
+  // Add debugging before render
+  console.log("RENDER DEBUG - Component state:", {
+    eventId: id,
+    eventData: event,
+    isLoading: loading,
+    userLoggedIn: isUserLoggedIn,
+    registrationStatus: isRegistered,
+    bookmarkStatus: isBookmarked
+  });
+
+  try {
   return (<>
     <div className={styles.dummy}></div>
     <div className={styles.eventDetailsContainer}>
@@ -597,15 +840,24 @@ const EventDetails = () => {
         </div>
       </div>
 
-      {event.photos.length > 0 && (
+        {event.photos && Array.isArray(event.photos) && event.photos.length > 0 ? (
         <div className={styles.imageGallery}>
+            {event.photos[selectedImage] && event.photos[selectedImage].photo_url ? (
           <img
             src={event.photos[selectedImage].photo_url}
             alt={`Event photo ${selectedImage + 1}`}
             className={styles.mainImage}
           />
+            ) : (
+              <div className={styles.noPhotoPlaceholder}>
+                <FaCalendar size={48} />
+                <p>Photo unavailable</p>
+              </div>
+            )}
           <div className={styles.thumbnails}>
-            {event.photos.map((photo, index) => (
+              {event.photos
+                .filter(photo => photo && photo.photo_url)
+                .map((photo, index) => (
               <img
                 key={index}
                 src={photo.photo_url}
@@ -618,6 +870,10 @@ const EventDetails = () => {
             ))}
           </div>
         </div>
+        ) : (
+          <div className={styles.noPhotos}>
+            <p>No photos available for this event</p>
+          </div>
       )}
 
       <div className={styles.eventInfo}>
@@ -911,23 +1167,34 @@ const EventDetails = () => {
       <div className={styles.actions}>
         {isUserLoggedIn ? (
           isRegistered ? (
+              <div className={styles.registeredActions}>
             <div className={styles.registeredStatus}>
               <FaCheckCircle className={styles.registeredIcon} />
               <span>You are registered for this event!</span>
+                </div>
+                {event.status === "upcoming" && (
+                  <button 
+                    onClick={cancelRegistration}
+                    className={styles.cancelRegistrationButton}
+                    disabled={isCanceling}
+                  >
+                    {isCanceling ? "Canceling..." : "Cancel Registration"}
+                  </button>
+                )}
             </div>
           ) : (
             event.status === "upcoming" && (
               <button
-                onClick={handleRegister}
+                  onClick={registerForEvent}
                 className={styles.registerButton}
                 disabled={
+                    isRegistered ||
                   event.is_full || 
-                  (event.max_participants > 0 &&
-                  event.registered_participants >= event.max_participants)
+                    isRegistering ||
+                    !isUserLoggedIn
                 }
               >
-                {event.is_paid ? <><FaDollarSign /> Register & Pay</> : <><FaCheckCircle /> Register Now</>}
-                {event.is_full && <span className={styles.fullText}> (Event is Full)</span>}
+                  {isRegistering ? "Registering..." : event.is_full ? "Event Full" : "Register for Event"}
               </button>
             )
           )
@@ -992,6 +1259,19 @@ const EventDetails = () => {
       )}
     </div>
   </>);
+  } catch (error) {
+    console.error("Error rendering event details:", error);
+    return (
+      <div className={styles.error}>
+        <h2>Error displaying event details</h2>
+        <p>Please try refreshing the page. If the problem persists, contact support.</p>
+        <details>
+          <summary>Technical Details</summary>
+          <p>{error.toString()}</p>
+        </details>
+      </div>
+    );
+  }
 };
 
 export default EventDetails;

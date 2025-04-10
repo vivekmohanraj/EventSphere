@@ -25,6 +25,7 @@ const EventList = () => {
   const [requestSubmitted, setRequestSubmitted] = useState(false);
   const [userParticipations, setUserParticipations] = useState([]);
   const [refreshing, setRefreshing] = useState(false);
+  const [totalPages, setTotalPages] = useState(1);
   const navigate = useNavigate();
 
   // Setup a regular refresh interval for events
@@ -56,66 +57,60 @@ const EventList = () => {
         setRefreshing(true);
       }
       
-      const response = await api.get("/api/events/");
-      // Ensure we're getting an array of events
-      const eventsList = Array.isArray(response.data) ? response.data : [];
+      // Params for filtering and pagination
+      const params = {
+        search: searchTerm,
+        category: filter,
+        sort_by: "event_time",
+        page: 1,
+        page_size: 10
+      };
       
-      // Remove duplicate events by ID
-      const uniqueEventsMap = new Map();
-      eventsList.forEach(event => {
-        if (event && event.id) {
-          // Only keep the first occurrence of each event ID
-          if (!uniqueEventsMap.has(event.id)) {
-            uniqueEventsMap.set(event.id, event);
-          }
+      // List of endpoints to try in order of preference
+      const eventEndpoints = [
+        "/api/events/",
+        "/events/",
+        "/events/events/",
+        "/"  // Root endpoint might return events directly
+      ];
+      
+      console.log("Fetching events with params:", params);
+      
+      const response = await api.tryMultipleEndpoints(eventEndpoints, 'get', null, { params });
+      
+      // Process different response formats
+      if (response.data) {
+        if (response.data.results) {
+          // Paginated response
+          setEvents(response.data.results);
+          setTotalPages(Math.ceil(response.data.count / 10) || 1);
+        } else if (Array.isArray(response.data)) {
+          // Array response
+          setEvents(response.data);
+          setTotalPages(1);
+        } else {
+          // Try to find events in nested data
+          let eventData = findEventsInResponse(response.data);
+          setEvents(eventData || []);
+          setTotalPages(1);
         }
-      });
+      } else {
+        setEvents([]);
+        setTotalPages(1);
+      }
       
-      // Convert back to array
-      const uniqueEvents = Array.from(uniqueEventsMap.values());
-      console.log(`Filtered ${eventsList.length - uniqueEvents.length} duplicate events`);
-      
-      // Update event status client-side based on event date
-      const updatedEvents = uniqueEvents.map(event => {
-        // Normalize status - handle both 'canceled' and 'cancelled' spellings
-        let normalizedStatus = event.status;
-        if (normalizedStatus === 'cancelled') {
-          normalizedStatus = 'canceled';
-        }
-        
-        // If the event is 'upcoming' but its date has passed, mark it as 'completed'
-        if (normalizedStatus === 'upcoming') {
-          const eventDateTime = new Date(event.event_time);
-          const currentTime = new Date();
-          
-          if (eventDateTime < currentTime) {
-            return {
-              ...event,
-              status: 'completed',
-              clientSideStatus: 'completed'
-            };
-          }
-        }
-        
-        return {
-          ...event,
-          status: normalizedStatus,
-          clientSideStatus: normalizedStatus
-        };
-      });
-      
-      setEvents(updatedEvents);
-      
-      if (!showLoadingState && !refreshing) {
+      if (!showLoadingState && refreshing) {
         toast.info("Events refreshed", { autoClose: 1000 });
       }
     } catch (error) {
-      console.error("Error fetching events:", error.response?.data);
-      if (error.response?.status === 401) {
+      console.error("Error fetching events:", error);
+      setEvents([]); 
+      setTotalPages(1);
+      
+      if (error?.response?.status === 401) {
         toast.error("Session expired. Please login again.");
         navigate("/login_reg");
       } else if (showLoadingState) {
-        // Only show error toast if this is an initial load, not a background refresh
         toast.error("Failed to fetch events. Please try again.");
       }
     } finally {
@@ -124,6 +119,31 @@ const EventList = () => {
       }
       setRefreshing(false);
     }
+  };
+  
+  // Helper function to find events in nested response data
+  const findEventsInResponse = (data) => {
+    // If data is directly an array of events
+    if (Array.isArray(data)) {
+      if (data.length > 0 && (data[0].event_name || data[0].id)) {
+        return data;
+      }
+    }
+    
+    // Look for arrays in the response that might contain events
+    if (typeof data === 'object' && data !== null) {
+      for (const key in data) {
+        if (Array.isArray(data[key])) {
+          // Check if first item looks like an event
+          const firstItem = data[key][0];
+          if (firstItem && (firstItem.event_name || firstItem.id)) {
+            return data[key];
+          }
+        }
+      }
+    }
+    
+    return null;
   };
 
   // Manual refresh function
@@ -134,11 +154,28 @@ const EventList = () => {
 
   const fetchUserParticipations = async () => {
     try {
-      const response = await api.get("/api/events/participants/my_participations/");
-      setUserParticipations(response.data);
+      // List of possible API paths for participations
+      const participationsEndpoints = [
+        "/events/participants/my_participations/",
+        "/api/events/participants/my_participations/",
+        "/api/participants/my_participations/",
+        "/participants/my_participations/"
+      ];
+      
+      console.log("Fetching user participations");
+      
+      const response = await api.tryMultipleEndpoints(participationsEndpoints, 'get');
+      
+      if (response && response.data) {
+        setUserParticipations(response.data);
+      } else {
+        // Initialize with empty array if there's an error
+        setUserParticipations([]);
+      }
     } catch (error) {
       console.error("Error fetching user participations:", error);
       // Don't show error toast as this is not critical
+      setUserParticipations([]);
     }
   };
 
@@ -209,19 +246,51 @@ const EventList = () => {
   const submitCoordinatorRequest = async () => {
     try {
       setRequestSubmitting(true);
-      await api.post("/users/coordinator-request/");
+      
+      // List of possible coordinator request endpoints
+      const requestEndpoints = [
+        "/users/coordinator-request/",
+        "/api/users/coordinator-request/",
+        "/auth/users/coordinator-request/"
+      ];
+      
+      await api.tryMultipleEndpoints(requestEndpoints, 'post');
+      
       setRequestSubmitted(true);
       toast.success("Coordinator request submitted successfully!");
+      
+      // Update local storage user data to reflect the request
+      try {
+        const userData = JSON.parse(localStorage.getItem("user") || "{}");
+        userData.coordinator_request = true;
+        localStorage.setItem("user", JSON.stringify(userData));
+      } catch (e) {
+        console.error("Failed to update local storage:", e);
+        // Non-critical error, don't show toast
+      }
+      
     } catch (error) {
       console.error("Error submitting coordinator request:", error);
-      toast.error("Failed to submit your request. Please try again later.");
+      
+      if (error.response?.status === 401 || error.response?.status === 403) {
+        toast.error("Please log in to submit a coordinator request");
+        navigate("/login_reg");
+      } else {
+        toast.error("Failed to submit your request. Please try again later.");
+      }
     } finally {
       setRequestSubmitting(false);
     }
   };
 
-  const filteredEvents = events.filter((event) => {
+  const filteredEvents = events ? events.filter((event) => {
     if (!event) return false; // Skip null or undefined events
+
+    // Skip canceled events if not specifically viewing canceled events
+    if (filter !== "canceled" && filter !== "all" && 
+        (event.status === "canceled" || event.status === "cancelled")) {
+      return false;
+    }
 
     const matchesSearch = event.event_name
       ?.toLowerCase()
@@ -237,7 +306,7 @@ const EventList = () => {
       (event.status && event.status.toLowerCase() === filter.toLowerCase());
 
     return matchesSearch && matchesFilter;
-  });
+  }) : [];
 
   if (loading) {
     return (

@@ -22,10 +22,22 @@ import {
   FaListUl,
   FaBookmark,
   FaUserEdit,
-  FaExclamationTriangle
+  FaExclamationTriangle,
+  FaSync,
+  FaCamera,
+  FaPlus,
+  FaEdit,
+  FaUser,
+  FaUserCheck,
+  FaChartBar,
+  FaCalendarCheck,
+  FaCalendarMinus,
+  FaCalendarPlus,
+  FaChartLine,
+  FaUserFriends
 } from "react-icons/fa";
 import { ToastContainer, toast } from "react-toastify";
-import api, { getMediaUrl } from "../../utils/api";
+import api, { getMediaUrl, tryMultipleEndpoints } from "../../utils/api";
 import styles from "../../assets/css/user/userDashboard.module.css";
 import { ACCESS_TOKEN, REFRESH_TOKEN } from "../../utils/constants";
 import CoordinatorRequestForm from "./CoordinatorRequestForm";
@@ -33,9 +45,11 @@ import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
 import profileStyles from "../../assets/css/user/profile.module.css";
+import { Modal, Button, Form, Spinner } from 'react-bootstrap';
 
 const UpdatedStyles = () => (
-  <style jsx>{`
+  <style>
+    {`
     :root {
       --accent-color: #ff4a17 !important;
       --accent-hover: #e63c0c !important;
@@ -67,7 +81,8 @@ const UpdatedStyles = () => (
     .sidebarHeader h2 {
       color: #ff4a17 !important;
     }
-  `}</style>
+    `}
+  </style>
 );
 
 const UserDashboard = () => {
@@ -109,7 +124,52 @@ const UserDashboard = () => {
   const [coordinatorRequestStatus, setCoordinatorRequestStatus] = useState(null);
   const [validationErrors, setValidationErrors] = useState({});
   const [error, setError] = useState(null);
+  const [showFeedbackModal, setShowFeedbackModal] = useState(false);
+  const [currentEvent, setCurrentEvent] = useState(null);
+  const [feedbackData, setFeedbackData] = useState({ rating: 5, comment: '' });
+  const [cancelingRegistration, setCancelingRegistration] = useState(false);
+  const [errorMessage, setErrorMessage] = useState(null);
+  const [showProfileEditModal, setShowProfileEditModal] = useState(false);
+  const [profileEditFormData, setProfileEditFormData] = useState({
+    username: '',
+    first_name: '',
+    last_name: '',
+    email: '',
+    bio: '',
+    profilePicture: null,
+    password: '',
+    confirmPassword: '',
+    previousProfilePicture: null
+  });
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isLoadingProfile, setIsLoadingProfile] = useState(false);
+  const [isUpdating, setIsUpdating] = useState(false);
+  const [profileForm, setProfileForm] = useState({
+    username: '',
+    first_name: '',
+    last_name: '',
+    email: '',
+    bio: '',
+    password: '',
+    confirm_password: '',
+    profile_picture: null
+  });
+  // Add these state variables if they don't exist
+  const [filter, setFilter] = useState("all");
+  const [refreshing, setRefreshing] = useState(false);
+  const [userParticipations, setUserParticipations] = useState([]);
+  const [initialLoadComplete, setInitialLoadComplete] = useState(false);
+  // Add new state variables for coordinator events data
+  const [coordinatorEvents, setCoordinatorEvents] = useState([]);
+  const [coordinatorStats, setCoordinatorStats] = useState({
+    totalEvents: 0,
+    upcomingEvents: 0,
+    participantsCount: 0,
+    completedEvents: 0,
+    canceledEvents: 0
+  });
 
+  // Initialize dashboard data when component mounts
   useEffect(() => {
     // Add an event listener for auth errors
     const handleAuthError = (event) => {
@@ -129,16 +189,41 @@ const UserDashboard = () => {
       navigate("/login_reg");
     };
 
-    window.addEventListener('auth-error', handleAuthError);
+    // Add event listener for registration updates
+    const handleRegistrationUpdate = () => {
+      console.log("Registration update detected, refreshing dashboard data");
+      fetchDashboardData();
+    };
 
-    // Check authentication status on component mount
+    // Add event listener for registration cancellation from event details page
+    const handleRegistrationCanceled = (event) => {
+      console.log("Registration canceled event received", event.detail);
+      
+      // Refresh the user participations data
+      fetchUserParticipations();
+      
+      // Show a toast notification
+      toast.info(`Your registration has been canceled`, {
+        position: "bottom-right",
+        autoClose: 3000
+      });
+    };
+
+    window.addEventListener('auth-error', handleAuthError);
+    window.addEventListener('event-registration-updated', handleRegistrationUpdate);
+    window.addEventListener('registration-canceled', handleRegistrationCanceled);
+
+    // Check authentication and fetch data immediately on mount
     checkAuthAndFetchStats();
 
     return () => {
       window.removeEventListener('auth-error', handleAuthError);
+      window.removeEventListener('event-registration-updated', handleRegistrationUpdate);
+      window.removeEventListener('registration-canceled', handleRegistrationCanceled);
     };
   }, [navigate]);
 
+  // Fetch all events for browse/recommendations tab
   useEffect(() => {
     if (activeTab === "browse") {
       console.log("Browse events tab activated - fetching events");
@@ -146,19 +231,10 @@ const UserDashboard = () => {
     }
   }, [activeTab]);
   
-  // Add a separate effect to initialize event list when dashboard first loads
+  // Generate activity feed when dependencies change
   useEffect(() => {
-    if (!loading && allEvents.length === 0) {
-      console.log("Initializing events list for dashboard");
-      fetchAllEvents();
-    }
-  }, []);
-
-  // Fetch user profile data when component mounts
-  useEffect(() => {
-    fetchUserProfile();
     generateActivityFeed();
-  }, []);
+  }, [upcomingEvents, pastEvents, userProfile]);
 
   const checkAuthAndFetchStats = async () => {
     const token = localStorage.getItem(ACCESS_TOKEN);
@@ -279,200 +355,544 @@ const UserDashboard = () => {
     }
   };
 
-  const fetchDashboardData = async () => {
+  // Add fetchCoordinatorEvents function before the fetchDashboardData function
+  const fetchCoordinatorEvents = async () => {
+    if (!userProfile?.is_coordinator) return;
+    
     try {
+      // Try multiple endpoint paths
+      const endpoints = [
+        "events/coordinator-events/",
+        "api/events/coordinator-events/",
+        "/coordinator-events/"
+      ];
+      
+      const response = await api.tryMultipleEndpoints(endpoints, 'get');
+      
+      if (response?.data) {
+        if (response.data.events) {
+          // Format with necessary fields
+          const events = response.data.events.map(event => ({
+            ...event,
+            formatted_date: new Date(event.event_time).toLocaleDateString(),
+            formatted_time: new Date(event.event_time).toLocaleTimeString([], {
+              hour: '2-digit',
+              minute: '2-digit'
+            })
+          }));
+          setCoordinatorEvents(events);
+        } else if (Array.isArray(response.data)) {
+          // Format with necessary fields
+          const events = response.data.map(event => ({
+            ...event,
+            formatted_date: new Date(event.event_time).toLocaleDateString(),
+            formatted_time: new Date(event.event_time).toLocaleTimeString([], {
+              hour: '2-digit',
+              minute: '2-digit'
+            })
+          }));
+          setCoordinatorEvents(events);
+        }
+      }
+      
+      // Also fetch coordinator stats
+      const statEndpoints = [
+        "events/coordinator-stats/",
+        "api/events/coordinator-stats/",
+        "/coordinator-stats/"
+      ];
+      
+      const statsResponse = await api.tryMultipleEndpoints(statEndpoints, 'get');
+      
+      if (statsResponse?.data) {
+        setCoordinatorStats({
+          totalEvents: statsResponse.data.total_events || 0,
+          upcomingEvents: statsResponse.data.upcoming_events || 0,
+          participantsCount: statsResponse.data.participants_count || 0,
+          completedEvents: statsResponse.data.completed_events || 0,
+          canceledEvents: statsResponse.data.canceled_events || 0
+        });
+      }
+    } catch (error) {
+      console.error("Error fetching coordinator events:", error);
+      // Don't show error toast for non-critical features
+    }
+  };
+
+  // Fetch dashboard data including participations, bookmarks, feedback history, and notifications
+  const fetchDashboardData = async () => {
       setLoading(true);
+    setErrorMessage(null);
       console.log("Fetching dashboard data");
       
-      // Try to fetch profile first - this is a good test of authentication
-      try {
-        const profileResponse = await api.get("users/profile/");
-        if (profileResponse.status === 200) {
-          console.log("Profile data retrieved:", profileResponse.data);
-          setUserProfile(profileResponse.data);
-          
-          if (profileResponse.data.profile_photo) {
-            setProfilePhotoPreview(getMediaUrl(profileResponse.data.profile_photo));
-          }
-        }
-      } catch (profileError) {
-        console.warn("Error fetching profile:", profileError.response?.status);
-      }
-  
-      // Remaining dashboard data fetching logic
-      // Default empty values for all data
-      let eventsData = [];
+    try {
+      // Check if the API baseURL is correctly configured
+      console.log("API baseURL:", api.defaults.baseURL);
       
-      // Try to fetch all events first since we need this for other features
-      try {
-        const eventsResponse = await api.get("events/");
-        if (eventsResponse.status === 200 && eventsResponse.data) {
-          eventsData = Array.isArray(eventsResponse.data) ? eventsResponse.data : [];
-          setAllEvents(eventsData);
-        } else {
-          setAllEvents([]);
-        }
-      } catch (error) {
-        console.warn("Could not fetch events:", error);
-        setAllEvents([]);
-      }
+      // Fetch user profile
+      await fetchUserProfile();
       
-      // Calculate stats from events data if we have it
-      try {
-        // Try endpoint first
-        const statsResponse = await api.get("events/user-stats/");
-        if (statsResponse.status === 200 && statsResponse.data) {
-          setStats({
-            registeredEvents: statsResponse.data.registered_events || 0,
-            upcomingEvents: statsResponse.data.upcoming_events || 0,
-            completedEvents: statsResponse.data.completed_events || 0,
-          });
-        } else {
-          throw new Error("Invalid response from stats endpoint");
-        }
-      } catch (error) {
-        console.warn("Could not fetch user stats:", error);
-        
-        // Fallback: calculate stats from events data if available
-        if (eventsData.length > 0) {
-          try {
-            // Get user ID
-            const userId = userProfile.id || getUserIdFromToken();
-            if (!userId) {
-              throw new Error("Could not determine user ID");
-            }
-            
-            // Filter events this user is registered for
-            const userEvents = eventsData.filter(event => 
-              event.participants && 
-              event.participants.some(p => 
-                (p.user && p.user.toString() === userId.toString()) || 
-                (p.user_id && p.user_id.toString() === userId.toString())
-              )
-            );
-            
-            // Calculate upcoming vs past events
-            const now = new Date();
-            const upcoming = userEvents.filter(event => 
-              new Date(event.event_time) > now
-            );
-            const completed = userEvents.filter(event => 
-              new Date(event.event_time) <= now
-            );
-            
-            setStats({
-              registeredEvents: userEvents.length,
-              upcomingEvents: upcoming.length,
-              completedEvents: completed.length
-            });
-          } catch (fallbackError) {
-            console.warn("Could not calculate stats from events:", fallbackError);
-            // Default stats
-            setStats({
-              registeredEvents: 0,
-              upcomingEvents: 0,
-              completedEvents: 0
-            });
-          }
-        } else {
-          // No events data, set empty stats
-          setStats({
-            registeredEvents: 0,
-            upcomingEvents: 0,
-            completedEvents: 0
-          });
-        }
-      }
+      // Fetch participations, then upcoming and past events
+      await fetchUserParticipations();
+      await Promise.all([
+        fetchUpcomingEvents(),
+        fetchPastEvents(),
+        fetchBookmarkedEvents(),
+        fetchAllEvents(false) // Load all events without showing loading indicator
+      ]);
       
-      // Extract user's upcoming and past events from all events data
-      if (eventsData.length > 0) {
-        try {
-          // Get user ID
-          const userId = userProfile.id || getUserIdFromToken();
-          if (!userId) {
-            throw new Error("Could not determine user ID");
-          }
-          
-          // Filter events this user is registered for
-          const userEvents = eventsData.filter(event => 
-            event.participants && 
-            event.participants.some(p => 
-              (p.user && p.user.toString() === userId.toString()) || 
-              (p.user_id && p.user_id.toString() === userId.toString())
-            )
-          );
-          
-          // Separate into upcoming and past
-          const now = new Date();
-          const upcoming = userEvents.filter(event => 
-            new Date(event.event_time) > now
-          );
-          const past = userEvents.filter(event => 
-            new Date(event.event_time) <= now
-          );
-          
-          setUpcomingEvents(upcoming);
-          setPastEvents(past);
-        } catch (error) {
-          console.warn("Could not process user events:", error);
-          setUpcomingEvents([]);
-          setPastEvents([]);
-        }
-      } else {
-        setUpcomingEvents([]);
-        setPastEvents([]);
-      }
+      // Update stats
+      updateStats();
       
-      // Create mock bookmarked events if needed
-      // Since this is a feature you want to keep, create some dummy data
-      try {
-        const bookmarksResponse = await api.get("events/bookmarked/");
-        if (bookmarksResponse.status === 200 && Array.isArray(bookmarksResponse.data)) {
-          setBookmarkedEvents(bookmarksResponse.data);
-        } else {
-          throw new Error("Invalid bookmarks response");
-        }
-      } catch (error) {
-        console.warn("Could not fetch bookmarked events:", error);
-        
-        // Create mock bookmarked events from the first few events
-        if (eventsData.length > 0) {
-          // Take 2-3 random events to use as bookmarks
-          const mockBookmarked = eventsData
-            .slice(0, Math.min(eventsData.length, 5))
-            .sort(() => 0.5 - Math.random())
-            .slice(0, Math.min(eventsData.length, 3))
-            .map(event => ({
-              ...event,
-              bookmarked_at: new Date(Date.now() - Math.random() * 30 * 24 * 60 * 60 * 1000)
-            }));
-          
-          setBookmarkedEvents(mockBookmarked);
-        } else {
-          setBookmarkedEvents([]);
-        }
-      }
-      
-      // Generate activity feed based on available data
+      // Generate activity feed
       generateActivityFeed();
       
-    } catch (error) {
-      console.error("Error loading dashboard data:", error);
-      toast.error("Error loading dashboard data");
+      // Add this line near the end of the function
+      if (userProfile?.is_coordinator) {
+        await fetchCoordinatorEvents();
+      }
       
-      // Set default empty values for everything to prevent UI errors
-      setStats({
-        registeredEvents: 0,
-        upcomingEvents: 0,
-        completedEvents: 0
-      });
-      setUpcomingEvents([]);
-      setPastEvents([]);
-      setAllEvents([]);
-      setBookmarkedEvents([]);
-    } finally {
+      setLoading(false);
+      setInitialLoadComplete(true);
+    } catch (error) {
+      console.error("Error fetching dashboard data:", error);
+      
+      if (error.response?.status === 401) {
+        console.log("Authentication error in dashboard data fetch");
+        // Dispatch auth error event for handling at the top level
+        window.dispatchEvent(new CustomEvent('auth-error', {
+          detail: { originalError: error }
+        }));
+      } else {
+        setErrorMessage("There was an error loading your dashboard data. Please try refreshing the page.");
+      }
+      
       setLoading(false);
     }
+  };
+  
+  // Fetch capacity information for events
+  const fetchCapacityInfo = async (eventId) => {
+    if (!eventId) return null;
+    
+    try {
+      // Try multiple endpoints for capacity info
+      const capacityEndpoints = [
+        `/events/participants/event_capacity/?event_id=${eventId}`,
+        `/api/events/participants/event_capacity/?event_id=${eventId}`,
+        `/participants/event_capacity/?event_id=${eventId}`
+      ];
+      
+      let response = null;
+      
+      for (const endpoint of capacityEndpoints) {
+        try {
+          console.log(`Trying to fetch capacity info from ${endpoint}`);
+          response = await api.get(endpoint);
+          
+          if (response?.data) {
+            console.log(`Successfully fetched capacity info from ${endpoint}`);
+            return {
+              current_participants: response.data.current_participants || 0,
+              is_full: response.data.is_full || false,
+              max_participants: response.data.max_participants || 0
+            };
+          }
+        } catch (err) {
+          console.log(`Failed to fetch capacity info from ${endpoint}:`, err);
+        }
+      }
+      
+      // If no endpoints work, return default values
+      return {
+        current_participants: 0,
+        is_full: false,
+        max_participants: 0
+      };
+      } catch (error) {
+      console.error(`Error in fetchCapacityInfo for event ${eventId}:`, error);
+      return {
+        current_participants: 0,
+        is_full: false,
+        max_participants: 0
+      };
+    }
+  };
+
+  // Process participations data to update upcoming and past events
+  const processParticipationsData = async (participations) => {
+    if (!participations || participations.length === 0) {
+      setUpcomingEvents([]);
+      setPastEvents([]);
+      return;
+    }
+    
+    // Filter out canceled participations
+    const activeParticipations = participations.filter(p => p.status !== 'canceled');
+    if (activeParticipations.length === 0) {
+      setUpcomingEvents([]);
+      setPastEvents([]);
+      return;
+    }
+    
+    // Extract event IDs from active participations only
+    const eventIds = activeParticipations.map(p => p.event);
+    console.log("Event IDs from active participations:", eventIds);
+    
+    const upcomingList = [];
+    const pastList = [];
+    const now = new Date();
+    
+    // Fetch details for each event
+    for (const eventId of eventIds) {
+      try {
+        const eventData = await fetchEventDetails(eventId);
+        
+        if (eventData) {
+          // Skip events with canceled status
+          if (eventData.status === 'canceled' || eventData.status === 'cancelled') {
+            console.log(`Skipping canceled event: ${eventData.event_name}`);
+            continue;
+          }
+          
+          // Get capacity information
+          const capacityInfo = await fetchCapacityInfo(eventId);
+          
+          // Combine event data with capacity info
+          const enrichedEventData = {
+            ...eventData,
+            participant_count: capacityInfo?.current_participants || 0,
+            is_full: capacityInfo?.is_full || false,
+            max_participants: capacityInfo?.max_participants || eventData.max_participants || 0
+          };
+          
+          const eventDate = new Date(eventData.event_time);
+          
+          if (eventDate > now && eventData.status !== 'canceled') {
+            upcomingList.push(enrichedEventData);
+          } else if (eventData.status !== 'canceled') {
+            // Only add past events that are not canceled
+            pastList.push(enrichedEventData);
+          }
+        }
+      } catch (err) {
+        console.error(`Error fetching details for event ${eventId}:`, err);
+      }
+    }
+    
+    console.log("Processed events - Upcoming:", upcomingList.length, "Past:", pastList.length);
+    setUpcomingEvents(upcomingList);
+    setPastEvents(pastList);
+  };
+  
+  // Fetch bookmarked events from multiple possible endpoints
+  const fetchBookmarkedEvents = async () => {
+    try {
+      console.log("Fetching bookmarked events");
+      
+      // Try multiple endpoints for bookmarked events
+      const endpoints = [
+        "/events/bookmarked/",
+        "/api/events/bookmarked/",
+        "/events/bookmark/",
+        "/api/events/bookmark/"
+      ];
+      
+      let response = null;
+      let lastError = null;
+      
+      // Try each endpoint until one works
+      for (const endpoint of endpoints) {
+        try {
+          console.log(`Trying to fetch bookmarked events from ${endpoint}`);
+          response = await api.get(endpoint);
+          
+          if (response?.data) {
+            console.log(`Successfully fetched ${response.data.length} bookmarked events from ${endpoint}`);
+            setBookmarkedEvents(response.data);
+            return response.data;
+          }
+        } catch (err) {
+          console.log(`Failed to fetch bookmarked events from ${endpoint}:`, err);
+          lastError = err;
+          // Continue to next endpoint
+        }
+      }
+      
+      // If we reach here, no endpoints worked - check if we have allEvents
+      // and try to extract bookmarked events from there
+      if (allEvents && allEvents.length > 0) {
+        console.log("Trying to extract bookmarked events from allEvents");
+        
+        // Filter events that might be bookmarked based on various property names
+        const bookmarked = allEvents.filter(event => 
+          event.is_bookmarked === true || 
+          event.bookmarked === true ||
+          (event.bookmarks && Array.isArray(event.bookmarks) && 
+            event.bookmarks.some(b => 
+              b.user === getUserIdFromToken() || 
+              b.user_id === getUserIdFromToken()
+            )
+          )
+        );
+        
+        if (bookmarked.length > 0) {
+          console.log(`Extracted ${bookmarked.length} bookmarked events from allEvents`);
+          setBookmarkedEvents(bookmarked);
+          return bookmarked;
+        }
+      }
+      
+      // If we still don't have data, set empty array and log error
+      console.warn("Could not fetch bookmarked events from any source");
+      setBookmarkedEvents([]);
+      
+      // Don't throw error for bookmarks since they're not critical
+      // Just return empty array
+      return [];
+      
+    } catch (error) {
+      console.error("Error fetching bookmarked events:", error);
+      setBookmarkedEvents([]);
+      return [];
+    }
+  };
+  
+  // Fetch details for a specific event
+  const fetchEventDetails = async (eventId) => {
+    try {
+      // Try multiple endpoints for each event - ordered by priority based on logs
+      const eventEndpoints = [
+        `/events/${eventId}/`,       // This seems to work based on logs
+        `/api/events/${eventId}/`,
+        `/events/events/${eventId}/`
+      ];
+      
+      for (const endpoint of eventEndpoints) {
+        try {
+          console.log(`Trying to fetch event details from ${endpoint}`);
+          const response = await api.get(endpoint);
+          
+          if (response?.data) {
+            console.log(`Successfully fetched event details from ${endpoint}`);
+            
+            // Add formatted display fields for better UI
+            const eventData = {
+              ...response.data,
+              formatted_date: new Date(response.data.event_time).toLocaleDateString(),
+              formatted_time: new Date(response.data.event_time).toLocaleTimeString(),
+              photos: response.data.photos || []
+            };
+            
+            return eventData;
+          }
+        } catch (err) {
+          console.log(`Failed to fetch event ${eventId} from ${endpoint}:`, err);
+        }
+      }
+      
+      console.warn(`Could not fetch details for event ${eventId} from any endpoint`);
+      // Return minimal data that won't break UI
+      return {
+        id: eventId,
+        event_name: "Event Information Unavailable",
+        description: "Event details could not be loaded",
+        event_time: new Date().toISOString(),
+        venue: "Unknown Venue",
+        photos: [],
+        formatted_date: new Date().toLocaleDateString(),
+        formatted_time: new Date().toLocaleTimeString()
+      };
+    } catch (error) {
+      console.error(`Error in fetchEventDetails for event ${eventId}:`, error);
+      // Return minimal data that won't break UI
+      return {
+        id: eventId,
+        event_name: "Event Information Unavailable",
+        description: "Event details could not be loaded",
+        event_time: new Date().toISOString(),
+        venue: "Unknown Venue",
+        photos: [],
+        formatted_date: new Date().toLocaleDateString(),
+        formatted_time: new Date().toLocaleTimeString()
+      };
+    }
+  };
+
+  // Fetch user participations (registered events)
+  const fetchUserParticipations = async () => {
+    try {
+      console.log("Fetching user participations");
+      
+      const endpoints = [
+        "/events/participants/my_participations/",
+        "/api/events/participants/my_participations/",
+        "/participants/my_participations/",
+        "/api/participants/my_participations/"
+      ];
+      
+      const response = await api.tryMultipleEndpoints(endpoints, 'get');
+      
+      if (response && response.data) {
+        console.log(`Successfully fetched ${response.data.length} participations`);
+        setUserParticipations(response.data);
+        return response.data;
+        } else {
+        console.warn("Response format unexpected for participations", response);
+        setUserParticipations([]);
+        return [];
+      }
+    } catch (error) {
+      console.error("Error fetching user participations:", error);
+      setUserParticipations([]);
+      return [];
+    }
+  };
+
+  // Fetch upcoming events the user is registered for
+  const fetchUpcomingEvents = async () => {
+    try {
+      // First get participations
+      const participations = await fetchUserParticipations();
+      
+      if (!participations || participations.length === 0) {
+        setUpcomingEvents([]);
+        return;
+      }
+      
+      // Extract event IDs
+      const eventIds = participations.map(p => p.event);
+      
+      // Now fetch details for each event
+      const upcomingEventsList = [];
+      
+      for (const eventId of eventIds) {
+        try {
+          // Try multiple endpoints for each event
+          const eventEndpoints = [
+            `/events/${eventId}/`,
+            `/api/events/${eventId}/`,
+            `/events/events/${eventId}/`
+          ];
+          
+          let eventData = null;
+          
+          for (const endpoint of eventEndpoints) {
+            try {
+              const response = await api.get(endpoint);
+              if (response?.data) {
+                eventData = response.data;
+                break;
+              }
+            } catch (err) {
+              console.log(`Failed to fetch event ${eventId} from ${endpoint}`);
+            }
+          }
+          
+          if (eventData) {
+            const eventDate = new Date(eventData.event_time);
+          const now = new Date();
+            
+            // Only add to upcoming events if the event is in the future
+            if (eventDate > now && eventData.status !== 'canceled') {
+              upcomingEventsList.push(eventData);
+            }
+          }
+        } catch (err) {
+          console.log(`Error fetching details for event ${eventId}:`, err);
+        }
+      }
+      
+      setUpcomingEvents(upcomingEventsList);
+        } catch (error) {
+      console.error("Error fetching upcoming events:", error);
+          setUpcomingEvents([]);
+    }
+  };
+
+  // Fetch past events the user has attended
+  const fetchPastEvents = async () => {
+    try {
+      // First get participations
+      const participations = await fetchUserParticipations();
+      
+      if (!participations || participations.length === 0) {
+        setPastEvents([]);
+        return;
+      }
+      
+      // Extract event IDs
+      const eventIds = participations.map(p => p.event);
+      
+      // Now fetch details for each event
+      const pastEventsList = [];
+      
+      for (const eventId of eventIds) {
+        try {
+          // Try multiple endpoints for each event
+          const eventEndpoints = [
+            `/events/${eventId}/`,
+            `/api/events/${eventId}/`,
+            `/events/events/${eventId}/`
+          ];
+          
+          let eventData = null;
+          
+          for (const endpoint of eventEndpoints) {
+            try {
+              const response = await api.get(endpoint);
+              if (response?.data) {
+                eventData = response.data;
+                break;
+              }
+            } catch (err) {
+              console.log(`Failed to fetch event ${eventId} from ${endpoint}`);
+            }
+          }
+          
+          if (eventData) {
+            const eventDate = new Date(eventData.event_time);
+            const now = new Date();
+            
+            // Only add to past events if the event is in the past or completed
+            if (eventDate < now || eventData.status === 'completed') {
+              pastEventsList.push(eventData);
+            }
+          }
+        } catch (err) {
+          console.log(`Error fetching details for event ${eventId}:`, err);
+        }
+      }
+      
+      setPastEvents(pastEventsList);
+    } catch (error) {
+      console.error("Error fetching past events:", error);
+      setPastEvents([]);
+    }
+  };
+
+  // Update dashboard stats based on current events data
+  const updateStats = () => {
+    // Count only active events (non-canceled)
+    const activeUpcomingEvents = upcomingEvents.filter(event => 
+      event.status !== 'canceled' && event.status !== 'cancelled'
+    );
+    
+    const activePastEvents = pastEvents.filter(event => 
+      event.status !== 'canceled' && event.status !== 'cancelled'
+    );
+    
+      setStats({
+      registeredEvents: activeUpcomingEvents.length + activePastEvents.length,
+      upcomingEvents: activeUpcomingEvents.length,
+      completedEvents: activePastEvents.length
+    });
+    
+    console.log("Updated stats:", {
+      registeredEvents: activeUpcomingEvents.length + activePastEvents.length,
+      upcomingEvents: activeUpcomingEvents.length,
+      completedEvents: activePastEvents.length
+    });
   };
 
   // Utility function to extract user ID from JWT token
@@ -490,37 +910,68 @@ const UserDashboard = () => {
     }
   };
 
-  const fetchAllEvents = async () => {
-    try {
+  const fetchAllEvents = async (showLoading = true) => {
+    if (showLoading) {
       setLoading(true);
-      // Use the proper API endpoint to fetch events
-      const response = await api.get("/events/events/");
+    }
+    try {
+      // Try multiple endpoints to fetch events
+      const endpoints = [
+        "/events/", 
+        "/api/events/", 
+        "/",
+        "/events/events/"
+      ];
       
-      if (response.data && Array.isArray(response.data)) {
-        console.log("Events fetched successfully:", response.data);
-        
-        // Process events to ensure they have all required properties
-        const processedEvents = response.data.map(event => ({
-          ...event,
-          // Ensure consistent property access by providing fallbacks
-          event_name: event.event_name || "Unnamed Event",
-          description: event.description || "No description available",
-          venue: event.venue || "TBD",
-          event_time: event.event_time || new Date().toISOString(),
-          category: event.event_type || event.category || "Other"
-        }));
-        
-        setAllEvents(processedEvents);
+      console.log("Fetching all events for browse tab");
+      
+      // Use the tryMultipleEndpoints helper
+      const response = await api.tryMultipleEndpoints(endpoints, 'get');
+      
+      // Process the response data
+      let eventsData = [];
+      
+      if (response && response.data) {
+        if (Array.isArray(response.data)) {
+          // Direct array of events
+          eventsData = response.data;
+        } else if (response.data.results && Array.isArray(response.data.results)) {
+          // Paginated results
+          eventsData = response.data.results;
+        } else if (response.data.events && Array.isArray(response.data.events)) {
+          // Nested under 'events' key
+          eventsData = response.data.events;
       } else {
-        console.warn("Events data is not an array or is missing:", response.data);
-        setAllEvents([]);
+          // Try to find any array in the response that might contain events
+          for (const key in response.data) {
+            if (Array.isArray(response.data[key])) {
+              const firstItem = response.data[key][0];
+              if (firstItem && (firstItem.event_name || firstItem.id || firstItem.title)) {
+                eventsData = response.data[key];
+                break;
+              }
+            }
+          }
+        }
       }
+      
+      // Update state with the events data
+      console.log(`Found ${eventsData.length} events`);
+      setAllEvents(eventsData);
+      
     } catch (error) {
-      console.error("Error fetching events:", error);
-      toast.error("Failed to load events");
+      console.error("Error fetching all events:", error);
+      if (error.response?.status === 401) {
+        toast.error("Your session has expired. Please login again.");
+        handleLogout();
+      } else {
+        toast.error("Failed to load events. Please try refreshing the page.");
+      }
       setAllEvents([]);
     } finally {
+      if (showLoading) {
       setLoading(false);
+      }
     }
   };
 
@@ -591,6 +1042,85 @@ const UserDashboard = () => {
     navigate("/login_reg");
   };
 
+  const handleCancelRegistration = async (eventId) => {
+    if (!eventId || cancelingRegistration) {
+      return;
+    }
+
+    if (!window.confirm('Are you sure you want to cancel your registration for this event?')) {
+      return;
+    }
+    
+    setCancelingRegistration(true);
+    
+    try {
+      console.log(`Attempting to cancel registration for event ${eventId}`);
+      
+      // Define endpoints to try for cancellation using POST method
+      const cancelEndpoints = [
+        `/events/participants/cancel/${eventId}/`,
+        `/api/events/participants/cancel/${eventId}/`,
+        `/participants/cancel/${eventId}/`,
+        `/events/participants/${eventId}/cancel/`,
+        `/api/events/participants/${eventId}/cancel/`
+      ];
+      
+      try {
+        // Try POST method first for cancellation
+        await tryMultipleEndpoints(cancelEndpoints, 'post');
+        
+        console.log('Registration canceled successfully with POST method');
+        toast.success('Your registration has been canceled successfully');
+        
+        // Update local state to remove the canceled event from upcoming events
+        setUpcomingEvents(prev => prev.filter(event => event.id !== eventId));
+        
+        // Refresh dashboard data to reflect the changes
+        fetchDashboardData();
+        
+        // Dispatch custom event so other components can react to the cancellation
+        window.dispatchEvent(new CustomEvent('registration-canceled', {
+          detail: { eventId }
+        }));
+      } catch (postError) {
+        console.error('Failed to cancel registration with POST method, trying DELETE:', postError);
+        
+        // If POST fails, try DELETE method
+        try {
+          const deleteEndpoints = [
+            `/events/participants/${eventId}/`,
+            `/api/events/participants/${eventId}/`,
+            `/participants/${eventId}/`
+          ];
+          
+          await tryMultipleEndpoints(deleteEndpoints, 'delete');
+          
+          console.log('Registration canceled successfully with DELETE method');
+          toast.success('Your registration has been canceled successfully');
+          
+          // Update local state to remove the canceled event from upcoming events
+          setUpcomingEvents(prev => prev.filter(event => event.id !== eventId));
+          
+          // Refresh dashboard data to reflect the changes
+          fetchDashboardData();
+          
+          // Dispatch custom event so other components can react to the cancellation
+          window.dispatchEvent(new CustomEvent('registration-canceled', {
+            detail: { eventId }
+          }));
+        } catch (deleteError) {
+          console.error('Failed to cancel registration with DELETE method:', deleteError);
+          toast.error('Failed to cancel your registration. Please try again later.');
+        }
+      }
+    } catch (error) {
+      console.error('Registration cancellation error:', error);
+      toast.error('An error occurred while canceling your registration.');
+    } finally {
+      setCancelingRegistration(false);
+    }
+  };
+
   const handleSearch = (e) => {
     setSearchQuery(e.target.value);
   };
@@ -639,705 +1169,1280 @@ const UserDashboard = () => {
     return matchesSearch && matchesLocation && matchesType && matchesDate;
   }) : [];
 
+  // Update fetchUserProfile to check coordinator request status
   const fetchUserProfile = async () => {
+    setIsLoadingProfile(true);
     try {
-      // Try multiple endpoints to find the one that works
+      // Prioritize the known working endpoint first based on logs
       const endpoints = [
-        "users/profile/",
-        "api/users/me/",
-        "api/profile/",
-        "auth/users/me/",
-        "users/me/"
+        'api/profile/',       // This works based on logs
+        'auth/users/me/',     // This should work based on backend routes
+        'api/users/profile/', // Try additional compatibility endpoints
+        'users/profile/',
+        'api/users/me/',
+        'users/me/'
       ];
       
+      console.log('Fetching user profile data');
+      let success = false;
       let userData = null;
-      let succeeded = false;
+      let lastError = null;
       
+      // Try each endpoint until one works
       for (const endpoint of endpoints) {
         try {
-          console.log(`Trying to fetch profile from ${endpoint}`);
+          console.log(`Trying to fetch profile from: ${endpoint}`);
           const response = await api.get(endpoint);
           
-          if (response.data) {
+          console.log(`Successfully fetched profile from: ${endpoint}`, response.data);
+          success = true;
             userData = response.data;
-            console.log(`Successfully fetched profile from ${endpoint}`);
-            succeeded = true;
-            break;
-          }
-        } catch (error) {
-          console.warn(`Failed to fetch profile from ${endpoint}:`, error);
-        }
-      }
-      
-      if (!succeeded) {
-        // Last attempt with direct fetch and explicit headers
-        try {
-          const token = localStorage.getItem(ACCESS_TOKEN);
-          const response = await fetch(`${api.defaults.baseURL}users/profile/`, {
-            headers: {
-              'Authorization': `Bearer ${token}`,
-              'Content-Type': 'application/json'
-            }
-          });
           
-          if (response.ok) {
-            userData = await response.json();
-            succeeded = true;
+          // Format the user data consistently
+          if (userData) {
+            // Ensure consistent field names
+            const formattedUserData = {
+              id: userData.id || userData.pk || userData.user_id,
+              username: userData.username,
+              email: userData.email,
+              first_name: userData.first_name,
+              last_name: userData.last_name,
+              bio: userData.bio || userData.profile?.bio,
+              profile_picture: userData.profile_picture || userData.profile?.profile_picture,
+              is_coordinator: userData.is_coordinator || userData.profile?.is_coordinator || userData.user_role === 'coordinator' || false,
+              coordinator_request: userData.coordinator_request || false
+            };
+            
+            setUserProfile(formattedUserData);
+            
+            // Update coordinator request status
+            setHasCoordinatorRequest(!!formattedUserData.coordinator_request);
+            if (formattedUserData.is_coordinator) {
+              setCoordinatorRequestStatus('approved');
+            } else if (formattedUserData.coordinator_request) {
+              setCoordinatorRequestStatus('pending');
+            } else {
+              setCoordinatorRequestStatus(null);
+            }
+            
+            // Update localStorage for fallback purposes
+            localStorage.setItem('user', JSON.stringify(formattedUserData));
+            
+            break; // Exit loop on success
           }
         } catch (error) {
-          console.error("Final profile fetch attempt failed:", error);
+          console.error(`Error fetching profile from ${endpoint}:`, error);
+          lastError = error;
         }
       }
       
-      if (succeeded && userData) {
-        setUserProfile(userData);
+      if (!success) {
+        // Try to use profile data from localStorage as fallback
+        const fallbackData = tryUseLocalStorageForProfile();
         
-        // Handle profile photo URL
-        if (userData.profile_photo) {
-          // Use the getMediaUrl utility function
-          setProfilePhotoPreview(getMediaUrl(userData.profile_photo));
-        }
-        
-        // Check if user has a coordinator request
-        if (userData.coordinator_requests && userData.coordinator_requests.length > 0) {
-          setHasCoordinatorRequest(true);
-          setCoordinatorRequestStatus(userData.coordinator_requests[0].status);
-        } else if (userData.coordinator_request) {
-          setHasCoordinatorRequest(true);
-          setCoordinatorRequestStatus(userData.coordinator_request.status || "pending");
+        if (fallbackData) {
+          console.log('Using localStorage fallback for profile data');
+          setUserProfile(fallbackData);
+          
+          // Update coordinator request status from localStorage data
+          setHasCoordinatorRequest(!!fallbackData.coordinator_request);
+          if (fallbackData.is_coordinator) {
+            setCoordinatorRequestStatus('approved');
+          } else if (fallbackData.coordinator_request) {
+            setCoordinatorRequestStatus('pending');
+          } else {
+            setCoordinatorRequestStatus(null);
         }
       } else {
-        throw new Error("Could not fetch profile from any endpoint");
+          console.error('Failed to fetch user profile from any endpoint');
+          toast.error('Failed to load profile data');
+        }
       }
     } catch (error) {
-      console.error("Error fetching user profile:", error);
-      // Create a fallback profile from JWT token if possible
-      try {
-        const token = localStorage.getItem(ACCESS_TOKEN);
-        if (token) {
-          const decoded = jwtDecode(token);
-          const fallbackProfile = {
-            username: decoded.username || "User",
-            email: decoded.email || "",
-            first_name: decoded.first_name || "",
-            last_name: decoded.last_name || "",
-          };
-          setUserProfile(fallbackProfile);
+      console.error('Profile fetch error:', error);
+      
+      // Try to use localStorage as final fallback
+      const fallbackData = tryUseLocalStorageForProfile();
+      if (fallbackData) {
+        console.log('Using localStorage as final fallback for profile data');
+        setUserProfile(fallbackData);
+        
+        // Update coordinator request status from localStorage data
+        setHasCoordinatorRequest(!!fallbackData.coordinator_request);
+        if (fallbackData.is_coordinator) {
+          setCoordinatorRequestStatus('approved');
+        } else if (fallbackData.coordinator_request) {
+          setCoordinatorRequestStatus('pending');
+        } else {
+          setCoordinatorRequestStatus(null);
         }
-      } catch (tokenError) {
-        console.error("Could not extract profile from token:", tokenError);
+      } else {
+        toast.error('An error occurred while loading your profile');
       }
+    } finally {
+      setIsLoadingProfile(false);
     }
   };
-
-  const handleProfileChange = (e) => {
-    const { name, value } = e.target;
-    setUserProfile(prev => ({
-      ...prev,
-      [name]: value
-    }));
-    
-    // Clear validation error when field is edited
-    if (validationErrors[name]) {
-      setValidationErrors(prev => ({
-        ...prev,
-        [name]: null
-      }));
-    }
-  };
-
-  const handleProfilePhotoChange = (e) => {
-    const file = e.target.files[0];
-    if (file) {
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        setProfilePhotoPreview(reader.result);
-      };
-      reader.readAsDataURL(file);
-      setUserProfile(prev => ({
-        ...prev,
-        profile_photo: file
-      }));
-    }
-  };
-
-  const handleUpdateProfile = async () => {
+  
+  // Helper function to try to extract profile info from localStorage
+  const tryUseLocalStorageForProfile = () => {
     try {
-      // Validate form data
-      const errors = validateProfileUpdate(userProfile);
-      if (Object.keys(errors).length > 0) {
-        setValidationErrors(errors);
-        // Show the first error as a toast
-        const firstError = Object.values(errors)[0];
-        toast.error(firstError);
+      const userData = localStorage.getItem('user');
+      if (userData) {
+        const parsedData = JSON.parse(userData);
+        
+        // Format the profile data from localStorage
+        return {
+          id: parsedData.id || parsedData.pk || parsedData.user_id,
+          username: parsedData.username,
+          email: parsedData.email,
+          first_name: parsedData.first_name,
+          last_name: parsedData.last_name,
+          bio: parsedData.bio || '',
+          profile_picture: parsedData.profile_picture || null
+        };
+      }
+    } catch (error) {
+      console.error('Error reading profile from localStorage:', error);
+    }
+    return null;
+  };
+  
+  // Handle profile update
+  const handleUpdateProfile = async () => {
+    if (isUpdating) return;
+    
+    // Validate form
+    if (profileForm.password !== profileForm.confirm_password) {
+      toast.error("Passwords don't match");
         return;
       }
       
-      setUpdatingProfile(true);
+    setIsUpdating(true);
       
-      // Create FormData for file upload
+    try {
+      // Create form data object
       const formData = new FormData();
-      formData.append("first_name", userProfile.first_name.trim());
-      formData.append("last_name", userProfile.last_name.trim());
-      formData.append("phone", userProfile.phone || "");
-      formData.append("username", userProfile.username.trim());
+      if (profileForm.username) formData.append('username', profileForm.username);
+      if (profileForm.first_name) formData.append('first_name', profileForm.first_name);
+      if (profileForm.last_name) formData.append('last_name', profileForm.last_name);
+      if (profileForm.email) formData.append('email', profileForm.email);
+      if (profileForm.bio) formData.append('bio', profileForm.bio);
+      if (profileForm.password) formData.append('password', profileForm.password);
+      if (profileForm.profile_picture) formData.append('profile_picture', profileForm.profile_picture);
       
-      if (userProfile.profile_photo && typeof userProfile.profile_photo !== 'string') {
-        formData.append("profile_photo", userProfile.profile_photo);
-      }
-      
-      // Try multiple endpoints
-      const endpointsToTry = [
-        "users/profile/",
-        "users/me/",
-        "api/users/me/",
-        "api/profile/"
+      // Define endpoints to try, prioritizing the working endpoint based on logs
+      const updateEndpoints = [
+        'api/profile/', // This works based on logs - try first
+        'auth/users/me/', // This should work based on backend routes
+        'api/users/profile/',
+        'users/profile/',
+        'api/users/me/',
+        'users/me/'
       ];
       
-      let success = false;
+      // Create config with correct headers for multipart/form-data
+      const config = {
+        headers: {
+          'Content-Type': 'multipart/form-data'
+        }
+      };
       
-      for (const endpoint of endpointsToTry) {
+      console.log('Updating profile with form data');
+      
+      let success = false;
+      let lastError = null;
+      let responseData = null;
+      
+      // Try each endpoint until one works
+      for (const endpoint of updateEndpoints) {
         try {
           console.log(`Trying to update profile at ${endpoint}`);
-          const response = await api.patch(endpoint, formData, {
-            headers: {
-              'Content-Type': 'multipart/form-data'
-            }
-          });
+          const response = await api.patch(endpoint, formData, config);
           
-          if (response.status >= 200 && response.status < 300) {
             console.log(`Profile updated successfully at ${endpoint}`);
             success = true;
-            break;
+          responseData = response.data;
+          
+          // Update the user profile state
+          setUserProfile({
+            ...userProfile,
+            ...responseData
+          });
+          
+          // Update localStorage with new profile data
+          try {
+            const userData = JSON.parse(localStorage.getItem("user") || "{}");
+            const updatedUserData = {
+              ...userData,
+              ...responseData,
+              profile_picture: responseData.profile_picture || userData.profile_picture
+            };
+            localStorage.setItem("user", JSON.stringify(updatedUserData));
+          } catch (e) {
+            console.error("Failed to update localStorage:", e);
           }
+          
+          break; // Exit the loop on success
         } catch (error) {
-          console.warn(`Failed to update profile at ${endpoint}:`, error);
+          console.error(`Failed to update profile at ${endpoint}:`, error);
+          lastError = error;
         }
       }
       
       if (success) {
-        toast.success("Profile updated successfully!");
-        setEditingProfile(false);
-        fetchUserProfile();
+        toast.success('Profile updated successfully!');
         
-        // Update username in localStorage if it was changed
-        const originalUsername = localStorage.getItem("user") ? 
-          JSON.parse(localStorage.getItem("user")).username : "";
+        // Close the modal
+        closeProfileEditModal();
         
-        if (originalUsername !== userProfile.username && localStorage.getItem("user")) {
-          const userData = JSON.parse(localStorage.getItem("user"));
-          userData.username = userProfile.username;
-          localStorage.setItem("user", JSON.stringify(userData));
+        // If the profile picture was updated, clear the file input
+        if (profileForm.profile_picture && responseData?.profile_picture) {
+          if (fileInputRef.current) {
+            fileInputRef.current.value = "";
+          }
+          // Clear preview
+          setProfilePhotoPreview(null);
         }
+        
+        // Refetch user profile to get latest data
+        fetchUserProfile();
       } else {
-        throw new Error("Could not update profile on any endpoint");
+        console.error('All profile update endpoints failed:', lastError);
+        toast.error(`Failed to update profile: ${lastError?.response?.data?.detail || lastError?.message || 'Unknown error'}`);
       }
     } catch (error) {
-      console.error("Error updating profile:", error);
-      let errorMessage = "Failed to update profile";
-      
-      if (error.response) {
-        if (error.response.data?.non_field_errors) {
-          errorMessage = error.response.data.non_field_errors[0];
-        } else if (error.response.data?.detail) {
-          errorMessage = error.response.data.detail;
-        } else if (error.response.data?.message) {
-          errorMessage = error.response.data.message;
-        } else if (error.response.data?.error) {
-          errorMessage = error.response.data.error;
+      console.error('Profile update error:', error);
+      toast.error('An error occurred while updating your profile.');
+    } finally {
+      setIsUpdating(false);
+    }
+  };
+  
+  const closeProfileEditModal = () => {
+    setShowProfileEditModal(false);
+  };
+
+  // Add the handleCoordinatorRequest function
+  const handleCoordinatorRequest = async () => {
+    // Ask for confirmation before submitting request
+    const confirmed = window.confirm(
+      "Would you like to request coordinator privileges? This will allow you to create and manage events."
+    );
+
+    if (!confirmed) return;
+
+    // Set loading state
+    setLoading(true);
+    
+    // Define the endpoints to try
+    const endpoints = [
+      "/api/users/request-coordinator/",
+      "/users/request-coordinator/",
+      "/auth/request-coordinator/"
+    ];
+    
+    try {
+      // Try each endpoint using POST method
+      for (let i = 0; i < endpoints.length; i++) {
+        const endpoint = endpoints[i];
+        try {
+          const response = await api.post(endpoint);
+          console.log(`Successfully submitted coordinator request via ${endpoint}`, response.data);
+          
+          // Update state to show pending request
+        setHasCoordinatorRequest(true);
+          setUserProfile(prev => ({
+            ...prev,
+            coordinator_request: true,
+            has_coordinator_request: true
+          }));
+          
+          // Show success message
+          toast.success("Coordinator request submitted successfully. You will be notified when it's approved.");
+          setLoading(false);
+          return;
+        } catch (error) {
+          console.log(`Failed to submit coordinator request via ${endpoint}:`, error);
+          // Continue to next endpoint if this one fails
         }
       }
       
-      toast.error(errorMessage);
-    } finally {
-      setUpdatingProfile(false);
-    }
-  };
-
-  // Define validation schema for profile updates
-  const validateProfileUpdate = (data) => {
-    const errors = {};
-    
-    // First name validation
-    if (!data.first_name || data.first_name.trim() === "") {
-      errors.first_name = "First name is required";
-    } else if (!/^[A-Za-z]+$/.test(data.first_name.trim())) {
-      errors.first_name = "No numbers or special characters allowed";
-    }
-    
-    // Last name validation
-    if (!data.last_name || data.last_name.trim() === "") {
-      errors.last_name = "Last name is required";
-    } else if (!/^[A-Za-z]+(?:\s[A-Za-z]+)*$/.test(data.last_name.trim())) {
-      errors.last_name = "No numbers or special characters allowed";
-    }
-    
-    // Username validation
-    if (!data.username || data.username.trim() === "") {
-      errors.username = "Username is required";
-    } else if (data.username.length < 3) {
-      errors.username = "Username must be at least 3 characters";
-    } else if (!/^[a-z0-9_]+$/.test(data.username)) {
-      errors.username = "Only lowercase letters, numbers and underscores allowed";
-    }
-    
-    // Phone validation
-    if (data.phone && data.phone.trim() !== "") {
-      if (!/^[6-9]\d{9}$/.test(data.phone)) {
-        errors.phone = "Phone must be 10 digits and start with 6-9";
-      }
-    }
-    
-    return errors;
-  };
-
-  const handleCoordinatorRequest = async () => {
-    try {
-      // Show loading state
-      toast.info("Submitting your request...");
-      
-      // Send request to backend
-      const response = await api.post("users/coordinator-request/", {});
-      
-      // Handle success
-      if (response.status === 200 || response.status === 201) {
-        setHasCoordinatorRequest(true);
-        setCoordinatorRequestStatus("pending");
-        toast.success("Your request to become a coordinator has been submitted successfully!");
-      }
+      // If we reached here, all endpoints failed
+      throw new Error("All endpoints failed for coordinator request");
     } catch (error) {
       console.error("Error submitting coordinator request:", error);
-      toast.error("Failed to submit your request. Please try again later.");
+      toast.error("Unable to submit coordinator request. Please try again later.");
+      setLoading(false);
     }
   };
 
-  // Generate a mock activity feed for the user
   const generateActivityFeed = () => {
-    const now = new Date();
     const activities = [];
-    
-    // Add registration activities
-    if (upcomingEvents.length > 0) {
-      upcomingEvents.slice(0, 2).forEach(event => {
+    const now = new Date();
+
+    // Add upcoming events as activities (newest first)
+    if (upcomingEvents && upcomingEvents.length > 0) {
+      // Sort by registration date if available, otherwise by event date
+      const sortedUpcoming = [...upcomingEvents].sort((a, b) => {
+        const dateA = new Date(a.registered_at || a.created_at || a.event_time);
+        const dateB = new Date(b.registered_at || b.created_at || b.event_time);
+        return dateB - dateA; // Sort descending (newest first)
+      });
+
+      // Add the 3 most recent upcoming event registrations
+      sortedUpcoming.slice(0, 3).forEach(event => {
+        const registrationDate = new Date(event.registered_at || event.created_at || now);
+        const timeAgo = getTimeAgo(registrationDate);
+        
         activities.push({
-          id: `reg-${event.id}`,
-          type: "registration",
-          title: "You registered for an event",
-          description: event.event_name,
-          timestamp: new Date(now.getTime() - Math.random() * 7 * 24 * 60 * 60 * 1000),
-          icon: "FaTicketAlt"
+          type: 'registration',
+          icon: <FaTicketAlt className={styles.activityIconTicket} />,
+          text: `You registered for "${event.event_name}"`,
+          time: timeAgo,
+          date: registrationDate,
+          eventId: event.id
         });
       });
     }
     
-    // Add profile update activity if profile was recently updated
-    if (userProfile.last_updated && new Date(userProfile.last_updated) > new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000)) {
+    // Add recent completed events
+    if (pastEvents && pastEvents.length > 0) {
+      // Sort by event date (newest first)
+      const recentPastEvents = [...pastEvents]
+        .sort((a, b) => new Date(b.event_time) - new Date(a.event_time))
+        .slice(0, 3);
+      
+      recentPastEvents.forEach(event => {
+        const eventDate = new Date(event.event_time);
+        const timeAgo = getTimeAgo(eventDate);
+        
       activities.push({
-        id: "profile-update",
-        type: "profile",
-        title: "You updated your profile",
-        description: "Profile information updated",
-        timestamp: new Date(userProfile.last_updated),
-        icon: "FaUserCog"
+          type: 'attended',
+          icon: <FaUsers className={styles.activityIconUsers} />,
+          text: `You attended "${event.event_name}"`,
+          time: timeAgo,
+          date: eventDate,
+          eventId: event.id
+        });
       });
     }
-    
-    // Add feedback activities
-    if (pastEvents.length > 0) {
-      pastEvents.filter(event => event.feedback).slice(0, 2).forEach(event => {
+
+    // Add recently bookmarked events
+    if (bookmarkedEvents && bookmarkedEvents.length > 0) {
+      // Sort by bookmark date if available (newest first)
+      const sortedBookmarks = [...bookmarkedEvents]
+        .filter(event => event.created_at || event.bookmarked_at || event.event_time)
+        .sort((a, b) => {
+          const dateA = new Date(a.bookmarked_at || a.created_at || a.event_time);
+          const dateB = new Date(b.bookmarked_at || b.created_at || b.event_time);
+          return dateB - dateA;
+        })
+        .slice(0, 2); // Just get 2 most recent bookmarks
+      
+      sortedBookmarks.forEach(event => {
+        const bookmarkDate = new Date(event.bookmarked_at || event.created_at || now);
+        const timeAgo = getTimeAgo(bookmarkDate);
+        
         activities.push({
-          id: `feedback-${event.id}`,
-          type: "feedback",
-          title: "You left feedback",
-          description: `${event.event_name} - ${"★".repeat(event.feedback.rating)}`,
-          timestamp: new Date(now.getTime() - Math.random() * 14 * 24 * 60 * 60 * 1000),
-          icon: "FaRegComment"
+          type: 'bookmark',
+          icon: <FaRegBookmark className={styles.activityIconBookmark} />,
+          text: `You bookmarked "${event.event_name}"`,
+          time: timeAgo,
+          date: bookmarkDate,
+          eventId: event.id
         });
       });
     }
     
-    // Sort activities by timestamp
-    activities.sort((a, b) => b.timestamp - a.timestamp);
-    
-    // If no activities, add a default message
-    if (activities.length === 0) {
+    // If we have user profile data and it was recently updated
+    if (userProfile && userProfile.updated_at) {
+      const updateDate = new Date(userProfile.updated_at);
+      // Only include if update was in the last 7 days
+      if ((now - updateDate) < 7 * 24 * 60 * 60 * 1000) { 
       activities.push({
-        id: "no-activity",
-        type: "info",
-        title: "Welcome to EventSphere!",
-        description: "Your activity feed will appear here as you interact with events.",
-        timestamp: now,
-        icon: "FaCalendarAlt"
-      });
+          type: 'profile',
+          icon: <FaUserEdit className={styles.activityIconUser} />,
+          text: "You updated your profile",
+          time: getTimeAgo(updateDate),
+          date: updateDate
+        });
+      }
+    }
+
+    // Sort all activities by date (newest first)
+    const sortedActivities = activities.sort((a, b) => b.date - a.date);
+    
+    // Update activity feed with our generated data (limit to 5 items)
+    setActivityFeed(sortedActivities.slice(0, 5));
+  };
+
+  // Helper function to format elapsed time
+  const getTimeAgo = (date) => {
+    const now = new Date();
+    const diffInSeconds = Math.floor((now - date) / 1000);
+    
+    if (diffInSeconds < 60) {
+      return 'Just now';
     }
     
-    setActivityFeed(activities);
+    const diffInMinutes = Math.floor(diffInSeconds / 60);
+    if (diffInMinutes < 60) {
+      return `${diffInMinutes} ${diffInMinutes === 1 ? 'minute' : 'minutes'} ago`;
+    }
+    
+    const diffInHours = Math.floor(diffInMinutes / 60);
+    if (diffInHours < 24) {
+      return `${diffInHours} ${diffInHours === 1 ? 'hour' : 'hours'} ago`;
+    }
+    
+    const diffInDays = Math.floor(diffInHours / 24);
+    if (diffInDays < 7) {
+      return `${diffInDays} ${diffInDays === 1 ? 'day' : 'days'} ago`;
+    }
+    
+    const diffInWeeks = Math.floor(diffInDays / 7);
+    if (diffInWeeks < 4) {
+      return `${diffInWeeks} ${diffInWeeks === 1 ? 'week' : 'weeks'} ago`;
+    }
+    
+    // For older dates, show actual date
+    return date.toLocaleDateString();
   };
 
-  const renderTab = () => {
-    switch (activeTab) {
-      case "overview":
-        return renderOverview();
-      case "myEvents":
-        return renderMyEvents();
-      case "browse":
-        return renderBrowseEvents();
-      case "bookmarks":
-        return renderBookmarkedEvents();
-      case "profile":
-        return renderProfile();
-      default:
-        return renderOverview();
+  const validateProfileUpdate = (profileData) => {
+    const errors = {};
+    let isValid = true;
+    let message = "";
+
+    // Check for empty fields
+    if (!profileData.first_name || profileData.first_name.trim() === "") {
+      errors.first_name = "First name is required";
+      isValid = false;
+      message = "First name is required";
+    }
+
+    if (!profileData.last_name || profileData.last_name.trim() === "") {
+      errors.last_name = "Last name is required";
+      isValid = false;
+      if (!message) message = "Last name is required";
+    }
+
+    if (!profileData.username || profileData.username.trim() === "") {
+      errors.username = "Username is required";
+      isValid = false;
+      if (!message) message = "Username is required";
+    }
+
+    if (!profileData.email || profileData.email.trim() === "") {
+      errors.email = "Email is required";
+      isValid = false;
+      if (!message) message = "Email is required";
+    } else if (!/\S+@\S+\.\S+/.test(profileData.email)) {
+      errors.email = "Email address is invalid";
+      isValid = false;
+      if (!message) message = "Email address is invalid";
+    }
+
+    // Return both errors object and validity status
+    return { errors, isValid, message };
+  };
+
+  const handleProfileInputChange = (e) => {
+    const { name, value } = e.target;
+    setProfileEditFormData(prev => ({
+      ...prev,
+      [name]: value
+    }));
+  };
+
+  const openProfileEditModal = () => {
+    // This function is now deprecated - we're using handleOpenProfileEditModal instead
+    // For compatibility, just forward to the new function
+    handleOpenProfileEditModal();
+  };
+  
+  // Handle profile picture selection
+  const handleProfilePictureChange = (e) => {
+    const file = e.target.files[0];
+    if (file) {
+      setProfileForm({
+        ...profileForm,
+        profile_picture: file
+      });
+      // Create preview URL
+      setProfilePhotoPreview(URL.createObjectURL(file));
     }
   };
+  
+  // Handle form field changes
+  const handleProfileFormChange = (e) => {
+    const { name, value } = e.target;
+    setProfileForm({
+      ...profileForm,
+      [name]: value
+    });
+  };
 
-  const renderOverview = () => {
+  // Initialize the profile form when the modal opens
+  const handleOpenProfileEditModal = () => {
+    console.log('Opening profile edit modal with data:', userProfile);
+    
+    // Make sure we have user profile data
+    if (!userProfile || Object.keys(userProfile).length === 0) {
+      toast.error('Unable to load profile data for editing');
+      return;
+    }
+    
+    // Reset the profile form with current user data
+    setProfileForm({
+      username: userProfile.username || '',
+      first_name: userProfile.first_name || '',
+      last_name: userProfile.last_name || '',
+      email: userProfile.email || '',
+      bio: userProfile.bio || '',
+      password: '',
+      confirm_password: '',
+      profile_picture: null
+    });
+    
+    // Reset the profile photo preview if there's a current profile picture
+    if (userProfile.profile_picture) {
+      const profilePicUrl = getMediaUrl(userProfile.profile_picture);
+      console.log('Setting profile picture preview from existing photo:', profilePicUrl);
+      setProfilePhotoPreview(null); // Reset first to avoid stale data
+    } else {
+      setProfilePhotoPreview(null);
+    }
+    
+    setShowProfileEditModal(true);
+  };
+  
+  // ProfileEditModal component
+  const ProfileEditModal = () => {
     return (
-      <div>
-        <div className={styles.statsGrid}>
-          <div className={styles.statCard}>
-            <div className={styles.statIcon}>
-              <FaCalendarAlt />
+      <Modal show={showProfileEditModal} onHide={closeProfileEditModal} centered size="lg">
+        <Modal.Header closeButton>
+          <Modal.Title>Edit Profile</Modal.Title>
+        </Modal.Header>
+        <Modal.Body>
+          <Form>
+            <div className={profileStyles.profilePictureContainer}>
+              <div className={profileStyles.profilePictureWrapper}>
+                {profilePhotoPreview || (userProfile.profile_picture && getMediaUrl(userProfile.profile_picture)) ? (
+                  <img 
+                    src={profilePhotoPreview || getMediaUrl(userProfile.profile_picture)} 
+                    alt="Profile Preview" 
+                    className={profileStyles.profilePicture}
+                  />
+                ) : (
+                  <div className={profileStyles.profilePlaceholder}>
+                    {userProfile.first_name && userProfile.last_name 
+                      ? `${userProfile.first_name.charAt(0)}${userProfile.last_name.charAt(0)}` 
+                      : userProfile.username?.substring(0, 2) || "U"}
             </div>
-            <div>
-              <h3>Registered Events</h3>
-              <p>{stats.registeredEvents}</p>
-            </div>
-          </div>
-          <div className={styles.statCard}>
-            <div className={styles.statIcon}>
-              <FaClock />
-            </div>
-            <div>
-              <h3>Upcoming Events</h3>
-              <p>{stats.upcomingEvents}</p>
-            </div>
-          </div>
-          <div className={styles.statCard}>
-            <div className={styles.statIcon}>
-              <FaTicketAlt />
-            </div>
-            <div>
-              <h3>Completed Events</h3>
-              <p>{stats.completedEvents}</p>
+                )}
+                <div className={profileStyles.uploadOverlay} onClick={() => document.getElementById("profilePictureInput").click()}>
+                  <FaCamera size={24} />
+                  <span>Change Photo</span>
             </div>
           </div>
-        </div>
-
-        <div className={styles.quickActions}>
-          <button className={styles.quickActionButton} onClick={() => navigate("/events")}>
-            <div className={styles.quickActionIcon}>
-              <FaCompass />
-            </div>
-            <div className={styles.quickActionContent}>
-              <span className={styles.quickActionTitle}>Discover Events</span>
-              <span className={styles.quickActionDesc}>Find new events to attend</span>
-            </div>
-          </button>
-          <button className={styles.quickActionButton} onClick={() => setActiveTab("myEvents")}>
-            <div className={styles.quickActionIcon}>
-              <FaListUl />
-            </div>
-            <div className={styles.quickActionContent}>
-              <span className={styles.quickActionTitle}>My Events</span>
-              <span className={styles.quickActionDesc}>View your registered events</span>
-            </div>
-          </button>
-          <button className={styles.quickActionButton} onClick={() => setActiveTab("bookmarks")}>
-            <div className={styles.quickActionIcon}>
-              <FaBookmark />
-            </div>
-            <div className={styles.quickActionContent}>
-              <span className={styles.quickActionTitle}>Bookmarks</span>
-              <span className={styles.quickActionDesc}>Your saved events</span>
-            </div>
-          </button>
-          <button className={styles.quickActionButton} onClick={() => setActiveTab("profile")}>
-            <div className={styles.quickActionIcon}>
-              <FaUserEdit />
-            </div>
-            <div className={styles.quickActionContent}>
-              <span className={styles.quickActionTitle}>Profile</span>
-              <span className={styles.quickActionDesc}>Update your information</span>
-            </div>
-          </button>
-        </div>
-
-        <div className={styles.dashboardSections}>
-          <div className={styles.upcomingEvents}>
-            <div className={styles.sectionHeader}>
-              <h3 className={styles.sectionTitle}>My Upcoming Events</h3>
-              <a href="#" className={styles.viewAllLink} onClick={() => setActiveTab("myEvents")}>
-                View All
-              </a>
+              <input
+                type="file"
+                id="profilePictureInput"
+                accept="image/*"
+                style={{ display: 'none' }}
+                onChange={handleProfilePictureChange}
+              />
             </div>
             
-            {upcomingEvents.length > 0 ? (
-              <ul className={styles.eventList}>
-                {upcomingEvents.slice(0, 3).map((event, index) => (
-                  <li key={index} className={styles.eventItem}>
-                    <div className={styles.eventDate}>
-                      <span className={styles.eventDay}>
-                        {new Date(event.event_time).getDate()}
-                      </span>
-                      <span className={styles.eventMonth}>
-                        {new Date(event.event_time).toLocaleString("default", {
-                          month: "short",
-                        })}
-                      </span>
-                    </div>
-                    <div className={styles.eventContent}>
-                      <h4 className={styles.eventTitle}>{event.event_name}</h4>
-                      <p>{event.description?.substring(0, 100) || "No description"}...</p>
-                      <div className={styles.eventInfo}>
-                        <span>
-                          <FaMapMarkerAlt /> {event.venue || "TBD"}
-                        </span>
-                        <span>
-                          <FaClock /> {new Date(event.event_time).toLocaleTimeString() || "TBA"}
-                        </span>
-                      </div>
-                    </div>
-                  </li>
-                ))}
-              </ul>
+            <Form.Group className="mb-3">
+              <Form.Label>Username</Form.Label>
+              <Form.Control
+                type="text"
+                name="username"
+                value={profileForm.username}
+                onChange={handleProfileFormChange}
+              />
+            </Form.Group>
+            
+            <div className="row">
+              <div className="col-md-6">
+                <Form.Group className="mb-3">
+                  <Form.Label>First Name</Form.Label>
+                  <Form.Control
+                    type="text"
+                    name="first_name"
+                    value={profileForm.first_name}
+                    onChange={handleProfileFormChange}
+                  />
+                </Form.Group>
+            </div>
+              <div className="col-md-6">
+                <Form.Group className="mb-3">
+                  <Form.Label>Last Name</Form.Label>
+                  <Form.Control
+                    type="text"
+                    name="last_name"
+                    value={profileForm.last_name}
+                    onChange={handleProfileFormChange}
+                  />
+                </Form.Group>
+          </div>
+            </div>
+            
+            <Form.Group className="mb-3">
+              <Form.Label>Email</Form.Label>
+              <Form.Control
+                type="email"
+                name="email"
+                value={profileForm.email}
+                onChange={handleProfileFormChange}
+              />
+            </Form.Group>
+            
+            <Form.Group className="mb-3">
+              <Form.Label>Bio</Form.Label>
+              <Form.Control
+                as="textarea"
+                rows={3}
+                name="bio"
+                value={profileForm.bio}
+                onChange={handleProfileFormChange}
+              />
+            </Form.Group>
+            
+            <hr />
+            <h5>Change Password (Optional)</h5>
+            
+            <div className="row">
+              <div className="col-md-6">
+                <Form.Group className="mb-3">
+                  <Form.Label>New Password</Form.Label>
+                  <Form.Control
+                    type="password"
+                    name="password"
+                    value={profileForm.password}
+                    onChange={handleProfileFormChange}
+                  />
+                </Form.Group>
+            </div>
+              <div className="col-md-6">
+                <Form.Group className="mb-3">
+                  <Form.Label>Confirm Password</Form.Label>
+                  <Form.Control
+                    type="password"
+                    name="confirm_password"
+                    value={profileForm.confirm_password}
+                    onChange={handleProfileFormChange}
+                  />
+                </Form.Group>
+          </div>
+        </div>
+          </Form>
+        </Modal.Body>
+        <Modal.Footer>
+          <Button variant="secondary" onClick={closeProfileEditModal}>
+            Cancel
+          </Button>
+          <Button 
+            variant="primary" 
+            onClick={handleUpdateProfile}
+            disabled={isUpdating}
+          >
+            {isUpdating ? (
+              <>
+                <Spinner as="span" animation="border" size="sm" role="status" aria-hidden="true" />
+                <span className="ms-2">Saving...</span>
+              </>
             ) : (
-              <div className={styles.emptyState}>
-                <FaCalendarAlt className={styles.emptyStateIcon} />
-                <p>You haven't registered for any upcoming events</p>
-                <button 
-                  className={styles.primaryButton}
-                  onClick={() => navigate("/events")}
-                >
-                  <FaSearch /> Discover Events
-                </button>
-              </div>
+              "Save Changes"
+            )}
+          </Button>
+        </Modal.Footer>
+      </Modal>
+    );
+  };
+
+  const renderProfile = () => {
+    return (
+      <div className={`${styles.dashboardContent} ${styles.profileContainer}`}>
+        <div className={styles.profileHeader}>
+          <h2>Profile</h2>
+            </div>
+        
+        <div className={styles.profileSection}>
+          <div className={styles.profilePhoto}>
+            {userProfile.profile_picture ? (
+              <img 
+                src={getMediaUrl(userProfile.profile_picture)} 
+                alt="Profile" 
+                className={styles.profileImage}
+              />
+            ) : (
+              <div className={styles.profilePlaceholder}>
+                {userProfile.username?.charAt(0) || userProfile.email?.charAt(0) || 'U'}
+            </div>
             )}
           </div>
           
-          <div className={styles.recentActivity}>
-            <div className={styles.sectionHeader}>
-              <h3 className={styles.sectionTitle}>Activity Feed</h3>
-            </div>
+          <div className={styles.profileInfo}>
+            <h3>{userProfile.username || userProfile.email}</h3>
+            <p>{userProfile.email}</p>
+            <p>Member since: {new Date(userProfile.date_joined || userProfile.created_at).toLocaleDateString()}</p>
             
-            <div className={styles.activityFeed}>
-              {activityFeed.map((activity) => (
-                <div key={activity.id} className={styles.activityItem}>
-                  <div className={styles.activityIcon}>
-                    {activity.icon === "FaTicketAlt" && <FaTicketAlt />}
-                    {activity.icon === "FaUserCog" && <FaUserCog />}
-                    {activity.icon === "FaRegComment" && <FaRegComment />}
+            <div className={styles.profileActions}>
+              <button 
+                className={`${styles.actionButton} ${styles.primaryButton}`}
+                onClick={() => navigate('/profile/edit')}
+              >
+                Edit Profile
+          </button>
+              
+              <button 
+                className={`${styles.actionButton} ${styles.secondaryButton}`}
+                onClick={() => navigate('/profile/security')}
+              >
+                Security Settings
+              </button>
+              
+              {/* Coordinator Role Section */}
+              {userProfile.is_coordinator || userProfile.isCoordinator ? (
+                <div className={`${styles.statusBadge} ${styles.approvedBadge}`}>
+                  <span>Coordinator Status: Approved</span>
+            </div>
+              ) : hasCoordinatorRequest || userProfile.coordinator_request || userProfile.has_coordinator_request ? (
+                <div className={`${styles.statusBadge} ${styles.pendingBadge}`}>
+                  <span>Coordinator Request: Pending Approval</span>
+            </div>
+              ) : (
+                <button
+                  className={`${styles.actionButton} ${styles.specialButton}`}
+                  onClick={handleCoordinatorRequest}
+                >
+                  Request Coordinator Role
+          </button>
+              )}
+            </div>
+            </div>
+            </div>
+        
+        <div className={styles.statsSection}>
+          <div className={styles.statCard}>
+            <span className={styles.statNumber}>{upcomingEvents.length}</span>
+            <span className={styles.statLabel}>Upcoming Events</span>
+            </div>
+          <div className={styles.statCard}>
+            <span className={styles.statNumber}>{pastEvents.length}</span>
+            <span className={styles.statLabel}>Past Events</span>
+          </div>
+          <div className={styles.statCard}>
+            <span className={styles.statNumber}>{bookmarkedEvents.length}</span>
+            <span className={styles.statLabel}>Bookmarked</span>
+          </div>
+        </div>
+        
+        {/* Account Settings Section */}
+        <div className={styles.settingsSection}>
+          <h3>Account Settings</h3>
+          <div className={styles.settingsButtons}>
+            <button 
+              className={styles.settingButton}
+              onClick={() => navigate('/profile/notifications')}
+            >
+              Notification Preferences
+            </button>
+            <button 
+              className={styles.settingButton}
+              onClick={() => navigate('/profile/preferences')}
+            >
+              App Preferences
+          </button>
+          </div>
+        </div>
+      </div>
+    );
+  };
+
+  // Handle account deletion
+  const handleDeleteAccount = async () => {
+    // Show confirmation dialog
+    if (!window.confirm('Are you sure you want to delete your account? This action cannot be undone.')) {
+      return;
+    }
+    
+    try {
+      // Define endpoints to try
+      const deleteEndpoints = [
+        'api/profile/delete/',
+        'users/delete/',
+        'auth/users/me/',
+        'api/users/me/'
+      ];
+      
+      console.log('Attempting to delete account');
+      
+      try {
+        // Try DELETE requests first
+        await tryMultipleEndpoints(deleteEndpoints, 'delete');
+        
+        console.log('Account deleted successfully');
+        toast.success('Your account has been deleted successfully.');
+        
+        // Clear localStorage and redirect to login
+        localStorage.removeItem(ACCESS_TOKEN);
+        localStorage.removeItem(REFRESH_TOKEN);
+        localStorage.removeItem("user");
+        
+        navigate("/login_reg");
+      } catch (deleteError) {
+        console.error('Failed to delete account with DELETE method, trying POST:', deleteError);
+        
+        // If DELETE fails, try POST to some endpoints that might require POST
+        try {
+          const postEndpoints = [
+            'api/profile/delete/',
+            'users/delete/'
+          ];
+          
+          await tryMultipleEndpoints(postEndpoints, 'post');
+          
+          console.log('Account deleted successfully with POST method');
+          toast.success('Your account has been deleted successfully.');
+          
+          // Clear localStorage and redirect to login
+          localStorage.removeItem(ACCESS_TOKEN);
+          localStorage.removeItem(REFRESH_TOKEN);
+          localStorage.removeItem("user");
+          
+          navigate("/login_reg");
+        } catch (postError) {
+          console.error('Failed to delete account with POST method:', postError);
+          toast.error('Failed to delete your account. Please contact support.');
+        }
+      }
+    } catch (error) {
+      console.error('Account deletion error:', error);
+      toast.error('An error occurred while deleting your account.');
+    }
+  };
+
+  // Function to render the appropriate content based on active tab
+  const renderTab = () => {
+    switch (activeTab) {
+      case "overview":
+        return (
+          <div className={styles.dashboardOverview}>
+            {errorMessage && (
+              <div className={styles.errorMessage}>
+                <FaExclamationTriangle /> {errorMessage}
+              </div>
+            )}
+            <div className={styles.statsGrid}>
+              <div className={styles.statCard}>
+                <div className={styles.statIcon}>
+                  <FaCalendarAlt />
+                </div>
+                <div className={styles.statInfo}>
+                  <h3>{stats.registeredEvents}</h3>
+                  <p>My Registrations</p>
+                </div>
+              </div>
+              <div className={styles.statCard}>
+                <div className={styles.statIcon}>
+                  <FaTicketAlt />
+                </div>
+                <div className={styles.statInfo}>
+                  <h3>{stats.upcomingEvents}</h3>
+                  <p>Upcoming Events</p>
+                </div>
+              </div>
+              <div className={styles.statCard}>
+                <div className={styles.statIcon}>
+                  <FaRegBookmark />
+                </div>
+                <div className={styles.statInfo}>
+                  <h3>{bookmarkedEvents.length}</h3>
+                  <p>Bookmarked</p>
+                </div>
+              </div>
+              {userProfile?.is_coordinator && (
+                <div className={styles.statCard}>
+                  <div className={styles.statIcon}>
+                    <FaUserPlus />
                   </div>
-                  <div className={styles.activityContent}>
-                    <h4 className={styles.activityTitle}>{activity.title}</h4>
-                    <p className={styles.activityDesc}>{activity.description}</p>
-                    <span className={styles.activityTime}>
-                      {activity.timestamp.toLocaleDateString()}
-                    </span>
+                  <div className={styles.statInfo}>
+                    <h3>{coordinatorStats.participantsCount}</h3>
+                    <p>Total Participants</p>
                   </div>
                 </div>
-              ))}
+              )}
             </div>
-            
-            <div className={styles.recommendedEventsHeader}>
-              <h3 className={styles.sectionTitle}>Recommended Events</h3>
-              <a href="#" className={styles.viewAllLink} onClick={(e) => {
-                e.preventDefault();
-                navigate("/events");
-              }}>
-                Browse Events
-              </a>
-            </div>
-            
-            <div className={styles.recommendedEvents}>
-              {allEvents.slice(0, 2).map((event, index) => (
-                <div key={index} className={styles.recommendedEventCard}>
-                  <div className={styles.eventCardImage}>
-                    {event.photos && event.photos.length > 0 ? (
-                      <img src={event.photos[0].photo_url} alt={event.event_name} />
-                    ) : (
-                      <div className={styles.eventCardImagePlaceholder}>
-                        <FaCalendarAlt />
+
+            <div className={styles.dashboardSections}>
+              {/* Events I'm attending section */}
+              <div className={styles.sectionCard}>
+                <div className={styles.sectionHeader}>
+                  <h3 className={styles.sectionTitle}>Upcoming Events</h3>
+                  <button 
+                    className={styles.viewAllLink}
+                    onClick={() => setActiveTab("myEvents")}
+                  >
+                    View All
+                  </button>
+                </div>
+                
+                {upcomingEvents.length > 0 ? (
+                  <div className={styles.eventList}>
+                    {upcomingEvents.slice(0, 3).map(event => (
+                      <div key={event.id} className={styles.eventItem} onClick={() => navigate(`/events/${event.id}`)}>
+                        <div className={styles.eventDate}>
+                          <span className={styles.eventDay}>
+                            {new Date(event.event_time).getDate()}
+                          </span>
+                          <span className={styles.eventMonth}>
+                            {new Date(event.event_time).toLocaleString('default', { month: 'short' })}
+                          </span>
+                        </div>
+                        <div className={styles.eventContent}>
+                          <h4 className={styles.eventTitle}>{event.event_name}</h4>
+                          <div className={styles.eventInfo}>
+                            <p><FaMapMarkerAlt /> {event.venue}</p>
+                            <p><FaClock /> {event.formatted_time}</p>
+                          </div>
+                        </div>
                       </div>
-                    )}
+                    ))}
                   </div>
-                  <div className={styles.eventCardContent}>
-                    <h4>{event.event_name}</h4>
-                    <p>{event.description?.substring(0, 80)}...</p>
-                    <div className={styles.eventCardDetails}>
-                      <span><FaMapMarkerAlt /> {event.venue || "TBD"}</span>
-                      <span><FaClock /> {new Date(event.event_time).toLocaleTimeString()}</span>
+                ) : (
+                  <div className={styles.emptyState}>
+                    <div className={styles.emptyStateIcon}>
+                      <FaCalendarAlt />
                     </div>
+                    <p>You haven't registered for any upcoming events.</p>
+                    <button className={styles.primaryButton} onClick={() => setActiveTab("browse")}>
+                      Browse Events
+                    </button>
+                  </div>
+                )}
+              </div>
+              
+              {/* Events I've Created (Coordinator Only) */}
+              {userProfile?.is_coordinator && (
+                <div className={styles.sectionCard}>
+                  <div className={styles.sectionHeader}>
+                    <h3 className={styles.sectionTitle}>My Created Events</h3>
                     <button 
-                      className={styles.registerButton}
-                      onClick={() => handleRegister(event.id)}
-                      disabled={registering}
+                      className={styles.viewAllLink}
+                      onClick={() => navigate("/coordinator-dashboard")}
                     >
-                      Register Now
+                      View All
+                    </button>
+                  </div>
+                  
+                  {coordinatorEvents.length > 0 ? (
+                    <div className={styles.eventList}>
+                      {coordinatorEvents.slice(0, 3).map(event => (
+                        <div key={event.id} className={styles.eventItem} onClick={() => navigate(`/events/${event.id}`)}>
+                          <div className={styles.eventDate}>
+                            <span className={styles.eventDay}>
+                              {new Date(event.event_time).getDate()}
+                            </span>
+                            <span className={styles.eventMonth}>
+                              {new Date(event.event_time).toLocaleString('default', { month: 'short' })}
+                            </span>
+                          </div>
+                          <div className={styles.eventContent}>
+                            <h4 className={styles.eventTitle}>{event.event_name}</h4>
+                            <div className={styles.eventInfo}>
+                              <p><FaMapMarkerAlt /> {event.venue}</p>
+                              <p><FaUserFriends /> {event.participant_count || 0} / {event.max_participants || 'Unlimited'}</p>
+                            </div>
+                          </div>
+                          <div className={styles.eventStatus}>
+                            <span className={styles[getStatusInfo(event.status).class]}>
+                              {getStatusInfo(event.status).text}
+                            </span>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <div className={styles.emptyState}>
+                      <div className={styles.emptyStateIcon}>
+                        <FaCalendar />
+                      </div>
+                      <p>You haven't created any events yet.</p>
+                      <button className={styles.primaryButton} onClick={() => navigate("/create-event")}>
+                        Create Event
+                      </button>
+                    </div>
+                  )}
+                </div>
+              )}
+              
+              {/* Analytics Section (Coordinator Only) */}
+              {userProfile?.is_coordinator && (
+                <div className={styles.sectionCard}>
+                  <div className={styles.sectionHeader}>
+                    <h3 className={styles.sectionTitle}>Event Analytics</h3>
+                  </div>
+                  
+                  <div className={styles.analyticsGrid}>
+                    <div className={styles.analyticItem}>
+                      <div className={styles.analyticIcon}>
+                        <FaChartBar />
+                      </div>
+                      <div className={styles.analyticInfo}>
+                        <h4>{coordinatorStats.totalEvents}</h4>
+                        <p>Total Events</p>
+                      </div>
+                    </div>
+                    <div className={styles.analyticItem}>
+                      <div className={styles.analyticIcon}>
+                        <FaCalendarCheck />
+                      </div>
+                      <div className={styles.analyticInfo}>
+                        <h4>{coordinatorStats.completedEvents}</h4>
+                        <p>Completed</p>
+                      </div>
+                    </div>
+                    <div className={styles.analyticItem}>
+                      <div className={styles.analyticIcon}>
+                        <FaCalendarMinus />
+                      </div>
+                      <div className={styles.analyticInfo}>
+                        <h4>{coordinatorStats.canceledEvents}</h4>
+                        <p>Canceled</p>
+                      </div>
+                    </div>
+                    <div className={styles.analyticItem}>
+                      <div className={styles.analyticIcon}>
+                        <FaCalendarPlus />
+                      </div>
+                      <div className={styles.analyticInfo}>
+                        <h4>{coordinatorStats.upcomingEvents}</h4>
+                        <p>Upcoming</p>
+                      </div>
+                    </div>
+                  </div>
+                  
+                  <div className={styles.analyticsActions}>
+                    <button 
+                      className={styles.analyticsButton} 
+                      onClick={() => navigate("/coordinator-dashboard")}
+                    >
+                      <FaChartLine /> Full Analytics
+                    </button>
+                    <button 
+                      className={styles.analyticsButton}
+                      onClick={() => navigate("/create-event")}
+                    >
+                      <FaPlus /> Create Event
                     </button>
                   </div>
                 </div>
-              ))}
-            </div>
-          </div>
-        </div>
-        
-        {pastEvents.length > 0 && (
-          <div className={styles.pastEvents}>
-            <div className={styles.sectionHeader}>
-              <h3 className={styles.sectionTitle}>Past Events</h3>
-              <a href="#" className={styles.viewAllLink} onClick={() => setActiveTab("myEvents")}>
-                View All
-              </a>
-            </div>
-            
-            <div className={styles.pastEventsList}>
-              {pastEvents.slice(0, 2).map((event, index) => (
-                <div key={index} className={styles.pastEventCard}>
-                  <div className={styles.pastEventContent}>
-                    <h4>{event.event_name}</h4>
-                    <p>{new Date(event.event_time).toLocaleDateString()}</p>
-                    {!event.feedback ? (
-                      <button 
-                        className={styles.feedbackButton}
-                        onClick={() => {
-                          const rating = prompt("Rate this event from 1-5");
-                          const comment = prompt("Any comments about this event?");
-                          if (rating && comment) {
-                            submitFeedback(event.id, parseInt(rating), comment);
-                          }
-                        }}
-                      >
-                        <FaRegComment /> Leave Feedback
-                      </button>
-                    ) : (
-                      <div className={styles.feedbackGiven}>
-                        <span>Your rating: {event.feedback.rating} <FaStar /></span>
-                      </div>
-                    )}
-                  </div>
+              )}
+              
+              {/* Recent Activity Section */}
+              <div className={styles.sectionCard}>
+                <div className={styles.sectionHeader}>
+                  <h3 className={styles.sectionTitle}>Recent Activity</h3>
                 </div>
-              ))}
+                
+                {activityFeed.length > 0 ? (
+                  <div className={styles.activityFeed}>
+                    {activityFeed.map((activity, index) => (
+                      <div key={index} className={styles.activityItem}>
+                        <div className={styles.activityIcon}>{activity.icon}</div>
+                        <div className={styles.activityContent}>
+                          <p className={styles.activityText}>{activity.text}</p>
+                          <span className={styles.activityTime}>{activity.time}</span>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div className={styles.emptyState}>
+                    <p>No recent activity to show.</p>
+                  </div>
+                )}
+              </div>
             </div>
           </div>
-        )}
-      </div>
-    );
-  };
+        );
 
-  const renderMyEvents = () => {
+      case "myEvents":
     return (
       <div className={styles.myEventsContainer}>
-        <h2>My Events</h2>
+            <div className={styles.eventsHeader}>
+              <h2>Upcoming Events</h2>
+            </div>
         
-        <div className={styles.eventsSection}>
-          <h3>Upcoming Events</h3>
           {upcomingEvents.length > 0 ? (
             <div className={styles.eventsList}>
-              {upcomingEvents.map((event, index) => (
-                <div key={index} className={styles.eventCard}>
+                {upcomingEvents.map(event => (
+                  <div key={event.id} className={styles.eventCard}>
+                    <div className={styles.eventCardHeader}>
                   <div className={styles.eventDate}>
                     <span className={styles.eventDay}>
                       {new Date(event.event_time).getDate()}
                     </span>
                     <span className={styles.eventMonth}>
-                      {new Date(event.event_time).toLocaleString("default", {
-                        month: "short",
-                      })}
+                          {new Date(event.event_time).toLocaleString('default', { month: 'short' })}
                     </span>
+                      </div>
+                      <h3 className={styles.eventTitle}>{event.event_name}</h3>
                   </div>
                   <div className={styles.eventCardContent}>
-                    <h4>{event.event_name}</h4>
-                    <p>{event.description?.substring(0, 150)}...</p>
+                      <p className={styles.eventDescription}>
+                        {event.description ? 
+                          (event.description.length > 120 ? 
+                            `${event.description.substring(0, 120)}...` : 
+                            event.description) : 
+                          'No description available'}
+                      </p>
                     <div className={styles.eventDetails}>
-                      <p><FaMapMarkerAlt /> {event.venue}</p>
-                      <p><FaClock /> {new Date(event.event_time).toLocaleTimeString()}</p>
-                      <p><FaUsers /> {event.attendee_count || 0} attending</p>
+                        <p>
+                          <span className={styles.eventDetailIcon}><FaMapMarkerAlt /></span> 
+                          {event.venue}
+                        </p>
+                        <p>
+                          <span className={styles.eventDetailIcon}><FaClock /></span> 
+                          {event.formatted_time}
+                        </p>
                     </div>
-                    <button className={styles.viewDetailsButton}>View Details</button>
+                      <div className={styles.eventActions}>
+                        <button 
+                          className={styles.viewDetailsButton} 
+                          onClick={() => navigate(`/events/${event.id}`)}
+                        >
+                          View Details
+                        </button>
+                        <button 
+                          className={styles.cancelButton} 
+                          onClick={() => handleCancelRegistration(event.id)}
+                          disabled={cancelingRegistration}
+                        >
+                          {cancelingRegistration ? 'Canceling...' : 'Cancel Registration'}
+                        </button>
+                      </div>
                   </div>
                 </div>
               ))}
             </div>
           ) : (
-            <p>You don't have any upcoming events</p>
-          )}
+              <div className={styles.emptyState}>
+                <div className={styles.emptyStateIcon}>
+                  <FaCalendarAlt />
+                </div>
+                <p>You haven't registered for any upcoming events.</p>
+                <button className={styles.primaryButton} onClick={() => setActiveTab("browse")}>
+                  Browse Events
+                </button>
+              </div>
+            )}
+            
+            <div className={styles.eventsHeader}>
+              <h2>Past Events</h2>
         </div>
         
-        <div className={styles.eventsSection}>
-          <h3>Past Events</h3>
           {pastEvents.length > 0 ? (
-            <div className={styles.eventsList}>
-              {pastEvents.map((event, index) => (
-                <div key={index} className={styles.eventCard}>
-                  <div className={styles.eventDate}>
-                    <span className={styles.eventDay}>
-                      {new Date(event.event_time).getDate()}
-                    </span>
-                    <span className={styles.eventMonth}>
-                      {new Date(event.event_time).toLocaleString("default", {
-                        month: "short",
-                      })}
-                    </span>
-                  </div>
-                  <div className={styles.eventCardContent}>
+              <div className={styles.pastEventsList}>
+                {pastEvents.map(event => (
+                  <div key={event.id} className={styles.pastEventCard}>
+                    <div className={styles.pastEventContent}>
                     <h4>{event.event_name}</h4>
-                    <p>{event.description?.substring(0, 150)}...</p>
-                    <div className={styles.eventDetails}>
-                      <p><FaMapMarkerAlt /> {event.venue}</p>
-                    </div>
-                    {!event.feedback ? (
+                      <p>
+                        <FaCalendarAlt /> {event.formatted_date} • <FaClock /> {event.formatted_time}
+                      </p>
+                      <p>
+                        <FaMapMarkerAlt /> {event.venue}
+                      </p>
                       <button 
-                        className={styles.feedbackButton}
-                        onClick={() => {
-                          // Show feedback form (modal in real implementation)
-                          const rating = prompt("Rate this event from 1-5");
-                          const comment = prompt("Any comments about this event?");
-                          if (rating && comment) {
-                            submitFeedback(event.id, parseInt(rating), comment);
-                          }
-                        }}
+                        className={styles.viewDetailsButton} 
+                        onClick={() => navigate(`/events/${event.id}`)}
                       >
-                        Leave Feedback
+                        View Details
                       </button>
-                    ) : (
-                      <div className={styles.feedbackGiven}>
-                        <p>Your rating: {event.feedback.rating} <FaStar /></p>
-                        <p>"{event.feedback.comment}"</p>
-                      </div>
-                    )}
                   </div>
                 </div>
               ))}
             </div>
           ) : (
-            <p>You haven't attended any events yet</p>
+              <div className={styles.emptyState}>
+                <p>You haven't attended any past events.</p>
+              </div>
           )}
-        </div>
       </div>
     );
-  };
 
-  const renderBrowseEvents = () => {
+      case "browse":
     return (
       <div className={styles.browseEventsContainer}>
+            <div className={styles.sectionTitle}>
         <h2>Browse Events</h2>
+              <p>Discover and register for amazing events</p>
+            </div>
         
-        <div className={styles.searchContainer}>
+            <div className={styles.filterContainer}>
           <div className={styles.searchBox}>
-            <FaSearch className={styles.searchIcon} />
+                <span className={styles.searchIcon}><FaSearch /></span>
             <input
               type="text"
-              placeholder="Search for events..."
+                  className={styles.searchInput}
+                  placeholder="Search events by name, description, or location..."
               value={searchQuery}
               onChange={handleSearch}
-              className={styles.searchInput}
-            />
+                />
+                <button
+                  onClick={handleRefresh}
+                  className={`${styles.refreshButton} ${refreshing ? styles.spinning : ''}`}
+                  disabled={refreshing}
+                  title="Refresh Events"
+                >
+                  <FaSync />
+                </button>
+              </div>
+              
+              <div className={styles.filterButtons}>
+                <button
+                  className={filter === "all" ? styles.active : ""}
+                  onClick={() => setFilter("all")}
+                >
+                  All
+                </button>
+                <button
+                  className={filter === "upcoming" ? styles.active : ""}
+                  onClick={() => setFilter("upcoming")}
+                >
+                  Upcoming
+                </button>
+                <button
+                  className={filter === "completed" ? styles.active : ""}
+                  onClick={() => setFilter("completed")}
+                >
+                  Completed
+                </button>
+                <button
+                  className={filter === "canceled" ? styles.active : ""}
+                  onClick={() => setFilter("canceled")}
+                >
+                  Canceled
+                </button>
+                <button
+                  className={filter === "registered" ? styles.active : ""}
+                  onClick={() => setFilter("registered")}
+                >
+                  My Events
+                </button>
+              </div>
+              
             <button 
               className={styles.filterButton} 
               onClick={() => setShowFilters(!showFilters)}
             >
-              <FaFilter /> Filters
+                <FaFilter /> {showFilters ? 'Hide Filters' : 'More Filters'}
             </button>
           </div>
           
@@ -1347,149 +2452,230 @@ const UserDashboard = () => {
                 <label>Location</label>
                 <input
                   type="text"
+                    className={styles.filterInput}
                   name="location"
-                  placeholder="Filter by city, venue..."
                   value={filterOptions.location}
                   onChange={handleFilterChange}
-                  className={styles.filterInput}
+                    placeholder="Enter location"
                 />
               </div>
-              
               <div className={styles.filterGroup}>
                 <label>Date</label>
                 <input
                   type="date"
+                    className={styles.filterInput}
                   name="date"
                   value={filterOptions.date}
                   onChange={handleFilterChange}
-                  className={styles.filterInput}
                 />
               </div>
-              
               <div className={styles.filterGroup}>
-                <label>Event Type</label>
+                  <label>Category</label>
                 <select
+                    className={styles.filterSelect}
                   name="type"
                   value={filterOptions.type}
                   onChange={handleFilterChange}
-                  className={styles.filterSelect}
-                >
-                  <option value="">All Types</option>
-                  {/* Get unique event types from data */}
-                  {allEvents && Array.isArray(allEvents) && 
-                    [...new Set(allEvents.map(event => 
-                      event.event_type || event.category || "Other"
-                    ))]
-                    .filter(type => !!type)
-                    .sort()
-                    .map((type, index) => (
-                      <option key={index} value={type}>{type}</option>
-                    ))
-                  }
+                  >
+                    <option value="">All Categories</option>
+                    <option value="concert">Concert</option>
+                    <option value="conference">Conference</option>
+                    <option value="exhibition">Exhibition</option>
+                    <option value="sport">Sport</option>
+                    <option value="workshop">Workshop</option>
+                    <option value="other">Other</option>
                 </select>
               </div>
-              
-              <button
-                className={styles.resetFiltersButton}
-                onClick={() => setFilterOptions({
-                  location: "",
-                  date: "",
-                  type: ""
-                })}
-              >
-                Reset Filters
-              </button>
             </div>
           )}
-        </div>
         
         {loading ? (
+              <div className={styles.loaderContainer}>
           <div className={styles.loader}>Loading events...</div>
-        ) : filteredEvents.length > 0 ? (
-          <div className={styles.eventsGrid}>
-            {filteredEvents.map((event, index) => (
-              <div key={index} className={styles.eventCard}>
-                <div className={styles.eventCardImage}>
-                  {event.photos && event.photos.length > 0 ? (
-                    <img src={event.photos[0].photo_url} alt={event.event_name} />
-                  ) : event.image_url ? (
-                    <img src={event.image_url} alt={event.event_name} />
-                  ) : (
-                    <div className={styles.eventCardImagePlaceholder}>
-                      <FaCalendarAlt />
+              </div>
+            ) : (
+              <div className={styles.eventsGrid}>
+                {allEvents
+                  .filter(event => {
+                    // Filter by search term
+                    const matchesSearch = event.event_name?.toLowerCase()?.includes(searchQuery.toLowerCase()) ||
+                                         event.description?.toLowerCase()?.includes(searchQuery.toLowerCase()) ||
+                                         event.venue?.toLowerCase()?.includes(searchQuery.toLowerCase());
+                    
+                    // Filter by event status
+                    const matchesFilter = filter === "all" || 
+                                        (filter === "registered" && isUserRegistered(event.id)) ||
+                                        (event.status?.toLowerCase() === filter);
+                    
+                    // Filter by location if specified
+                    const matchesLocation = !filterOptions.location || 
+                                           event.venue?.toLowerCase()?.includes(filterOptions.location.toLowerCase());
+                    
+                    // Filter by date if specified
+                    const matchesDate = !filterOptions.date || 
+                                       new Date(event.event_time).toLocaleDateString() === new Date(filterOptions.date).toLocaleDateString();
+                    
+                    // Filter by category/type if specified
+                    const matchesType = !filterOptions.type || 
+                                       event.event_type?.toLowerCase() === filterOptions.type.toLowerCase();
+                    
+                    return matchesSearch && matchesFilter && matchesLocation && matchesDate && matchesType;
+                  })
+                  .map(event => {
+                    const statusInfo = getStatusInfo(event.status);
+                    
+                    return (
+                      <div
+                        key={event.id}
+                        className={styles.eventCard}
+                        onClick={() => navigate(`/events/${event.id}`)}
+                      >
+                        <div className={styles.eventImage}>
+                          <img
+                            src={event.photos?.[0]?.photo_url || "/default-event.jpg"}
+                            alt={event.event_name}
+                          />
+                          <div className={styles.eventStatus}>
+                            <span className={styles[statusInfo.class]}>
+                              {statusInfo.text}
+                            </span>
+                          </div>
+                          {isUserRegistered(event.id) && (
+                            <div className={styles.enrolledBadge}>
+                              <FaUserCheck /> Enrolled
                     </div>
                   )}
-                  <span className={styles.eventType}>
-                    {event.event_type || event.category || "Event"}
-                  </span>
                 </div>
-                <div className={styles.eventCardContent}>
+                        
+                        <div className={styles.eventContent}>
                   <h3>{event.event_name}</h3>
-                  <p className={styles.eventCardDescription}>
-                    {(event.description || "No description available").substring(0, 100)}...
-                  </p>
-                  <div className={styles.eventCardDetails}>
-                    <p><FaMapMarkerAlt /> {event.venue || "Location TBD"}</p>
-                    <p><FaCalendarAlt /> {new Date(event.event_time).toLocaleDateString()}</p>
-                    <p><FaClock /> {new Date(event.event_time).toLocaleTimeString()}</p>
+                          <div className={styles.eventDetails}>
+                            <p>
+                              <FaCalendarAlt />
+                              {new Date(event.event_time).toLocaleDateString()}
+                            </p>
+                            <p>
+                              <FaClock />
+                              {new Date(event.event_time).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}
+                            </p>
+                            <p>
+                              <FaMapMarkerAlt />
+                              {event.venue}
+                            </p>
+                            <p>
+                              <FaTicketAlt />
+                              {event.is_paid ? `₹${event.price}` : "Free"}
+                            </p>
                   </div>
+                          
+                          <p className={styles.eventDescription}>
+                            {event.description ? 
+                              `${event.description.substring(0, 100)}...` : 
+                              'No description available'}
+                          </p>
+                          
+                          <div className={styles.eventCardActions}>
+                            <button
+                              className={styles.viewDetailsButton}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                navigate(`/events/${event.id}`);
+                              }}
+                            >
+                              View Details
+                            </button>
+                            
+                            {!isUserRegistered(event.id) && event.status === 'upcoming' && (
                   <button
                     className={styles.registerButton}
-                    onClick={() => handleRegister(event.id)}
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleRegister(event.id);
+                                }}
                     disabled={registering}
                   >
-                    Register Now
+                                {registering ? 'Registering...' : 'Register Now'}
                   </button>
+                            )}
                 </div>
               </div>
-            ))}
           </div>
-        ) : (
+                    );
+                  })}
+              </div>
+            )}
+            
+            {!loading && allEvents.filter(event => {
+              const matchesSearch = event.event_name?.toLowerCase()?.includes(searchQuery.toLowerCase()) ||
+                                  event.description?.toLowerCase()?.includes(searchQuery.toLowerCase()) ||
+                                  event.venue?.toLowerCase()?.includes(searchQuery.toLowerCase());
+              
+              const matchesFilter = filter === "all" || 
+                                 (filter === "registered" && isUserRegistered(event.id)) ||
+                                 (event.status?.toLowerCase() === filter);
+              
+              const matchesLocation = !filterOptions.location || 
+                                     event.venue?.toLowerCase()?.includes(filterOptions.location.toLowerCase());
+              
+              const matchesDate = !filterOptions.date || 
+                                new Date(event.event_time).toLocaleDateString() === new Date(filterOptions.date).toLocaleDateString();
+              
+              const matchesType = !filterOptions.type || 
+                                event.event_type?.toLowerCase() === filterOptions.type.toLowerCase();
+              
+              return matchesSearch && matchesFilter && matchesLocation && matchesDate && matchesType;
+            }).length === 0 && (
           <div className={styles.noEventsFound}>
+                <div className={styles.emptyStateIcon}>
+                  <FaSearch />
+                </div>
             <h3>No events found</h3>
-            <p>Try adjusting your search criteria or explore events at a later date.</p>
+                <p>Try adjusting your search criteria or check back later for new events.</p>
+                <button 
+                  className={styles.resetFiltersButton}
+                  onClick={() => {
+                    setSearchQuery("");
+                    setFilterOptions({ location: "", date: "", type: "" });
+                    setFilter("all");
+                    setShowFilters(false);
+                    fetchAllEvents();
+                  }}
+                >
+                  Reset Filters
+                </button>
           </div>
         )}
       </div>
     );
-  };
 
-  const renderBookmarkedEvents = () => {
+      case "bookmarks":
     return (
       <div className={styles.bookmarksContainer}>
         <h2>Bookmarked Events</h2>
-        
-        {loading ? (
-          <div className={styles.loader}>Loading bookmarked events...</div>
-        ) : bookmarkedEvents.length > 0 ? (
-          <div className={styles.eventsList}>
-            {bookmarkedEvents.map((event, index) => (
-              <div key={index} className={styles.eventCard}>
-                <div className={styles.eventDate}>
-                  <span className={styles.eventDay}>
-                    {new Date(event.event_time).getDate()}
-                  </span>
-                  <span className={styles.eventMonth}>
-                    {new Date(event.event_time).toLocaleString("default", { month: "short" })}
-                  </span>
+            {bookmarkedEvents.length > 0 ? (
+              <div className={styles.eventsGrid}>
+                {bookmarkedEvents.map(event => (
+                  <div 
+                    key={event.id} 
+                    className={styles.eventCard}
+                    onClick={() => navigate(`/events/${event.id}`)}
+                  >
+                    {event.photos && event.photos[0] ? (
+                      <div className={styles.eventCardImage}>
+                        <img src={event.photos[0].photo_url} alt={event.event_name} />
                 </div>
+                    ) : (
+                      <div className={styles.eventCardImagePlaceholder}>
+                        <FaBookmark />
+                      </div>
+                    )}
                 <div className={styles.eventCardContent}>
                   <h4>{event.event_name}</h4>
-                  <p>{event.description?.substring(0, 150) || "No description available"}...</p>
-                  <div className={styles.eventDetails}>
-                    <p><FaMapMarkerAlt /> {event.venue || "TBD"}</p>
-                    <p><FaClock /> {new Date(event.event_time).toLocaleTimeString() || "TBA"}</p>
-                    <p><FaUsers /> {event.attendee_count || 0} attending</p>
-                  </div>
-                  <div className={styles.eventActions}>
-                    <button className={styles.viewDetailsButton}>View Details</button>
-                    <button 
-                      className={styles.registerButton}
-                      onClick={() => handleRegister(event.id)}
-                      disabled={registering}
-                    >
-                      Register Now
-                    </button>
+                      <p>{event.description ? `${event.description.substring(0, 100)}...` : 'No description'}</p>
+                      <div className={styles.eventCardDetails}>
+                        <span><FaCalendarAlt /> {new Date(event.event_time).toLocaleDateString()}</span>
+                        <span><FaClock /> {new Date(event.event_time).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</span>
+                        <span><FaMapMarkerAlt /> {event.venue}</span>
                   </div>
                 </div>
               </div>
@@ -1497,290 +2683,178 @@ const UserDashboard = () => {
           </div>
         ) : (
           <div className={styles.emptyState}>
-            <FaBookmark className={styles.emptyStateIcon} />
-            <p>You haven't bookmarked any events yet</p>
-            <button 
-              className={styles.primaryButton}
-              onClick={() => setActiveTab("browse")}
-            >
-              <FaCompass /> Discover Events
+                <div className={styles.emptyStateIcon}>
+                  <FaRegBookmark />
+                </div>
+                <p>You haven't bookmarked any events yet.</p>
+                <button className={styles.primaryButton} onClick={() => setActiveTab("browse")}>
+                  Browse Events
             </button>
           </div>
         )}
       </div>
     );
-  };
 
-  const renderProfile = () => {
+      case "profile":
     return (
-      <div className={profileStyles.profileContainer}>
-        <div className={profileStyles.profileCard}>
-          <div className={profileStyles.profileHeader}>
-            <div className={profileStyles.profilePhoto}>
-              {editingProfile ? (
-                <div className={profileStyles.profilePhotoUpload}>
-                  {profilePhotoPreview ? (
-                    <img 
-                      src={profilePhotoPreview} 
-                      alt="Profile Preview" 
-                      className={profileStyles.profileImage}
-                    />
-                  ) : (
-                    <div className={profileStyles.profilePhotoPlaceholder}>
-                      <span>
-                        {userProfile.first_name ? userProfile.first_name.charAt(0).toUpperCase() : ''}
-                        {userProfile.last_name ? userProfile.last_name.charAt(0).toUpperCase() : ''}
-                      </span>
-                    </div>
-                  )}
+          <div className={styles.tabContent}>
+            <div className={styles.profileSection}>
+              <div className={styles.profileHeader}>
+                <h2>My Profile</h2>
+                <div className={styles.accountActions}>
                   <button 
-                    type="button" 
-                    className={profileStyles.changePhotoButton}
-                    onClick={() => fileInputRef.current.click()}
+                    className={styles.accountActionButton}
+                    onClick={() => setActiveTab('security')}
                   >
-                    Change Photo
+                    Security Settings
                   </button>
-                  <input
-                    type="file"
-                    ref={fileInputRef}
-                    onChange={handleProfilePhotoChange}
-                    accept="image/*"
-                    style={{ display: 'none' }}
-                  />
-                </div>
-              ) : (
-                <>
-                  {profilePhotoPreview ? (
-                    <img 
-                      src={profilePhotoPreview} 
-                      alt="Profile" 
-                      className={profileStyles.profileImage}
-                    />
-                  ) : (
-                    <div className={profileStyles.profilePhotoPlaceholder}>
-                      <span>
-                        {userProfile.first_name && userProfile.last_name 
-                          ? `${userProfile.first_name.charAt(0)}${userProfile.last_name.charAt(0)}`
-                          : userProfile.username 
-                            ? userProfile.username.charAt(0).toUpperCase()
-                            : "U"}
-                      </span>
-                    </div>
-                  )}
-                </>
-              )}
-            </div>
-            <div className={profileStyles.profileInfo}>
-              <h3>
-                {userProfile.first_name} {userProfile.last_name}
-              </h3>
-              <p className={profileStyles.username}>@{userProfile.username}</p>
-              <p className={profileStyles.email}>{userProfile.email}</p>
-              <p className={profileStyles.role}>Role: {userProfile.user_role || userProfile.role || "User"}</p>
-            </div>
-            {!editingProfile && (
+                  {!userProfile?.is_coordinator && !hasCoordinatorRequest && (
               <button 
-                className={profileStyles.editProfileButton}
-                onClick={() => setEditingProfile(true)}
+                      className={styles.coordinatorRequestButton}
+                      onClick={handleCoordinatorRequest}
               >
-                Edit Profile
+                      Request Coordinator Role
               </button>
             )}
+                  {!userProfile?.is_coordinator && hasCoordinatorRequest && (
+                    <div className={styles.coordinatorRequestStatus}>
+                      <p>Coordinator Request Status: <span className={styles.statusPending}>Pending</span></p>
           </div>
-          
-          {editingProfile ? (
-            <div className={profileStyles.profileForm}>
-              <div className={profileStyles.formRow}>
-                <div className={profileStyles.formGroup}>
-                  <label>First Name</label>
-                  <input
-                    type="text"
-                    name="first_name"
-                    value={userProfile.first_name || ""}
-                    onChange={handleProfileChange}
-                    placeholder="First Name"
-                    className={profileStyles.formControl}
-                  />
+                  )}
+                  {userProfile?.is_coordinator && (
+                    <div className={styles.coordinatorRequestStatus}>
+                      <p>Coordinator Status: <span className={styles.statusApproved}>Approved</span></p>
                 </div>
-                <div className={profileStyles.formGroup}>
-                  <label>Last Name</label>
-                  <input
-                    type="text"
-                    name="last_name"
-                    value={userProfile.last_name || ""}
-                    onChange={handleProfileChange}
-                    placeholder="Last Name"
-                    className={profileStyles.formControl}
-                  />
+                  )}
                 </div>
               </div>
               
-              <div className={profileStyles.formRow}>
-                <div className={profileStyles.formGroup}>
-                  <label>Username</label>
-                  <input
-                    type="text"
-                    name="username"
-                    value={userProfile.username || ""}
-                    onChange={handleProfileChange}
-                    placeholder="Username"
-                    className={profileStyles.formControl}
-                  />
+              <div className={styles.profileSection}>
+                <h3>About Me</h3>
+                <p className={styles.bio}>{userProfile.bio || "No bio provided yet. Click 'Edit Profile' to add information about yourself."}</p>
                 </div>
-                <div className={profileStyles.formGroup}>
-                  <label>Email (Cannot be changed)</label>
-                  <input
-                    type="email"
-                    name="email"
-                    value={userProfile.email || ""}
-                    className={`${profileStyles.formControl} ${profileStyles.disabledInput}`}
-                    disabled
-                  />
+              
+              <div className={styles.profileStatsContainer}>
+                <div className={styles.profileStat}>
+                  <span className={styles.statValue}>{upcomingEvents.length}</span>
+                  <span className={styles.statLabel}>Upcoming Events</span>
+                </div>
+                <div className={styles.profileStat}>
+                  <span className={styles.statValue}>{pastEvents.length}</span>
+                  <span className={styles.statLabel}>Past Events</span>
+              </div>
+                <div className={styles.profileStat}>
+                  <span className={styles.statValue}>{bookmarkedEvents.length}</span>
+                  <span className={styles.statLabel}>Bookmarked</span>
                 </div>
               </div>
               
-              <div className={profileStyles.formGroup}>
-                <label>Phone Number</label>
-                <input
-                  type="text"
-                  name="phone"
-                  value={userProfile.phone || ""}
-                  onChange={handleProfileChange}
-                  placeholder="Phone Number"
-                  className={profileStyles.formControl}
-                />
-              </div>
-              
-              <div className={profileStyles.formActions}>
+              {!userProfile.is_coordinator && !coordinatorRequestStatus && (
+                <div className={styles.profileSection}>
+                  <h3>Become an Event Coordinator</h3>
+                  <p>Create and manage your own events by becoming an event coordinator.</p>
                 <button 
-                  type="button" 
-                  className={profileStyles.cancelButton}
-                  onClick={() => {
-                    setEditingProfile(false);
-                    fetchUserProfile(); // Reset to original values
-                  }}
-                >
-                  <FaTimes /> Cancel
+                    className={styles.coordinatorRequestButton} 
+                    onClick={handleCoordinatorRequest}
+                  >
+                    <FaUserPlus /> Request Coordinator Role
                 </button>
-                <button 
-                  type="button" 
-                  className={profileStyles.saveButton}
-                  onClick={handleUpdateProfile}
-                  disabled={updatingProfile}
-                >
-                  <FaSave /> {updatingProfile ? "Saving..." : "Save Changes"}
-                </button>
-              </div>
-            </div>
-          ) : (
-            <div className={profileStyles.profileDetails}>
-              <div className={profileStyles.detailSection}>
-                <h4>Personal Information</h4>
-                <div className={profileStyles.detailRow}>
-                  <span className={profileStyles.detailLabel}>Full Name:</span>
-                  <span className={profileStyles.detailValue}>
-                    {userProfile.first_name} {userProfile.last_name}
-                  </span>
-                </div>
-                <div className={profileStyles.detailRow}>
-                  <span className={profileStyles.detailLabel}>Username:</span>
-                  <span className={profileStyles.detailValue}>{userProfile.username}</span>
-                </div>
-                <div className={profileStyles.detailRow}>
-                  <span className={profileStyles.detailLabel}>Email:</span>
-                  <span className={profileStyles.detailValue}>{userProfile.email}</span>
-                </div>
-                {userProfile.phone && (
-                  <div className={profileStyles.detailRow}>
-                    <span className={profileStyles.detailLabel}>Phone:</span>
-                    <span className={profileStyles.detailValue}>{userProfile.phone}</span>
-                  </div>
-                )}
-              </div>
             </div>
           )}
           
-          <div className={profileStyles.coordinatorRequestSection}>
-            <h4>Become an Event Coordinator</h4>
-            <p>As a coordinator, you can create and manage your own events.</p>
-            
-            {hasCoordinatorRequest ? (
-              <div className={profileStyles.requestStatus}>
-                <div className={`${profileStyles.statusBadge} ${profileStyles[coordinatorRequestStatus]}`}>
-                  {coordinatorRequestStatus === 'pending' ? 'Request pending approval' : 
-                   coordinatorRequestStatus === 'approved' ? 'Request approved' : 'Request rejected'}
+              {coordinatorRequestStatus && (
+                <div className={styles.profileSection}>
+                  <h3>Coordinator Request Status</h3>
+                  <div className={`${styles.statusBadge} ${styles[coordinatorRequestStatus]}`}>
+                    {coordinatorRequestStatus === 'pending' && 'Pending Review'}
+                    {coordinatorRequestStatus === 'approved' && 'Approved'}
+                    {coordinatorRequestStatus === 'rejected' && 'Rejected'}
                 </div>
-              </div>
-            ) : (
+                  {coordinatorRequestStatus === 'rejected' && (
               <button
-                className={profileStyles.coordinatorRequestButton}
+                      className={styles.newRequestButton} 
                 onClick={handleCoordinatorRequest}
               >
-                <FaUserPlus className={profileStyles.buttonIcon} />
-                Request Coordinator Status
+                      Submit New Request
               </button>
             )}
           </div>
-        </div>
-        
-        <div className={profileStyles.activitySummary}>
-          <h3>Activity Summary</h3>
-          
-          <div className={profileStyles.activityStats}>
-            <div className={profileStyles.activityStat}>
-              <div className={profileStyles.statNumber}>{stats.registeredEvents}</div>
-              <div className={profileStyles.statLabel}>Events Registered</div>
-            </div>
-            <div className={profileStyles.activityStat}>
-              <div className={profileStyles.statNumber}>{stats.completedEvents}</div>
-              <div className={profileStyles.statLabel}>Events Attended</div>
-            </div>
-            <div className={profileStyles.activityStat}>
-              <div className={profileStyles.statNumber}>{pastEvents.filter(e => e.feedback).length}</div>
-              <div className={profileStyles.statLabel}>Reviews Given</div>
-            </div>
-          </div>
-          
-          {pastEvents.length > 0 && (
-            <div className={profileStyles.recentActivity}>
-              <h4>Recent Events</h4>
-              <div className={profileStyles.recentEventsList}>
-                {pastEvents.slice(0, 3).map((event, index) => (
-                  <div key={index} className={profileStyles.recentEventItem}>
-                    <div className={profileStyles.eventBasicInfo}>
-                      <h5>{event.event_name}</h5>
-                      <p>{new Date(event.event_time).toLocaleDateString()}</p>
-                    </div>
-                    {event.feedback ? (
-                      <div className={profileStyles.eventRating}>
-                        {[...Array(5)].map((_, i) => (
-                          <span key={i} className={i < event.feedback.rating ? profileStyles.starFilled : profileStyles.starEmpty}>
-                            ★
-                          </span>
-                        ))}
-                      </div>
-                    ) : (
-                      <button 
-                        className={profileStyles.leaveFeedbackButton}
-                        onClick={() => {
-                          const rating = prompt("Rate this event from 1-5");
-                          const comment = prompt("Any comments about this event?");
-                          if (rating && comment) {
-                            submitFeedback(event.id, parseInt(rating), comment);
-                          }
-                        }}
-                      >
-                        Leave Feedback
+              )}
+              
+              <div className={styles.profileSection}>
+                <h3>Account Actions</h3>
+                <div className={styles.accountActions}>
+                  <button className={styles.deleteAccountButton} onClick={handleDeleteAccount}>
+                    <FaTimes /> Delete Account
                       </button>
-                    )}
+                  <button className={styles.logoutButton} onClick={handleLogout}>
+                    <FaSignOutAlt /> Logout
+                  </button>
                   </div>
-                ))}
               </div>
-            </div>
-          )}
         </div>
       </div>
     );
+    }
+  };
+
+  // Add this function if it doesn't exist
+  const handleRefresh = () => {
+    setRefreshing(true);
+    fetchAllEvents(false).then(() => {
+      setRefreshing(false);
+      toast.info("Events refreshed", { autoClose: 1000 });
+    });
+  };
+  
+  // Add this helper function if it doesn't exist
+  const getStatusInfo = (status) => {
+    const statusMap = {
+      'upcoming': { class: 'upcoming', text: 'Upcoming' },
+      'completed': { class: 'completed', text: 'Completed' },
+      'canceled': { class: 'canceled', text: 'Canceled' },
+      'cancelled': { class: 'canceled', text: 'Canceled' },
+      'postponed': { class: 'postponed', text: 'Postponed' }
+    };
+
+    return statusMap[status] || { class: 'upcoming', text: 'Upcoming' };
+  };
+  
+  // Add this if it doesn't exist
+  const isUserRegistered = (eventId) => {
+    if (!eventId) return false;
+    
+    console.log("Checking if user is registered for event", eventId);
+    
+    // If we have userParticipations, check in that first
+    if (userParticipations && userParticipations.length > 0) {
+      console.log("Checking in userParticipations array, length:", userParticipations.length);
+      
+      // Check different participation data formats
+      return userParticipations.some(participation => {
+        // Different formats for event id comparison
+        const eventIdMatches = 
+          participation.event === eventId || 
+          participation.event_id === eventId ||
+          participation.eventId === eventId;
+        
+        // Different formats for status
+        const statusIsValid = 
+          (participation.status && ["registered", "attended"].includes(participation.status)) ||
+          participation.is_attending === true;
+        
+        return eventIdMatches && statusIsValid;
+      });
+    }
+    
+    // Fall back to checking in upcomingEvents
+    if (upcomingEvents && upcomingEvents.length > 0) {
+      console.log("Falling back to checking in upcomingEvents array");
+      return upcomingEvents.some(event => event.id === eventId);
+    }
+    
+    // If no data is available, default to false
+    return false;
   };
 
   return (
@@ -1863,26 +2937,12 @@ const UserDashboard = () => {
           <div className={styles.loader}>Loading dashboard data...</div>
         ) : (
           <>
-            {/* Inactive user message temporarily disabled for development */}
-            {/*
-            {error && (
-              <div className={styles.errorMessage}>
-                <FaExclamationTriangle className={styles.errorIcon} />
-                {error}
-              </div>
-            )}
-            */}
-            
             {renderTab()}
           </>
         )}
       </main>
-      {showCoordinatorRequestModal && (
-        <CoordinatorRequestForm 
-          onClose={() => setShowCoordinatorRequestModal(false)}
-          onSuccess={handleCoordinatorRequest}
-        />
-      )}
+      {/* Profile Edit Modal */}
+      <ProfileEditModal />
     </div>
   );
 };

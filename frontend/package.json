@@ -14,6 +14,7 @@
     "@react-oauth/google": "^0.12.1",
     "@renderize/lib": "^1.0.4",
     "@srexi/purecounterjs": "^1.5.0",
+    "@vercel/speed-insights": "^1.2.0",
     "aos": "^2.3.4",
     "axios": "^1.8.3",
     "bootstrap": "^5.3.3",
